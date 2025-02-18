@@ -13,7 +13,7 @@ const Login: React.FC = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch('http://localhost:4000/api/auth/login', {
+      const response = await fetch('http://localhost:4000/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -23,9 +23,9 @@ const Login: React.FC = () => {
 
       const data = await response.json();
 
-      if (response.status === 200 && data.message === 'Login successful') {
+      if (response.status === 201 && data.access_token) {
         localStorage.setItem('user', JSON.stringify(data.user));
-        router.push('/dashboard');
+        router.push('/admin');
       } else {
         setError('Invalid credentials');
       }

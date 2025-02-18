@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 
 import { updateUser } from './user_actions';
+import ViewUser from './view_user';
 
 interface User {
   id: number;
@@ -57,14 +58,15 @@ const UserPopup: React.FC<UserPopupProps> = ({
   if (!userData) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-800 bg-opacity-50">
+    <div className="bg-opacity/50 fixed inset-0 z-50 flex items-center justify-center bg-gray-800">
       <div className="w-1/3 rounded-lg bg-white p-8 shadow-md">
+        {/* ✅ Ensure Title is Always Shown */}
         <h2 className="mb-6 text-center text-2xl font-bold text-gray-800">
           {mode === 'update' ? 'Update User' : 'View User'}
         </h2>
 
+        {/* Conditional Rendering for Update or View Mode */}
         {mode === 'update' ? (
-          // Update Form
           <form onSubmit={handleSubmit}>
             <div className="mb-4">
               <label
@@ -125,31 +127,10 @@ const UserPopup: React.FC<UserPopupProps> = ({
             </button>
           </form>
         ) : (
-          // View User (Read-only)
-          <div className="space-y-4">
-            <div className="flex justify-between">
-              <span className="font-semibold">Name:</span>
-              <span>{userData.name}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="font-semibold">Surname:</span>
-              <span>{userData.surname}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="font-semibold">Phone:</span>
-              <span>{userData.phoneNumber}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="font-semibold">Matricule:</span>
-              <span>{userData.matricule}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="font-semibold">Created At:</span>
-              <span>{userData.created_at}</span>
-            </div>
-          </div>
+          <ViewUser user={userData} />
         )}
 
+        {/* ✅ Ensure Close Button is Always Shown */}
         <button
           type="button"
           onClick={onClose}

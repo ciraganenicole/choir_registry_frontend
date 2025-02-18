@@ -10,14 +10,19 @@ const UserRegistration: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
+    const userData = { name, surname, phoneNumber };
+    console.log('Sending user data:', userData);
+
     try {
       const response = await fetch('http://localhost:4000/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ userData: { name, surname, phoneNumber } }),
+        body: JSON.stringify(userData), // Removed extra wrapping
       });
+
+      const data = await response.json(); // Get server response
 
       if (response.status === 201) {
         alert('User registered successfully!');
@@ -25,7 +30,7 @@ const UserRegistration: React.FC = () => {
         setSurname('');
         setPhoneNumber('');
       } else {
-        alert('Error registering user');
+        alert(`Error: ${data.message || 'Failed to register user'}`);
       }
     } catch (error) {
       console.error('Error:', error);

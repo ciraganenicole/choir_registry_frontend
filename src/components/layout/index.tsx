@@ -2,11 +2,18 @@
 
 import { motion } from 'framer-motion';
 import { Calendar, Home, Menu, Settings, Users, X } from 'lucide-react';
+import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
+import { TbLogout2 } from 'react-icons/tb';
 
 const Layout = ({ children }: { children: ReactNode }) => {
   const [isOpen, setIsOpen] = useState(false);
+
+  const handleLogout = () => {
+    // Add your logout logic here, e.g., clearing session or tokens
+    console.log('Logged out');
+  };
 
   return (
     <div className="flex">
@@ -23,26 +30,40 @@ const Layout = ({ children }: { children: ReactNode }) => {
         </button>
 
         <nav className="mt-4 flex flex-col gap-8">
-          <a href="/admin" className="flex items-center gap-2 text-white">
+          <Link href="/admin" className="flex items-center gap-2 text-white">
             <Home size={24} />
             <span className={isOpen ? 'block' : 'hidden'}>Dashboard</span>
-          </a>
-          <a
+          </Link>
+          <Link
             href="/admin/users/users_list"
             className="flex items-center gap-2 text-white"
           >
             <Users size={24} />
             <span className={isOpen ? 'block' : 'hidden'}>Membres</span>
-          </a>
-          <a href="#" className="flex items-center gap-2 text-white">
+          </Link>
+          <Link
+            href="/attendance/weekly_attendance"
+            className="flex items-center gap-2 text-white"
+          >
             <Calendar size={24} />
             <span className={isOpen ? 'block' : 'hidden'}>Attendance</span>
-          </a>
-          <a href="#" className="flex items-center gap-2 text-white">
+          </Link>
+          <Link href="#" className="flex items-center gap-2 text-white">
             <Settings size={24} />
             <span className={isOpen ? 'block' : 'hidden'}>Settings</span>
-          </a>
+          </Link>
         </nav>
+
+        {/* Logout Button */}
+        <button
+          onClick={handleLogout}
+          className={`mt-auto flex items-center justify-center gap-3 rounded-md border-[1px] px-6 py-2 text-center text-white ${
+            isOpen ? 'border-white' : 'border-transparent'
+          }`}
+        >
+          <TbLogout2 size={24} />
+          <span className={isOpen ? 'block' : 'hidden'}>Logout</span>
+        </button>
       </motion.div>
 
       {/* Main Content */}
