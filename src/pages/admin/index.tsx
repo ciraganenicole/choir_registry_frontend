@@ -1,10 +1,14 @@
-import Link from 'next/link';
+import 'chart.js/auto';
+
 import React, { useEffect, useState } from 'react';
+import { Bar } from 'react-chartjs-2';
 import { FaPlus } from 'react-icons/fa';
 
 import Layout from '@/components/layout';
 
-import { fetchUsers } from './users/user_actions'; // Assuming you have a function to fetch users
+import UserRegistration from './users/crud/create';
+import type { User } from './users/type';
+import { FetchUsers } from './users/user_actions';
 
 const AdminDashboard: React.FC = () => {
   const [totalUsers, setTotalUsers] = useState<number>(0);
@@ -12,60 +16,169 @@ const AdminDashboard: React.FC = () => {
   useEffect(() => {
     const getUsers = async () => {
       try {
-        const users = await fetchUsers(); // Fetch the list of users
+        const users = await FetchUsers();
         setTotalUsers(users.length);
       } catch (error) {
         console.error('Error fetching users:', error);
       }
     };
-
     getUsers();
   }, []);
 
+  const chartData = {
+    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    datasets: [
+      {
+        label: 'Present',
+        backgroundColor: '#04cc25',
+        data: [85, 95, 75, 80, 70, 50, 60],
+      },
+      {
+        label: 'Absent',
+        backgroundColor: '#cc0411',
+        data: [15, 10, 25, 20, 30, 50, 40],
+      },
+    ],
+  };
+
+  const [isPopupOpen, setIsPopupOpen] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+  console.log(users);
+  const handleUserCreated = async () => {
+    const updatedUsers = await FetchUsers();
+    setUsers(updatedUsers);
+  };
+
+  const today = new Date();
+  const formattedDate = today.toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+  });
+
   return (
     <Layout>
-      <div className="grid grid-cols-1 gap-12 p-8 sm:grid-cols-2 lg:grid-cols-3">
-        {/* Updated Total Users Card with Add Button */}
-        <div className="flex w-full flex-row items-center justify-between rounded-lg bg-gray-300 px-8 py-4 shadow-lg">
-          <div className="flex flex-col gap-2">
-            <h2 className="text-[18px] font-medium text-gray-800">
-              Total Users
-            </h2>
-            <p className="text-[36px] font-extrabold text-gray-900">
-              {totalUsers}
-            </p>
-          </div>
-          <Link href="/admin/user_registration" className="">
-            <button className="rounded-md bg-gray-900 p-2 text-sm text-white transition hover:bg-gray-400">
-              <FaPlus />
-            </button>
-          </Link>
+      <div className="flex w-full flex-col gap-8 px-12 py-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
+          <p className="text-lg font-semibold text-gray-900">
+            {formattedDate.replace(/\b\w/g, (char) => char.toUpperCase())}
+          </p>
         </div>
 
-        {/* Updated Total present Users Card */}
-        <div className="flex w-full flex-row items-center justify-between rounded-lg bg-gray-300 px-8 py-4 shadow-lg">
-          <div className="flex flex-col gap-2">
-            <h2 className="text-[18px] font-medium text-gray-800">
-              Membres present / jour
-            </h2>
-            <p className="text-[36px] font-extrabold text-gray-900">
-              {totalUsers}
-            </p>
-          </div>
-        </div>
+        <div className="mt-2 flex gap-12">
+          <div className="flex-1 rounded-lg bg-white p-6 shadow-lg">
+            <div className="mb-8 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Attendance Status
+              </h3>
 
-        {/* Updated Total absent Users Card */}
-        <div className="flex w-full flex-row items-center justify-between rounded-lg bg-gray-300 px-8 py-4 shadow-lg">
-          <div className="flex flex-col gap-2">
-            <h2 className="text-[18px] font-medium text-gray-800">
-              Membres absent / jour
-            </h2>
-            <p className="text-[36px] font-extrabold text-gray-900">
-              {totalUsers}
-            </p>
+              <div className="flex flex-row gap-4">
+                <select className="rounded-md border border-gray-900 px-4 py-1">
+                  <option>January</option>
+                  <option>February</option>
+                  <option>March</option>
+                  <option>April</option>
+                  <option>May</option>
+                  <option>June</option>
+                  <option>July</option>
+                  <option>August</option>
+                  <option>September</option>
+                  <option>October</option>
+                  <option>November</option>
+                  <option>December</option>
+                </select>
+
+                <select className="rounded-md border border-gray-900 px-4 py-1">
+                  <option>2025</option>
+                </select>
+              </div>
+            </div>
+            <Bar data={chartData} />
+          </div>
+
+          <div className="flex w-1/4 flex-col justify-between gap-4">
+            <div className="rounded-md bg-white p-4 shadow-md">
+              <h3 className="mb-2 text-[16px] font-semibold text-gray-900/70">
+                Nombre Total
+              </h3>
+
+              <div className="flex flex-row items-center justify-between">
+                <p className="text-2xl font-bold">{totalUsers}</p>
+                <button
+                  onClick={() => setIsPopupOpen(true)}
+                  className="rounded-[5px] bg-gray-900 p-[4px] text-sm text-white transition hover:bg-gray-400"
+                >
+                  <FaPlus className="text-[10px]" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-6">
+              <h2 className="text-[20px] font-bold text-gray-900">
+                Daily stats
+              </h2>
+
+              <div className="rounded-md bg-white shadow-md">
+                <div className="flex flex-row justify-between p-4">
+                  <div>
+                    <h3 className="text-[14px] font-medium text-gray-900/70">
+                      Total
+                    </h3>
+                    <p className="text-[20px] font-bold text-gray-900">
+                      {Math.floor(totalUsers * 0.8)}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-row justify-between gap-4">
+                    <ul className="flex flex-col gap-2 text-[14px] font-medium text-gray-900/70">
+                      <li>On-time</li>
+                      <li>Late</li>
+                    </ul>
+
+                    <ul className="flex flex-col gap-2 text-[14px] font-bold text-gray-900">
+                      <li>20</li>
+                      <li>4</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-400 px-4 py-2">
+                  <h3 className="text-[14px] font-bold text-green-500">
+                    Present(s)
+                  </h3>
+                </div>
+              </div>
+
+              <div className="rounded-md bg-white shadow-md">
+                <div className="flex flex-row justify-between p-4">
+                  <div>
+                    <h3 className="text-[14px] font-medium text-gray-900/70">
+                      Total
+                    </h3>
+                    <p className="text-[20px] font-bold text-gray-900">
+                      {Math.floor(totalUsers * 0.8)}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-400 px-4 py-2">
+                  <h3 className="text-[14px] font-bold text-red-500">
+                    Absent(s)
+                  </h3>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
+      {isPopupOpen && (
+        <UserRegistration
+          onClose={() => setIsPopupOpen(false)}
+          onUserCreated={handleUserCreated}
+        />
+      )}
     </Layout>
   );
 };

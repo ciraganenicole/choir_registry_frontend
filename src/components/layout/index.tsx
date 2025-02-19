@@ -20,7 +20,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
       {/* Sidebar */}
       <motion.div
         animate={{ width: isOpen ? 250 : 80 }}
-        className="fixed flex h-screen flex-col bg-gray-900 p-6 text-white"
+        className="fixed flex h-screen flex-col bg-gray-900 px-6 py-8 text-white"
       >
         <button
           className="mb-4 text-white focus:outline-none"
@@ -29,7 +29,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
           {isOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
 
-        <nav className="mt-4 flex flex-col gap-8">
+        <nav className="mt-8 flex flex-col gap-8">
           <Link href="/admin" className="flex items-center gap-2 text-white">
             <Home size={24} />
             <span className={isOpen ? 'block' : 'hidden'}>Dashboard</span>
@@ -67,7 +67,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
       </motion.div>
 
       {/* Main Content */}
-      <div className="w-full p-4 pl-24">{children}</div>
+      <div className="h-screen w-full bg-gray-300/50 pl-20">{children}</div>
     </div>
   );
 };
