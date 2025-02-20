@@ -16,7 +16,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
   };
 
   return (
-    <div className="flex">
+    <div>
       {/* Sidebar */}
       <motion.div
         animate={{ width: isOpen ? 250 : 80 }}
@@ -30,7 +30,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
         </button>
 
         <nav className="mt-8 flex flex-col gap-8">
-          <Link href="/admin" className="flex items-center gap-2 text-white">
+          <Link href="/admin" className="flex items-center gap-2 text-white ">
             <Home size={24} />
             <span className={isOpen ? 'block' : 'hidden'}>Dashboard</span>
           </Link>
@@ -67,7 +67,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
       </motion.div>
 
       {/* Main Content */}
-      <div className="h-screen w-full bg-gray-300/50 pl-20">{children}</div>
+      <div className="w-ful h-screen bg-gray-300/50 pl-20">{children}</div>
     </div>
   );
 };

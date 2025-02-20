@@ -61,13 +61,13 @@ const AdminDashboard: React.FC = () => {
     <Layout>
       <div className="flex w-full flex-col gap-8 px-12 py-6">
         <div className="flex items-center justify-between">
-          <h2 className="text-2xl font-bold text-gray-900">Dashboard</h2>
-          <p className="text-lg font-semibold text-gray-900">
+          <h2 className="text-xl font-semibold text-gray-900">Dashboard</h2>
+          {/* <p className="text-lg font-medium text-gray-900">
             {formattedDate.replace(/\b\w/g, (char) => char.toUpperCase())}
-          </p>
+          </p> */}
         </div>
 
-        <div className="mt-2 flex gap-12">
+        <div className="flex gap-12">
           <div className="flex-1 rounded-lg bg-white p-6 shadow-lg">
             <div className="mb-8 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-gray-900">
@@ -99,7 +99,7 @@ const AdminDashboard: React.FC = () => {
           </div>
 
           <div className="flex w-1/4 flex-col justify-between gap-4">
-            <div className="rounded-md bg-white p-4 shadow-md">
+            <div className="rounded-md bg-white px-4 py-3 shadow-md">
               <h3 className="mb-2 text-[16px] font-semibold text-gray-900/70">
                 Nombre Total
               </h3>
@@ -115,13 +115,18 @@ const AdminDashboard: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex flex-col gap-6">
-              <h2 className="text-[20px] font-bold text-gray-900">
-                Daily stats
-              </h2>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <h2 className="text-[18px] font-semibold text-gray-900">
+                  Daily stats
+                </h2>
+                <p className="text-[16px] font-bold text-blue-700">
+                  {formattedDate.replace(/\b\w/g, (char) => char.toUpperCase())}
+                </p>
+              </div>
 
               <div className="rounded-md bg-white shadow-md">
-                <div className="flex flex-row justify-between p-4">
+                <div className="flex flex-row justify-between px-4 py-3">
                   <div>
                     <h3 className="text-[14px] font-medium text-gray-900/70">
                       Total
@@ -152,7 +157,7 @@ const AdminDashboard: React.FC = () => {
               </div>
 
               <div className="rounded-md bg-white shadow-md">
-                <div className="flex flex-row justify-between p-4">
+                <div className="flex flex-row justify-between px-4 py-3">
                   <div>
                     <h3 className="text-[14px] font-medium text-gray-900/70">
                       Total
@@ -160,6 +165,49 @@ const AdminDashboard: React.FC = () => {
                     <p className="text-[20px] font-bold text-gray-900">
                       {Math.floor(totalUsers * 0.8)}
                     </p>
+                  </div>
+
+                  <div className="flex flex-row justify-between gap-4">
+                    <ul className="flex flex-col gap-2 text-[14px] font-medium text-gray-900/70">
+                      <li>Justif.</li>
+                      <li>No Justif.</li>
+                    </ul>
+
+                    <ul className="flex flex-col gap-2 text-[14px] font-bold text-gray-900">
+                      <li>20</li>
+                      <li>4</li>
+                    </ul>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-400 px-4 py-2">
+                  <h3 className="text-[14px] font-bold text-orange-500">
+                    Retard(s)
+                  </h3>
+                </div>
+              </div>
+
+              <div className="rounded-md bg-white shadow-md">
+                <div className="flex flex-row justify-between px-4 py-3">
+                  <div>
+                    <h3 className="text-[14px] font-medium text-gray-900/70">
+                      Total
+                    </h3>
+                    <p className="text-[20px] font-bold text-gray-900">
+                      {Math.floor(totalUsers * 0.8)}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-row justify-between gap-4">
+                    <ul className="flex flex-col gap-2 text-[14px] font-medium text-gray-900/70">
+                      <li>Justif.</li>
+                      <li>No Justif.</li>
+                    </ul>
+
+                    <ul className="flex flex-col gap-2 text-[14px] font-bold text-gray-900">
+                      <li>20</li>
+                      <li>4</li>
+                    </ul>
                   </div>
                 </div>
 

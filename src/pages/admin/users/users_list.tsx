@@ -3,6 +3,7 @@ import { FaEdit, FaEye, FaPlus, FaTrash } from 'react-icons/fa';
 
 import SearchInput from '@/components/filters/search';
 import Layout from '@/components/layout';
+import Pagination from '@/components/pagination';
 import { filterUsers, sortUsers } from '@/utils/users';
 
 import UserRegistration from './crud/create';
@@ -20,6 +21,8 @@ const UsersManagement: React.FC = () => {
   const [isPopupDeleteOpen, setIsPopupDeleteOpen] = useState(false);
   const [isPopupOpen, setIsPopupOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const usersPerPage = 8;
 
   useEffect(() => {
     const loadUsers = async () => {
@@ -28,7 +31,7 @@ const UsersManagement: React.FC = () => {
     };
 
     loadUsers();
-  }, []);
+  }, [currentPage]);
 
   const handleView = (user: User) => {
     setSelectedUser(user);
@@ -65,26 +68,14 @@ const UsersManagement: React.FC = () => {
     setSearchQuery(query);
   };
 
-  // const filteredUsers = users.filter((user) => {
-  //   const lowerCaseQuery = searchQuery.toLowerCase();
-  //   return (
-  //     user.name.toLowerCase().includes(lowerCaseQuery) ||
-  //     user.surname.toLowerCase().includes(lowerCaseQuery) ||
-  //     user.matricule.toLowerCase().includes(lowerCaseQuery) ||
-  //     user.phoneNumber.toLowerCase().includes(lowerCaseQuery)
-  //   );
-  // });
-
-  // Sort users by name (alphabetically)
-  // const sortedUsers = [...filteredUsers].sort((a, b) => {
-  //   const nameA = a.name.toLowerCase();
-  //   const nameB = b.name.toLowerCase();
-  //   if (nameA < nameB) return -1;
-  //   if (nameA > nameB) return 1;
-  //   return 0;
-  // });
   const filteredUsers = filterUsers(users, searchQuery);
   const sortedUsers = sortUsers(filteredUsers);
+
+  const indexOfLastUser = currentPage * usersPerPage;
+  const indexOfFirstUser = indexOfLastUser - usersPerPage;
+  const currentUsers = sortedUsers.slice(indexOfFirstUser, indexOfLastUser);
+
+  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
 
   return (
     <Layout>
@@ -104,7 +95,7 @@ const UsersManagement: React.FC = () => {
           </div>
         </div>
 
-        <div className="mt-2 rounded-md border-[2px] border-gray-400 bg-white p-[4px] shadow-sm">
+        <div className="rounded-md border-[2px] border-gray-400 bg-white p-[4px] shadow-sm">
           <table className="min-w-full table-auto">
             <thead>
               <tr className="bg-gray-400">
@@ -119,12 +110,12 @@ const UsersManagement: React.FC = () => {
               </tr>
             </thead>
             <tbody>
-              {sortedUsers.map((user, index) => (
+              {currentUsers.map((user, index) => (
                 <tr
                   key={index}
                   className="border-b border-gray-400 last:border-0"
                 >
-                  <td className="px-4 py-3">{index + 1}</td>
+                  <td className="px-4 py-3">{indexOfFirstUser + index + 1}</td>
                   <td className="px-4 py-3">{user.name}</td>
                   <td className="px-4 py-3">{user.surname}</td>
                   <td className="px-4 py-3">{user.phoneNumber}</td>
@@ -154,7 +145,13 @@ const UsersManagement: React.FC = () => {
             </tbody>
           </table>
         </div>
+        <Pagination
+          totalPages={totalPages}
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+        />
       </div>
+
       {isPopupOpen && (
         <UserRegistration
           onClose={() => setIsPopupOpen(false)}

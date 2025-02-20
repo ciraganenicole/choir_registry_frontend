@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import SearchInput from '@/components/filters/search';
 import Layout from '@/components/layout';
+import Pagination from '@/components/pagination';
 import { filterUsers, sortUsers } from '@/utils/users';
 
 import { useAttendance } from './logic';
@@ -9,6 +10,8 @@ import { useAttendance } from './logic';
 const AttendanceTable = () => {
   const { users } = useAttendance();
   const [searchQuery, setSearchQuery] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const usersPerPage = 8;
 
   const getWeekDates = (): string[] => {
     const today = new Date();
@@ -25,6 +28,11 @@ const AttendanceTable = () => {
   const weekDates = getWeekDates();
   const filteredUsers = filterUsers(users, searchQuery);
   const sortedUsers = sortUsers(filteredUsers);
+  const indexOfLastUser = currentPage * usersPerPage;
+  const indexOfFirstUser = indexOfLastUser - usersPerPage;
+  const currentUsers = sortedUsers.slice(indexOfFirstUser, indexOfLastUser);
+
+  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
 
   // const getCredential = async (): Promise<Credential | null> => {
   //   // Set up the WebAuthn request options
@@ -119,19 +127,22 @@ const AttendanceTable = () => {
       <div className="p-4 sm:px-6 lg:px-8">
         <div className="mb-4 flex items-center justify-between py-4">
           <h2 className="text-2xl font-semibold">Registre</h2>
-          <SearchInput onSearch={handleSearch} />
+
+          <div className="itams-center flex flex-row gap-4">
+            <SearchInput onSearch={handleSearch} />
+            <div className="flex flex-col items-center gap-2 font-semibold">
+              <p className="text-[12px]">✅ Present</p>
+              <p className="text-[12px]">❌ Absent</p>
+            </div>
+          </div>
         </div>
 
-        <div className="my-2 flex flex-row items-center justify-end gap-8 font-semibold">
-          <p>✅ Present</p>
-          <p>❌ Absent</p>
-        </div>
-
-        <div className="rounded-md border-[2px] border-gray-400 bg-white p-[4px] shadow-sm">
+        <div className="mb-4 rounded-md border-[2px] border-gray-400 bg-white p-[4px] shadow-sm">
           <table className="min-w-full table-auto">
             <thead>
               <tr className="bg-gray-400">
-                <th className="rounded-tl-md px-4 py-2">Noms</th>
+                <th className="rounded-tl-md px-4 py-2">N</th>
+                <th className=" px-4 py-2">Noms</th>
                 <th className="px-4 py-2"></th>
                 {weekDates.map((date, index) => (
                   <th
@@ -148,8 +159,11 @@ const AttendanceTable = () => {
               </tr>
             </thead>
             <tbody>
-              {sortedUsers.map((user) => (
+              {currentUsers.map((user, index) => (
                 <tr key={user.id} className="border border-gray-500">
+                  <td className="border border-gray-500 px-4 py-3">
+                    {indexOfFirstUser + index + 1}
+                  </td>
                   <td className="px-4 py-2">{user.name}</td>
                   <td className="px-4 py-2">{user.surname}</td>
                   {weekDates.map((date) => (
@@ -166,6 +180,11 @@ const AttendanceTable = () => {
             </tbody>
           </table>
         </div>
+        <Pagination
+          totalPages={totalPages}
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+        />
       </div>
     </Layout>
   );
