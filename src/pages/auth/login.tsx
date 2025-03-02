@@ -40,7 +40,7 @@ const Login: React.FC = () => {
       <h2 className="mb-6 text-center text-5xl font-extrabold text-gray-500">
         NJC
       </h2>
-      <div className="w-[40%] rounded-lg bg-white p-8 shadow-md">
+      <div className="w-[90%] rounded-lg bg-white p-8 shadow-md md:w-[60%] lg:w-[40%]">
         <h2 className="mb-6 text-center text-2xl font-semibold text-gray-800">
           Admin Login
         </h2>

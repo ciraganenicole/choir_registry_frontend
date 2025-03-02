@@ -79,32 +79,51 @@ const UsersManagement: React.FC = () => {
 
   return (
     <Layout>
-      <div className="flex w-full flex-col gap-8 px-12 py-6">
-        <div className="flex w-full items-center justify-between">
-          <h2 className="text-2xl font-bold text-gray-900">
-            Liste des choristes
-          </h2>
-          <div className="flex items-center gap-4">
+      <div className="flex w-full flex-col gap-8 px-4 py-6 md:px-8 lg:px-12">
+        <div className="flex w-full flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div className="mb-4 flex w-full items-center justify-between md:mb-0 md:gap-2">
+            <h2 className="text-xl font-bold text-gray-900 lg:text-2xl">
+              Liste des choristes
+            </h2>
+            <button
+              onClick={() => setIsPopupOpen(true)}
+              className="flex items-center gap-2 rounded-sm bg-gray-900 p-1  text-sm text-white  hover:bg-gray-700 md:rounded-md md:p-3 lg:hidden"
+            >
+              <FaPlus />
+            </button>
+          </div>
+          <div className="flex items-center gap-2 md:gap-4">
             <SearchInput onSearch={handleSearch} />
             <button
               onClick={() => setIsPopupOpen(true)}
-              className="flex items-center gap-2 rounded-md bg-gray-900 px-4 py-2 text-sm text-white hover:bg-gray-700"
+              className="hidden w-[180px] items-center gap-2 rounded-md bg-gray-900 px-4 py-3 text-sm  text-white hover:bg-gray-700 lg:flex"
             >
               <FaPlus /> Nouveau membre
             </button>
           </div>
         </div>
 
-        <div className="rounded-md border-[2px] border-gray-400 bg-white p-[4px] shadow-sm">
+        {/* Table Container for Desktop/Tablets */}
+        <div className="table-container hidden rounded-md border-[2px] border-gray-400 bg-white p-[4px] shadow-sm md:block">
           <table className="min-w-full table-auto">
             <thead>
               <tr className="bg-gray-400">
-                <th className="rounded-tl-md px-4 py-[14px] text-left">Num</th>
-                <th className="px-4 py-[14px] text-left">Name</th>
-                <th className="px-4 py-[14px] text-left">Surname</th>
-                <th className="px-4 py-[14px] text-left">Phone</th>
-                <th className="px-4 py-[14px] text-left">Matricule</th>
-                <th className="rounded-tr-md px-4 py-[14px] text-left">
+                <th className="rounded-tl-md px-2 py-[8px] text-left lg:px-4 lg:py-[14px]">
+                  Num
+                </th>
+                <th className="px-2 py-[8px] text-left lg:px-4 lg:py-[14px]">
+                  Name
+                </th>
+                <th className="px-2 py-[8px] text-left lg:px-4 lg:py-[14px]">
+                  Surname
+                </th>
+                <th className="px-2 py-[8px] text-left lg:px-4 lg:py-[14px]">
+                  Phone
+                </th>
+                <th className="px-2 py-[8px] text-left lg:px-4 lg:py-[14px]">
+                  Matricule
+                </th>
+                <th className="rounded-tr-md px-2 py-[8px] text-left lg:px-4 lg:py-[14px]">
                   Actions
                 </th>
               </tr>
@@ -145,6 +164,56 @@ const UsersManagement: React.FC = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Card Container for Mobile */}
+        <div className="card-container md:hidden">
+          {currentUsers.map((user) => (
+            <div
+              key={user.id}
+              className="user-card mb-4 rounded-md bg-white shadow-md"
+            >
+              <div className="user-info p-4">
+                <h2 className="mb-2 text-[18px] font-bold">
+                  {user.name} {user.surname}
+                </h2>
+                <div className="flex flex-row items-center gap-4">
+                  <div className="text-md font-semibold">
+                    <p>Phone:</p>
+                    <p>Matricule:</p>
+                  </div>
+                  <div className="text-md">
+                    <p>{user.phoneNumber}</p> <p>{user.matricule}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="h-[1px] w-full bg-gray-500" />
+              <div>
+                {/* <p>{user.voice}</p> */}
+                <div className="actions flex items-center justify-end gap-4 px-4 py-2">
+                  <button
+                    onClick={() => handleView(user)}
+                    className="text-green-500 hover:text-green-700"
+                  >
+                    <FaEye />
+                  </button>
+                  <button
+                    onClick={() => handleUpdate(user)}
+                    className="text-blue-500 hover:text-blue-700"
+                  >
+                    <FaEdit />
+                  </button>
+                  <button
+                    onClick={() => handleDelete(user)}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    <FaTrash />
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+
         <Pagination
           totalPages={totalPages}
           currentPage={currentPage}

@@ -15,7 +15,7 @@ const SearchInput: React.FC<SearchInputProps> = ({ onSearch }) => {
   };
 
   return (
-    <div className="flex w-[300px] items-center justify-center gap-2 rounded-md border-[1px] border-gray-600 px-4 py-2">
+    <div className="flex w-full items-center justify-center gap-2 rounded-md border-[1px] border-gray-600 px-2 py-1 md:w-[300px] md:px-4 md:py-2">
       <FaSearch className="text-gray-600" />
       <input
         type="text"

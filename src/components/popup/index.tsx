@@ -10,7 +10,7 @@ interface PopupProps {
 const Popup: React.FC<PopupProps> = ({ title, children, onClose }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60">
-      <div className="relative w-1/3 rounded-lg bg-white p-8 shadow-md">
+      <div className="relative w-[90%] rounded-lg bg-white p-8 shadow-md md:w-1/3">
         {/* Close Button */}
         <button
           type="button"

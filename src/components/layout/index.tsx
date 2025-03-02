@@ -1,10 +1,11 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Calendar, Home, Menu, Settings, Users, X } from 'lucide-react';
+import { Calendar, FileText, Home, Menu, Users, X } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
+import { IoLogoUsd } from 'react-icons/io';
 import { TbLogout2 } from 'react-icons/tb';
 
 const Layout = ({ children }: { children: ReactNode }) => {
@@ -20,7 +21,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
       {/* Sidebar */}
       <motion.div
         animate={{ width: isOpen ? 250 : 80 }}
-        className="fixed flex h-screen flex-col bg-gray-900 px-6 py-8 text-white"
+        className="fixed flex h-full flex-col justify-between bg-gray-900 px-6 py-8 text-white"
       >
         <button
           className="mb-4 text-white focus:outline-none"
@@ -30,7 +31,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
         </button>
 
         <nav className="mt-8 flex flex-col gap-8">
-          <Link href="/admin" className="flex items-center gap-2 text-white ">
+          <Link href="/admin" className="flex items-center gap-2 text-white">
             <Home size={24} />
             <span className={isOpen ? 'block' : 'hidden'}>Dashboard</span>
           </Link>
@@ -42,15 +43,25 @@ const Layout = ({ children }: { children: ReactNode }) => {
             <span className={isOpen ? 'block' : 'hidden'}>Membres</span>
           </Link>
           <Link
-            href="/attendance/weekly_attendance"
+            href="/attendance"
             className="flex items-center gap-2 text-white"
           >
             <Calendar size={24} />
             <span className={isOpen ? 'block' : 'hidden'}>Attendance</span>
           </Link>
-          <Link href="#" className="flex items-center gap-2 text-white">
-            <Settings size={24} />
-            <span className={isOpen ? 'block' : 'hidden'}>Settings</span>
+          <Link
+            href="/leave/leaves"
+            className="flex items-center gap-2 text-white"
+          >
+            <FileText size={24} />
+            <span className={isOpen ? 'block' : 'hidden'}>Leave</span>
+          </Link>
+          <Link
+            href="/transaction"
+            className="flex items-center gap-2 text-white"
+          >
+            <IoLogoUsd size={24} />
+            <span className={isOpen ? 'block' : 'hidden'}>Transactions</span>
           </Link>
         </nav>
 
@@ -62,12 +73,12 @@ const Layout = ({ children }: { children: ReactNode }) => {
           }`}
         >
           <TbLogout2 size={24} />
-          <span className={isOpen ? 'block' : 'hidden'}>Logout</span>
+          <span className={isOpen ? 'flex' : 'hidden'}>Logout</span>
         </button>
       </motion.div>
 
       {/* Main Content */}
-      <div className="w-ful h-screen bg-gray-300/50 pl-20">{children}</div>
+      <div className="size-full bg-gray-300/50 pl-20">{children}</div>
     </div>
   );
 };

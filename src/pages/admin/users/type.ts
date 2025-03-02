@@ -1,3 +1,8 @@
+interface Leave {
+  startDate: string;
+  endDate: string;
+}
+
 export interface User {
   id: number;
   name: string;
@@ -5,5 +10,6 @@ export interface User {
   phoneNumber: string;
   matricule: string;
   key: string | null;
+  leaves: Leave[];
   created_at: string;
 }
