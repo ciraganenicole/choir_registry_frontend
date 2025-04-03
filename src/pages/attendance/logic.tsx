@@ -122,11 +122,24 @@ export const useAttendance = () => {
     setErrorMessage(null);
     try {
       log('Fetching users...');
-      const response = await axios.get(`${API_BASE_URL}/users`);
+
+      // Add pagination parameters to get all users
+      const queryParams = new URLSearchParams();
+      queryParams.append('limit', '1000'); // Set a high limit to get all users
+      queryParams.append('page', '1');
+
+      const response = await axios.get(
+        `${API_BASE_URL}/users?${queryParams.toString()}`,
+      );
       log('Users response:', response.data);
 
+      // Check if the response has the expected structure
       const usersData = response.data.data || [];
+      const totalUsers = response.data.total || usersData.length;
+
       log('Processed users data:', usersData);
+      log('Total users:', totalUsers);
+
       setUsers(usersData);
 
       // Fetch attendance for each user

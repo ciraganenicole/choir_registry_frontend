@@ -151,7 +151,7 @@ const AttendanceTable = () => {
   } = useAttendance();
 
   const [currentPage, setCurrentPage] = useState(1);
-  const usersPerPage = 50;
+  const usersPerPage = 10;
   const today = new Date().toISOString().split('T')[0] as string;
   const isToday = (date: string) => date === today;
   const [popupState, setPopupState] = useState<{
@@ -304,12 +304,17 @@ const AttendanceTable = () => {
       <div className="container mx-auto p-4">
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-2xl font-bold">Attendance Records</h1>
-          <button
-            onClick={exportAttendance}
-            className="rounded-md bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
-          >
-            Export
-          </button>
+          <div className="flex items-center gap-4">
+            <span className="text-sm text-gray-600">
+              Total Users: {users.length}
+            </span>
+            <button
+              onClick={exportAttendance}
+              className="rounded-md bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
+            >
+              Export
+            </button>
+          </div>
         </div>
 
         {errorMessage && (
@@ -391,20 +396,20 @@ const AttendanceTable = () => {
         </div>
 
         {/* Table */}
-        <div className="overflow-x-auto">
+        <div className="mb-4 overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                   User
                 </th>
-                <th className="bg-blue-50 px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-blue-700">
+                <th className="bg-blue-50 px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-blue-700">
                   Today
                 </th>
                 {datesWithAttendance.map((date) => (
                   <th
                     key={date}
-                    className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                    className={`px-2 py-1 text-left text-xs font-medium uppercase tracking-wider ${
                       isToday(date)
                         ? 'bg-blue-50 text-blue-700'
                         : 'text-gray-500'
@@ -418,12 +423,12 @@ const AttendanceTable = () => {
             <tbody className="divide-y divide-gray-200 bg-white">
               {currentUsers.map((user) => (
                 <tr key={user.id}>
-                  <td className="whitespace-nowrap px-6 py-4">
+                  <td className="whitespace-nowrap px-6 py-2">
                     <div className="text-sm font-medium text-gray-900">
                       {user.firstName} {user.lastName}
                     </div>
                   </td>
-                  <td className="whitespace-nowrap bg-blue-50 px-2 py-4">
+                  <td className="whitespace-nowrap bg-blue-50 p-2">
                     <div className="flex gap-2">
                       <button
                         onClick={() =>
@@ -488,13 +493,11 @@ const AttendanceTable = () => {
         </div>
 
         {/* Pagination */}
-        <div className="mt-4 flex justify-center">
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-          />
-        </div>
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={setCurrentPage}
+        />
 
         {/* Justification Popup */}
         <JustificationPopup
@@ -510,16 +513,6 @@ const AttendanceTable = () => {
           onSave={handleJustificationSave}
           status={popupState.status || AttendanceStatus.LATE}
         />
-
-        {/* Debug Information */}
-        <div className="mb-4 rounded-md bg-gray-100 p-4">
-          <h3 className="mb-2 font-semibold">Debug Information:</h3>
-          <p>Total Users: {users.length}</p>
-          <p>Filtered Users: {filteredUsers.length}</p>
-          <p>Dates with Attendance: {datesWithAttendance.length}</p>
-          <p>Current Page: {currentPage}</p>
-          <p>Total Pages: {totalPages}</p>
-        </div>
       </div>
     </Layout>
   );

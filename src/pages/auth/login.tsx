@@ -57,14 +57,18 @@ const Login: React.FC = () => {
             name="email"
             label="Email"
             placeholder="Enter your email"
-            onChange={(e: any) => setEmail(e)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setEmail(e.target.value)
+            }
           />
 
           <Input
             name="password"
             label="Password"
             placeholder="Enter your password"
-            onChange={(e: any) => setPassword(e)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+              setPassword(e.target.value)
+            }
           />
 
           <button
