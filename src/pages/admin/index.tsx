@@ -1,5 +1,6 @@
 import 'chart.js/auto';
 
+import { useRouter } from 'next/router';
 import React, { useEffect, useState } from 'react';
 import { Bar } from 'react-chartjs-2';
 import { FaPlus } from 'react-icons/fa';
@@ -8,18 +9,50 @@ import Layout from '@/components/layout';
 
 import { FetchUsers } from './users/user_actions';
 
+interface User {
+  id: number;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phoneNumber: string;
+  isActive: boolean;
+}
+
+interface PaginatedResponse {
+  items: User[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
 const AdminDashboard: React.FC = () => {
+  const router = useRouter();
   const [totalUsers, setTotalUsers] = useState<number>(0);
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const getUsers = async () => {
       try {
-        const fetchedUsers = await FetchUsers();
-        setUsers(fetchedUsers);
-        setTotalUsers(fetchedUsers.length);
+        const response = await FetchUsers({
+          page: 1,
+          limit: 10,
+        });
+        const paginatedResponse: PaginatedResponse = {
+          // items: response.data,
+          total: response.total,
+          page: response.page,
+          limit: response.limit,
+          totalPages: Math.ceil(response.total / response.limit),
+          items: [],
+        };
+        setUsers(paginatedResponse.items);
+        setTotalUsers(paginatedResponse.total);
       } catch (error) {
         console.error('Error fetching users:', error);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -44,15 +77,15 @@ const AdminDashboard: React.FC = () => {
   });
 
   const chartData = {
-    labels: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+    labels: ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'],
     datasets: [
       {
-        label: 'Present',
+        label: 'Présent',
         backgroundColor: '#04cc25',
         data: attendanceByDay.present,
       },
       {
-        label: 'Late',
+        label: 'Retard',
         backgroundColor: '#fc842d',
         data: attendanceByDay.late,
       },
@@ -72,34 +105,50 @@ const AdminDashboard: React.FC = () => {
     year: 'numeric',
   });
 
+  const handleAddUser = () => {
+    router.push('/admin/users/new');
+  };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex h-screen items-center justify-center">
+          <div className="text-lg">Chargement...</div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="flex w-full flex-col gap-8 px-3 py-6 md:px-6 lg:px-12">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">Dashboard</h2>
+          <h2 className="text-xl font-semibold text-gray-900">
+            Tableau de bord
+          </h2>
         </div>
 
         <div className="flex flex-col-reverse gap-12 lg:flex-row">
           <div className="flex-1 rounded-lg bg-white p-4 shadow-lg md:p-6">
             <div className="mb-8 flex flex-row items-center justify-between">
               <h3 className="text-[14px] font-semibold text-gray-900 md:text-lg">
-                Attendance Status
+                État des présences
               </h3>
 
               <div className="flex flex-row gap-2 md:gap-4">
                 <select className="rounded-md border border-gray-900 px-2 py-[2px] text-[12px] md:px-4 md:py-1">
-                  <option>January</option>
-                  <option>February</option>
-                  <option>March</option>
-                  <option>April</option>
-                  <option>May</option>
-                  <option>June</option>
-                  <option>July</option>
-                  <option>August</option>
-                  <option>September</option>
-                  <option>October</option>
-                  <option>November</option>
-                  <option>December</option>
+                  <option>Janvier</option>
+                  <option>Février</option>
+                  <option>Mars</option>
+                  <option>Avril</option>
+                  <option>Mai</option>
+                  <option>Juin</option>
+                  <option>Juillet</option>
+                  <option>Août</option>
+                  <option>Septembre</option>
+                  <option>Octobre</option>
+                  <option>Novembre</option>
+                  <option>Décembre</option>
                 </select>
               </div>
             </div>
@@ -114,7 +163,7 @@ const AdminDashboard: React.FC = () => {
               <div className="flex items-center justify-between">
                 <p className="text-2xl font-bold">{totalUsers}</p>
                 <button
-                  onClick={() => console.log('Add user')}
+                  onClick={handleAddUser}
                   className="rounded-[5px] bg-gray-900 p-[4px] text-sm text-white transition hover:bg-gray-400"
                 >
                   <FaPlus className="text-[10px]" />
@@ -128,14 +177,29 @@ const AdminDashboard: React.FC = () => {
               </p>
 
               <div className="grid w-full gap-4 md:grid-cols-3 lg:grid-cols-1">
-                {['Present(s)', 'Retard(s)', 'Absence(s)'].map((status) => (
-                  <div key={status} className="rounded-md bg-white shadow-md">
+                {[
+                  {
+                    label: 'Présent(s)',
+                    count: attendanceByDay.present.reduce((a, b) => a + b, 0),
+                  },
+                  {
+                    label: 'Retard(s)',
+                    count: attendanceByDay.late.reduce((a, b) => a + b, 0),
+                  },
+                  {
+                    label: 'Absence(s)',
+                    count: attendanceByDay.absent.reduce((a, b) => a + b, 0),
+                  },
+                ].map(({ label, count }) => (
+                  <div key={label} className="rounded-md bg-white shadow-md">
                     <div className="flex flex-row justify-between px-4 py-3">
                       <div>
                         <h3 className="text-[14px] font-medium text-gray-900/70">
-                          Total
+                          {label}
                         </h3>
-                        <p className="text-[20px] font-bold text-gray-900">0</p>
+                        <p className="text-[20px] font-bold text-gray-900">
+                          {count}
+                        </p>
                       </div>
                     </div>
                   </div>

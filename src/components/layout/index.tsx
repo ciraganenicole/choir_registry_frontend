@@ -1,20 +1,35 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import type { LucideIcon } from 'lucide-react';
 import { Calendar, FileText, Home, Menu, Users, X } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
+import type { IconType } from 'react-icons';
 import { IoLogoUsd } from 'react-icons/io';
 import { TbLogout2 } from 'react-icons/tb';
+
+interface MenuItem {
+  path: string;
+  icon?: LucideIcon | IconType;
+  label: string;
+}
 
 const Layout = ({ children }: { children: ReactNode }) => {
   const [isOpen, setIsOpen] = useState(false);
 
   const handleLogout = () => {
-    // Add your logout logic here, e.g., clearing session or tokens
     console.log('Logged out');
   };
+
+  const menuItems: MenuItem[] = [
+    { path: '/admin', icon: Home, label: 'Dashboard' },
+    { path: '/admin/users/users_list', icon: Users, label: 'Membres' },
+    { path: '/attendance', icon: Calendar, label: 'Attendance' },
+    { path: '/leave/leaves', icon: FileText, label: 'Leave' },
+    { path: '/transaction', icon: IoLogoUsd, label: 'All Transactions' },
+  ];
 
   return (
     <div>
@@ -31,38 +46,16 @@ const Layout = ({ children }: { children: ReactNode }) => {
         </button>
 
         <nav className="mt-8 flex flex-col gap-8">
-          <Link href="/admin" className="flex items-center gap-2 text-white">
-            <Home size={24} />
-            <span className={isOpen ? 'block' : 'hidden'}>Dashboard</span>
-          </Link>
-          <Link
-            href="/admin/users/users_list"
-            className="flex items-center gap-2 text-white"
-          >
-            <Users size={24} />
-            <span className={isOpen ? 'block' : 'hidden'}>Membres</span>
-          </Link>
-          <Link
-            href="/attendance"
-            className="flex items-center gap-2 text-white"
-          >
-            <Calendar size={24} />
-            <span className={isOpen ? 'block' : 'hidden'}>Attendance</span>
-          </Link>
-          <Link
-            href="/leave/leaves"
-            className="flex items-center gap-2 text-white"
-          >
-            <FileText size={24} />
-            <span className={isOpen ? 'block' : 'hidden'}>Leave</span>
-          </Link>
-          <Link
-            href="/transaction"
-            className="flex items-center gap-2 text-white"
-          >
-            <IoLogoUsd size={24} />
-            <span className={isOpen ? 'block' : 'hidden'}>Transactions</span>
-          </Link>
+          {menuItems.map((item) => (
+            <Link
+              key={item.path}
+              href={item.path}
+              className="flex items-center gap-2 text-white"
+            >
+              {item.icon && <item.icon size={24} />}
+              <span className={isOpen ? 'block' : 'hidden'}>{item.label}</span>
+            </Link>
+          ))}
         </nav>
 
         {/* Logout Button */}

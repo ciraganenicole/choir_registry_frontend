@@ -24,6 +24,14 @@ const Pagination: React.FC<PaginationProps> = ({
     }
   };
 
+  // Ensure totalPages is a valid number and greater than 0
+  const validTotalPages = Math.max(totalPages, 0);
+
+  // Prevent creating an array with invalid length
+  if (validTotalPages === 0) {
+    return null; // or return a message indicating no pages
+  }
+
   return (
     <div className="flex items-center justify-center space-x-3">
       <button
@@ -34,7 +42,7 @@ const Pagination: React.FC<PaginationProps> = ({
         <MdOutlineArrowBackIos />
       </button>
 
-      {[...Array(totalPages)].map((_, index) => {
+      {[...Array(validTotalPages)].map((_, index) => {
         const pageNumber = index + 1;
         return (
           <button
@@ -49,8 +57,8 @@ const Pagination: React.FC<PaginationProps> = ({
 
       <button
         onClick={handleNext}
-        disabled={currentPage === totalPages}
-        className={`rounded border p-[6px] text-[12px] ${currentPage === totalPages ? 'cursor-not-allowed bg-gray-500 font-semibold text-white' : 'bg-white hover:bg-gray-200'}`}
+        disabled={currentPage === validTotalPages}
+        className={`rounded border p-[6px] text-[12px] ${currentPage === validTotalPages ? 'cursor-not-allowed bg-gray-500 font-semibold text-white' : 'bg-white hover:bg-gray-200'}`}
       >
         <MdArrowForwardIos />
       </button>

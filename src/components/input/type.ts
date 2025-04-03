@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 
 export type Props = {
   label?: string;
-  placeholder: string;
+  placeholder?: string;
   style?: string;
   icon?: ReactNode;
   register?: any;
@@ -10,6 +10,7 @@ export type Props = {
   validator?: any;
   type?: string;
   defaultValue?: string;
+  value?: string;
   disabled?: boolean;
   bgColor?: string;
   onChange?: any;

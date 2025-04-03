@@ -28,7 +28,7 @@ const Input: React.FC<Props> = (props: Props) => {
       )}
       <input
         type={type || 'text'}
-        className={`${bgColor} ${style} mt-2 block w-full rounded-md border border-gray-300 px-4 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500`}
+        className={`${bgColor} ${style} mt-2 block w-full rounded-md border border-gray-500 px-4 py-1 text-gray-600 shadow-sm focus:outline-none focus:ring-2 focus:ring-black`}
         placeholder={placeholder}
         max={max}
         min={min}

@@ -3,15 +3,56 @@
 import { startRegistration } from '@simplewebauthn/browser';
 import { useState } from 'react';
 
-export const CreateUser = (onClose: () => void, onUserCreated: () => void) => {
-  const [name, setName] = useState('');
-  const [surname, setSurname] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
+import type { User, UserFilters } from './type';
+
+interface DefaultFormData {
+  firstName: string;
+  lastName: string;
+  gender: string;
+  maritalStatus: string;
+  educationLevel: string;
+  profession: string;
+  competenceDomain: string;
+  churchOfOrigin: string;
+  commune: string;
+  quarter: string;
+  reference: string;
+  address: string;
+  phoneNumber: string;
+  whatsappNumber: string;
+  email: string;
+  commissions: any[];
+  categories: any[];
+}
+
+const defaultFormData: DefaultFormData = {
+  firstName: '',
+  lastName: '',
+  gender: '',
+  maritalStatus: '',
+  educationLevel: '',
+  profession: '',
+  competenceDomain: '',
+  churchOfOrigin: '',
+  commune: '',
+  quarter: '',
+  reference: '',
+  address: '',
+  phoneNumber: '',
+  whatsappNumber: '',
+  email: '',
+  commissions: [],
+  categories: [],
+};
+
+export const CreateUser = <T extends DefaultFormData>(
+  onClose: () => void,
+  onUserCreated: () => void,
+) => {
+  const [formData, setFormData] = useState<T>({ ...defaultFormData } as T);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    const userData = { name, surname, phoneNumber };
 
     try {
       const response = await fetch('http://localhost:4000/users', {
@@ -19,15 +60,13 @@ export const CreateUser = (onClose: () => void, onUserCreated: () => void) => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(userData),
+        body: JSON.stringify(formData),
       });
 
       const data = await response.json();
 
       if (response.status === 201) {
-        setName('');
-        setSurname('');
-        setPhoneNumber('');
+        setFormData({ ...defaultFormData } as T);
         onClose();
         onUserCreated();
       } else {
@@ -39,12 +78,8 @@ export const CreateUser = (onClose: () => void, onUserCreated: () => void) => {
   };
 
   return {
-    name,
-    surname,
-    phoneNumber,
-    setName,
-    setSurname,
-    setPhoneNumber,
+    formData,
+    setFormData,
     handleSubmit,
   };
 };
@@ -92,14 +127,25 @@ export const ViewUser = async (id: number) => {
   }
 };
 
-export const FetchUsers = async (): Promise<any[]> => {
+export const FetchUsers = async (
+  filters: UserFilters,
+): Promise<{ data: User[]; total: number; page: number; limit: number }> => {
   try {
-    const response = await fetch('http://localhost:4000/users');
+    const queryParams = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== '') {
+        queryParams.append(key, value.toString());
+      }
+    });
+
+    const response = await fetch(
+      `http://localhost:4000/users?${queryParams.toString()}`,
+    );
     const data = await response.json();
     return data;
   } catch (error) {
     console.error('Error fetching users:', error);
-    return [];
+    return { data: [], total: 0, page: 1, limit: 8 };
   }
 };
 

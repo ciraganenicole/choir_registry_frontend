@@ -2,15 +2,18 @@ import React from 'react';
 import { IoClose } from 'react-icons/io5';
 
 interface PopupProps {
-  title: string;
+  title?: string;
   children: React.ReactNode;
+  style?: string;
   onClose: () => void;
 }
 
-const Popup: React.FC<PopupProps> = ({ title, children, onClose }) => {
+const Popup: React.FC<PopupProps> = ({ title, children, onClose, style }) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60">
-      <div className="relative w-[90%] rounded-lg bg-white p-8 shadow-md md:w-1/3">
+      <div
+        className={`relative w-[90%] rounded-lg bg-white p-8 shadow-md ${style}`}
+      >
         {/* Close Button */}
         <button
           type="button"

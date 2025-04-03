@@ -1,94 +1,271 @@
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 
-import SearchInput from '@/components/filters/search';
 import Layout from '@/components/layout';
 import Pagination from '@/components/pagination';
 
-import { AttendanceStatus, EventType, useAttendance } from './logic';
+import {
+  AttendanceEventType,
+  AttendanceStatus,
+  JustificationReason,
+  useAttendance,
+} from './logic';
 
-export interface AttendanceRecord {
-  date: string;
-  dateTime: string;
+const formatDate = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleDateString('fr-FR', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  });
+};
+
+interface JustificationPopupProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSave: (justified: boolean, reason?: JustificationReason) => void;
   status: AttendanceStatus;
-  justified: boolean;
-  eventType: EventType;
 }
 
+const JustificationPopup = ({
+  isOpen,
+  onClose,
+  onSave,
+  status,
+}: JustificationPopupProps) => {
+  const [isJustified, setIsJustified] = useState(false);
+  const [isNotJustified, setIsNotJustified] = useState(false);
+  const [reason, setReason] = useState<JustificationReason | ''>('');
+
+  const handleJustifiedChange = (checked: boolean) => {
+    setIsJustified(checked);
+    if (checked) {
+      setIsNotJustified(false);
+    }
+  };
+
+  const handleNotJustifiedChange = (checked: boolean) => {
+    setIsNotJustified(checked);
+    if (checked) {
+      setIsJustified(false);
+      setReason('');
+    }
+  };
+
+  const handleSave = () => {
+    if (isJustified && reason) {
+      onSave(true, reason);
+    } else if (isNotJustified) {
+      onSave(false);
+    }
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div className="w-96 rounded-lg bg-white p-6">
+        <h3 className="mb-4 text-lg font-semibold">
+          {status === AttendanceStatus.LATE
+            ? 'Late Attendance'
+            : 'Absent Attendance'}
+        </h3>
+        <div className="mb-4 space-y-4">
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={isJustified}
+              onChange={(e) => handleJustifiedChange(e.target.checked)}
+              className="mr-2"
+            />
+            Justified
+          </label>
+          {isJustified && (
+            <div className="ml-6">
+              <select
+                value={reason}
+                onChange={(e) =>
+                  setReason(e.target.value as JustificationReason)
+                }
+                className="mt-2 w-full rounded-md border p-2"
+              >
+                <option value="">Select a reason</option>
+                {Object.values(JustificationReason).map((r) => (
+                  <option key={r} value={r}>
+                    {r.replace(/_/g, ' ')}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <label className="flex items-center">
+            <input
+              type="checkbox"
+              checked={isNotJustified}
+              onChange={(e) => handleNotJustifiedChange(e.target.checked)}
+              className="mr-2"
+            />
+            Not Justified
+          </label>
+        </div>
+        <div className="flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            className="rounded-md bg-gray-200 px-4 py-2 hover:bg-gray-300"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={(!isJustified || !reason) && !isNotJustified}
+            className="rounded-md bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 disabled:bg-gray-400"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Simple logging utility that can be disabled in production
+const log = (message: string, data?: any) => {
+  if (process.env.NODE_ENV !== 'production') {
+    if (data) {
+      console.log(message, data);
+    } else {
+      console.log(message);
+    }
+  }
+};
+
 const AttendanceTable = () => {
-  const { users, attendance, markAttendance } = useAttendance();
-  const [searchQuery, setSearchQuery] = useState('');
+  const {
+    users,
+    markAttendance,
+    filters,
+    setFilters,
+    exportAttendance,
+    attendance,
+    loading,
+    errorMessage,
+  } = useAttendance();
+
   const [currentPage, setCurrentPage] = useState(1);
-  const usersPerPage = 8;
-  const today = new Date().toISOString().split('T')[0]!;
+  const usersPerPage = 50;
+  const today = new Date().toISOString().split('T')[0] as string;
+  const isToday = (date: string) => date === today;
+  const [popupState, setPopupState] = useState<{
+    isOpen: boolean;
+    userId: number | null;
+    date: string | null;
+    status: AttendanceStatus | null;
+  }>({
+    isOpen: false,
+    userId: null,
+    date: null,
+    status: null,
+  });
 
-  const attendanceStartTimeRef = useRef<Date | null>(null);
+  log('Attendance Table State:', {
+    users: users.length,
+    attendance: Object.keys(attendance).length,
+    loading,
+    errorMessage,
+    filters,
+  });
 
-  const getWeekDates = () => {
-    const theday = new Date();
-    const dayOfWeek = theday.getDay();
-    const monday = new Date(today);
-    monday.setDate(theday.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+  const handleStatusChange = async (
+    userId: number,
+    date: string,
+    newStatus: AttendanceStatus,
+  ) => {
+    if (
+      newStatus === AttendanceStatus.LATE ||
+      newStatus === AttendanceStatus.ABSENT
+    ) {
+      setPopupState({
+        isOpen: true,
+        userId,
+        date,
+        status: newStatus,
+      });
+    } else {
+      await markAttendance(userId, {
+        date,
+        status: newStatus,
+        eventType: AttendanceEventType.REHEARSAL,
+        timeIn: new Date().toLocaleTimeString('en-US', {
+          hour12: false,
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+      });
+    }
+  };
 
-    return Array.from({ length: 7 }, (_, i) => {
-      const date = new Date(monday);
-      date.setDate(monday.getDate() + i);
-      return {
-        date: date.toISOString().split('T')[0] ?? '',
-        day: date.toLocaleDateString('fr-FR', { weekday: 'long' }),
-      };
+  const handleJustificationSave = async (
+    justified: boolean,
+    reason?: JustificationReason,
+  ) => {
+    if (!popupState.userId || !popupState.date || !popupState.status) return;
+
+    await markAttendance(popupState.userId, {
+      date: popupState.date,
+      status: popupState.status,
+      eventType: AttendanceEventType.REHEARSAL,
+      timeIn: new Date().toLocaleTimeString('en-US', {
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      justification: justified ? reason : undefined,
+    });
+
+    setPopupState({
+      isOpen: false,
+      userId: null,
+      date: null,
+      status: null,
     });
   };
 
-  const weekDates = getWeekDates();
-
   const filteredUsers = users.filter((user) => {
-    const isOnLeaveToday =
-      Array.isArray(user.leaves) &&
-      user.leaves.some((leave) => {
-        const leaveStart = new Date(leave.startDate)
-          .toISOString()
-          .split('T')[0];
-        const leaveEnd = leave.endDate
-          ? new Date(leave.endDate).toISOString().split('T')[0]
-          : null;
-        return (
-          leaveStart && (!leaveEnd || today <= leaveEnd) && today >= leaveStart
-        );
-      });
+    if (!user) return false;
 
-    const matchesSearchQuery =
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.surname.toLowerCase().includes(searchQuery.toLowerCase());
+    const userAttendance = attendance[user.id] || [];
+    log(`User ${user.id} attendance:`, userAttendance);
 
-    return !isOnLeaveToday && matchesSearchQuery;
+    const matchesStatus =
+      !filters.status ||
+      userAttendance.some((record) => record.status === filters.status);
+    const matchesDate =
+      !filters.startDate ||
+      !filters.endDate ||
+      userAttendance.some(
+        (record) =>
+          record.date >= filters.startDate! && record.date <= filters.endDate!,
+      );
+
+    log(`User ${user.id} matches:`, { matchesStatus, matchesDate });
+    return matchesStatus && matchesDate;
   });
 
-  const sortedUsers = filteredUsers.sort((a, b) =>
-    a.name.localeCompare(b.name),
-  );
+  log('Filtered Users:', filteredUsers.length);
 
+  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
   const indexOfLastUser = currentPage * usersPerPage;
   const indexOfFirstUser = indexOfLastUser - usersPerPage;
-  const currentUsers = sortedUsers.slice(indexOfFirstUser, indexOfLastUser);
-  const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
-
-  useEffect(() => {}, [attendance]);
+  const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
 
   const getUserAttendanceForDate = (userId: number, date: string): string => {
-    if (new Date(date) > new Date(today)) return '';
+    const userAttendance = attendance[userId] || [];
+    const attendanceRecord = userAttendance.find((r) => r.date === date);
+    log(`Attendance for user ${userId} on ${date}:`, attendanceRecord);
+    return attendanceRecord ? attendanceRecord.status.toLowerCase() : '';
+  };
 
-    const records = attendance[userId];
-    if (!records || records.length === 0) {
-      return '—';
-    }
-
-    const record = records.find((entry) => entry.date === date);
-
-    if (!record) return '—';
-
-    const status = record.status.toLowerCase();
-
-    switch (status) {
+  const getStatusEmoji = (status: string) => {
+    switch (status.toLowerCase()) {
       case 'present':
         return '✅';
       case 'absent':
@@ -100,163 +277,249 @@ const AttendanceTable = () => {
     }
   };
 
-  const handleStartAttendance = (startTime: Date) => {
-    if (!attendanceStartTimeRef.current) {
-      attendanceStartTimeRef.current = startTime;
-      console.log('Attendance started at:', startTime.toISOString());
-    }
+  const getDatesWithAttendance = () => {
+    const dates = new Set<string>();
+    Object.values(attendance).forEach((records) => {
+      if (Array.isArray(records)) {
+        records.forEach((record) => {
+          if (
+            record?.date &&
+            // @ts-ignore - We know record.date is a string when it exists
+            record.date <= new Date().toISOString().split('T')[0]
+          ) {
+            dates.add(record.date);
+          }
+        });
+      }
+    });
+    const sortedDates = Array.from(dates).sort((a, b) => b.localeCompare(a));
+    log('Dates with attendance:', sortedDates);
+    return sortedDates;
   };
 
-  const handleMarkAttendance = async (
-    userId: number,
-    buttonTime: Date,
-  ): Promise<void> => {
-    if (!attendanceStartTimeRef.current) {
-      console.warn('Attendance has not started.');
-      return; // Ensure a return here
-    }
-
-    const now = new Date();
-    if (today !== now.toISOString().split('T')[0]) {
-      console.log('');
-      return; // Return to satisfy the linter
-    }
-
-    const timeElapsed =
-      (buttonTime.getTime() - attendanceStartTimeRef.current.getTime()) / 60000;
-    let status: AttendanceStatus = AttendanceStatus.PRESENT;
-
-    if (timeElapsed > 2 && timeElapsed <= 4) status = AttendanceStatus.LATE;
-    else if (timeElapsed > 4) status = AttendanceStatus.ABSENT;
-
-    const dateTime = now.toISOString();
-    const record: AttendanceRecord = {
-      date: today,
-      dateTime,
-      status,
-      justified: false,
-      eventType: EventType.NORMAL,
-    };
-
-    try {
-      await markAttendance(userId, record);
-      console.log(`Attendance marked: User ${userId} - ${status}`);
-      // Explicitly return to resolve the async function
-    } catch (error) {
-      console.error('Error marking attendance:', error);
-      // Ensure we return after catching an error
-    }
-  };
+  const datesWithAttendance = getDatesWithAttendance();
 
   return (
     <Layout>
-      <div className="p-4 sm:px-6 lg:px-8">
-        <div className="mb-4 flex items-center justify-between py-4">
-          <h2 className="text-2xl font-semibold">Registre</h2>
-          <div className="flex flex-row gap-4">
-            <SearchInput onSearch={setSearchQuery} />
-          </div>
+      <div className="container mx-auto p-4">
+        <div className="mb-4 flex items-center justify-between">
+          <h1 className="text-2xl font-bold">Attendance Records</h1>
+          <button
+            onClick={exportAttendance}
+            className="rounded-md bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
+          >
+            Export
+          </button>
         </div>
 
-        <div className="mb-4 rounded-md border-[2px] border-gray-400 bg-white p-[4px] shadow-sm">
-          {/* Table for large screens */}
-          <div className="hidden lg:block">
-            <table className="min-w-full table-auto">
-              <thead>
-                <tr className="bg-gray-400">
-                  <th className="rounded-tl-md px-4 py-2">N</th>
-                  <th className="px-4 py-2">Noms</th>
-                  <th className="px-4 py-2">Prénoms</th>
-                  {weekDates.map((item, index) => (
-                    <th
-                      key={item.date}
-                      className={`p-2 ${item.date === today ? 'bg-yellow-200' : ''} ${index === weekDates.length - 1 ? 'rounded-tr-md' : ''}`}
-                    >
-                      {item.day.charAt(0).toUpperCase() + item.day.slice(1)}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {currentUsers.map((user, index) => (
-                  <tr key={user.id} className="border border-gray-500">
-                    <td className="border border-gray-500 px-4 py-3">
-                      {indexOfFirstUser + index + 1}
-                    </td>
-                    <td className="px-4 py-2">{user.name}</td>
-                    <td className="px-4 py-2">{user.surname}</td>
-                    {weekDates.map((item) => (
-                      <td
-                        key={item.date}
-                        className="border border-gray-500 p-2"
-                      >
-                        {item.day.toLowerCase() === 'dimanche' ||
-                        item.date !== today ? (
-                          getUserAttendanceForDate(user.id, item.date)
-                        ) : (
-                          <button
-                            className="rounded bg-blue-500 px-2 py-1 text-white"
-                            onClick={() => {
-                              if (!attendanceStartTimeRef.current) {
-                                handleStartAttendance(new Date());
-                              }
-                              handleMarkAttendance(user.id, new Date());
-                            }}
-                          >
-                            Mark
-                          </button>
-                        )}
-                      </td>
-                    ))}
-                  </tr>
+        {errorMessage && (
+          <div className="mb-4 rounded-md bg-red-100 p-4 text-red-700">
+            {errorMessage}
+          </div>
+        )}
+
+        {loading && (
+          <div className="mb-4 text-center text-gray-600">Loading...</div>
+        )}
+
+        {/* Filters */}
+        <div className="mb-4 flex flex-wrap gap-4">
+          <select
+            value={filters.status || 'all'}
+            onChange={(e) =>
+              setFilters({
+                ...filters,
+                status:
+                  e.target.value === 'all'
+                    ? undefined
+                    : (e.target.value as AttendanceStatus),
+              })
+            }
+            className="rounded-md border p-2"
+          >
+            <option value="all">All Status</option>
+            {Object.values(AttendanceStatus).map((status) => (
+              <option key={status} value={status}>
+                {status.charAt(0).toUpperCase() + status.slice(1)}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={filters.eventType || 'all'}
+            onChange={(e) =>
+              setFilters({
+                ...filters,
+                eventType:
+                  e.target.value === 'all'
+                    ? undefined
+                    : (e.target.value as AttendanceEventType),
+              })
+            }
+            className="rounded-md border p-2"
+          >
+            <option value="all">All Events</option>
+            {Object.values(AttendanceEventType).map((type) => (
+              <option key={type} value={type}>
+                {type.replace(/_/g, ' ')}
+              </option>
+            ))}
+          </select>
+
+          <input
+            type="date"
+            value={filters.startDate || ''}
+            onChange={(e) =>
+              setFilters({
+                ...filters,
+                startDate: e.target.value,
+              })
+            }
+            className="rounded-md border p-2"
+          />
+          <input
+            type="date"
+            value={filters.endDate || ''}
+            onChange={(e) =>
+              setFilters({
+                ...filters,
+                endDate: e.target.value,
+              })
+            }
+            className="rounded-md border p-2"
+          />
+        </div>
+
+        {/* Table */}
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                  User
+                </th>
+                <th className="bg-blue-50 px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-blue-700">
+                  Today
+                </th>
+                {datesWithAttendance.map((date) => (
+                  <th
+                    key={date}
+                    className={`px-6 py-3 text-left text-xs font-medium uppercase tracking-wider ${
+                      isToday(date)
+                        ? 'bg-blue-50 text-blue-700'
+                        : 'text-gray-500'
+                    }`}
+                  >
+                    {formatDate(date)}
+                  </th>
                 ))}
-              </tbody>
-            </table>
-          </div>
-
-          {/* Cards for small screens */}
-        </div>
-
-        <div className="lg:hidden">
-          {currentUsers.map((user) => (
-            <div
-              key={user.id}
-              className="mb-4 rounded-md bg-white p-4 shadow-md"
-            >
-              <h3 className="font-semibold">
-                {user.name} {user.surname}
-              </h3>
-              <div className="grid grid-cols-7 gap-2">
-                {weekDates.map((item) => (
-                  <div key={item.date} className="flex flex-col items-center">
-                    {/* <div>{item.day.charAt(0).toUpperCase() + item.day.slice(1)}</div> */}
-                    {item.day.toLowerCase() === 'dimanche' ||
-                    item.date !== today ? (
-                      <div>{getUserAttendanceForDate(user.id, item.date)}</div>
-                    ) : (
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200 bg-white">
+              {currentUsers.map((user) => (
+                <tr key={user.id}>
+                  <td className="whitespace-nowrap px-6 py-4">
+                    <div className="text-sm font-medium text-gray-900">
+                      {user.firstName} {user.lastName}
+                    </div>
+                  </td>
+                  <td className="whitespace-nowrap bg-blue-50 px-2 py-4">
+                    <div className="flex gap-2">
                       <button
-                        className="ml-2 rounded bg-blue-500 px-2 py-1 text-white"
-                        onClick={() => {
-                          if (!attendanceStartTimeRef.current) {
-                            handleStartAttendance(new Date());
-                          }
-                          handleMarkAttendance(user.id, new Date());
-                        }}
+                        onClick={() =>
+                          handleStatusChange(
+                            user.id,
+                            today,
+                            AttendanceStatus.PRESENT,
+                          )
+                        }
+                        className="rounded-[5px] bg-green-500 px-[4px] py-[1px] text-[10px] text-white hover:bg-green-600"
                       >
-                        Mark
+                        Present
                       </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+                      <button
+                        onClick={() =>
+                          handleStatusChange(
+                            user.id,
+                            today,
+                            AttendanceStatus.LATE,
+                          )
+                        }
+                        className="rounded bg-yellow-500 px-[4px] py-[1px] text-[10px] text-white hover:bg-yellow-600"
+                      >
+                        Retard
+                      </button>
+                      <button
+                        onClick={() =>
+                          handleStatusChange(
+                            user.id,
+                            today,
+                            AttendanceStatus.ABSENT,
+                          )
+                        }
+                        className="rounded bg-red-500 px-[4px] py-[1px] text-[10px] text-white hover:bg-red-600"
+                      >
+                        Absent
+                      </button>
+                    </div>
+                  </td>
+                  {datesWithAttendance.map((date) => {
+                    const currentStatus = getUserAttendanceForDate(
+                      user.id,
+                      date,
+                    );
+                    return (
+                      <td
+                        key={date}
+                        className={`whitespace-nowrap p-2 ${
+                          isToday(date) ? 'bg-blue-50' : ''
+                        }`}
+                      >
+                        <div className="text-center text-sm">
+                          {getStatusEmoji(currentStatus)}
+                        </div>
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        <Pagination
-          totalPages={totalPages}
-          currentPage={currentPage}
-          onPageChange={setCurrentPage}
+
+        {/* Pagination */}
+        <div className="mt-4 flex justify-center">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+          />
+        </div>
+
+        {/* Justification Popup */}
+        <JustificationPopup
+          isOpen={popupState.isOpen}
+          onClose={() =>
+            setPopupState({
+              isOpen: false,
+              userId: null,
+              date: null,
+              status: null,
+            })
+          }
+          onSave={handleJustificationSave}
+          status={popupState.status || AttendanceStatus.LATE}
         />
+
+        {/* Debug Information */}
+        <div className="mb-4 rounded-md bg-gray-100 p-4">
+          <h3 className="mb-2 font-semibold">Debug Information:</h3>
+          <p>Total Users: {users.length}</p>
+          <p>Filtered Users: {filteredUsers.length}</p>
+          <p>Dates with Attendance: {datesWithAttendance.length}</p>
+          <p>Current Page: {currentPage}</p>
+          <p>Total Pages: {totalPages}</p>
+        </div>
       </div>
     </Layout>
   );

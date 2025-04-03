@@ -29,12 +29,12 @@ const DeleteUser: React.FC<DeleteProps> = ({
   return (
     <Popup title="Confirm Deletion" onClose={onClose}>
       <p className="mb-4 text-center text-[16px]">
-        Êtes-vous sûr de vouloir supprimer{' '}
+        Are you sure you want to delete{' '}
         <strong className="text-[18px]">
-          {selectedUser?.name} {selectedUser?.surname}
+          {selectedUser?.firstName} {selectedUser?.lastName}
         </strong>{' '}
         ?<br />
-        Cette action est irréversible.
+        This action cannot be undone.
       </p>
 
       <div className="flex justify-center gap-4">
@@ -42,13 +42,13 @@ const DeleteUser: React.FC<DeleteProps> = ({
           onClick={onClose}
           className="w-[100px] rounded-md bg-blue-700 px-4 py-1 text-[14px] font-semibold text-white hover:bg-blue-600"
         >
-          Annuler
+          Cancel
         </button>
         <button
           onClick={confirmDelete}
           className="w-[100px] rounded-md bg-red-700 px-4 py-2 text-[14px] font-semibold text-white hover:bg-red-600"
         >
-          Supprimer
+          Delete
         </button>
       </div>
     </Popup>
