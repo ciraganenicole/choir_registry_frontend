@@ -37,8 +37,13 @@ const Login: React.FC = () => {
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gray-900 px-4 py-12 sm:px-6 lg:px-8">
-      <h2 className="mb-6 text-center text-5xl font-extrabold text-gray-500">
-        NJC
+      <h2 className="mb-6 flex flex-row items-center text-center text-5xl font-extrabold text-gray-400">
+        <img
+          src="./assets/images/Wlogo.png"
+          alt="logo"
+          className="h-20 w-32 "
+        />
+        <span>NJC</span>
       </h2>
       <div className="w-[90%] rounded-lg bg-white p-8 shadow-md md:w-[60%] lg:w-[40%]">
         <h2 className="mb-6 text-center text-2xl font-semibold text-gray-800">

@@ -35,6 +35,7 @@ const AddLeave: React.FC<CreateLeaveProps> = ({ onClose }) => {
         startDate,
         leaveType,
         endDate: endDate || '', // Send an empty string if endDate is not provided
+        reason: 'Leave request', // Add a default reason
       };
 
       try {
@@ -50,7 +51,7 @@ const AddLeave: React.FC<CreateLeaveProps> = ({ onClose }) => {
 
   const userOptions = users.map((user) => ({
     value: user.id,
-    label: `${user.name} ${user.surname}`,
+    label: `${user.firstName} ${user.lastName}`,
   }));
 
   const handleSelectChange = (selectedOption: any) => {
@@ -74,7 +75,7 @@ const AddLeave: React.FC<CreateLeaveProps> = ({ onClose }) => {
   };
 
   return (
-    <Popup title="Add Leave" onClose={onClose}>
+    <Popup title="Add Leave" onClose={onClose} style="md:w-[40%]">
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
           <label className="block text-gray-700">User</label>

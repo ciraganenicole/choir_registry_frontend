@@ -2,28 +2,40 @@
 import axios from 'axios';
 import { useEffect, useState } from 'react';
 
-import type { User } from '../admin/users/type'; // Adjust path if necessary
+import { log, logError } from '@/utils/logger';
+
+import type { User } from '../admin/users/type';
 
 interface LeaveRecord {
+  id: number;
   startDate: string;
-  leaveType: string;
-  endDate: string | null;
+  endDate: string;
+  reason: string;
+  user: User;
 }
 
 interface Leave {
   [userId: number]: LeaveRecord[];
 }
 
-const API_BASE_URL = 'http://localhost:4000'; // Change this if needed
+const API_BASE_URL = 'http://localhost:4000';
 
 // Fetch a user's leave records
-const fetchLeave = async (userId: number) => {
+const fetchLeave = async (userId: number): Promise<LeaveRecord[]> => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/leave/${userId}`);
-    return { [userId]: response.data || [] };
+    const response = await axios.get(`${API_BASE_URL}/leave/user/${userId}`);
+
+    // Check if the response has the expected structure
+    if (response.data && Array.isArray(response.data)) {
+      return response.data;
+    }
+    if (response.data?.success && response.data?.data) {
+      return response.data.data;
+    }
+    return [];
   } catch (error) {
-    console.error(`Error fetching leave records for user ${userId}:`, error);
-    return { [userId]: [] };
+    logError('Error fetching leave records', error);
+    return [];
   }
 };
 
@@ -32,28 +44,30 @@ export const useLeave = () => {
   const [leaveRecords, setLeaveRecords] = useState<Leave>({});
   const [loading, setLoading] = useState<boolean>(false);
 
-  // Fetch all users and their leave records
   const fetchUsersLeave = async () => {
     setLoading(true);
     try {
       const response = await axios.get(`${API_BASE_URL}/users`);
-      const usersData = response.data;
-      setUsers(usersData);
 
-      // Fetch leave records for all users concurrently
+      const usersData = response.data.data || [];
+      setUsers(usersData);
       const leaveResults = await Promise.all(
         usersData.map((user: User) => fetchLeave(user.id)),
       );
 
-      // Merge leave results into a single object
-      const formattedLeave: Leave = leaveResults.reduce(
-        (acc, userLeave) => ({ ...acc, ...userLeave }),
-        {},
-      );
+      const mergedLeaves: Leave = {};
+      usersData.forEach((user: User, index: number) => {
+        const userLeaves = leaveResults[index];
+        if (Array.isArray(userLeaves) && userLeaves.length > 0) {
+          mergedLeaves[user.id] = userLeaves;
+        }
+      });
 
-      setLeaveRecords(formattedLeave);
+      setLeaveRecords(mergedLeaves);
     } catch (error) {
-      console.error('Error fetching users:', error);
+      console.error('Error fetching users or leave records:', error);
+      setUsers([]);
+      setLeaveRecords({});
     } finally {
       setLoading(false);
     }
@@ -62,57 +76,76 @@ export const useLeave = () => {
   // Fetch users and leave records when the component mounts
   useEffect(() => {
     fetchUsersLeave();
-  }, []); // This effect runs only once on mount
+  }, []);
 
   // Check if a user is on leave on a given date
-  const isUserOnLeave = (userId: number, date?: string) => {
-    const checkDate = (date ||
-      new Date().toISOString().split('T')[0]) as string;
-    if (!Array.isArray(leaveRecords[userId])) return false; // Ensure it's an array
+  const isUserOnLeave = (userId: number, date?: string): boolean => {
+    const checkDate = date ? new Date(date) : new Date();
+    const userLeaveRecords = leaveRecords[userId] || [];
 
-    return leaveRecords[userId]?.some((leave) => {
-      const leaveStart = leave.startDate
-        ? new Date(leave.startDate).toISOString().split('T')[0]
-        : '';
-      const leaveEnd = leave.endDate
-        ? new Date(leave.endDate).toISOString().split('T')[0]
-        : '';
-      return (
-        leaveStart &&
-        leaveEnd &&
-        checkDate >= leaveStart &&
-        checkDate <= leaveEnd
-      );
+    return userLeaveRecords.some((leave) => {
+      const leaveStart = new Date(leave.startDate);
+      const leaveEnd = new Date(leave.endDate);
+      const isWithinLeavePeriod =
+        checkDate >= leaveStart && checkDate <= leaveEnd;
+      return isWithinLeavePeriod;
     });
   };
 
   // Mark leave for a user
-  const markLeave = async (userId: number, leaveData: LeaveRecord) => {
+  const markLeave = async (
+    userId: number,
+    leaveData: Omit<LeaveRecord, 'id' | 'user'>,
+  ): Promise<LeaveRecord | null> => {
     if (!leaveData) {
-      console.error('Leave data is missing or invalid');
-      return;
+      logError('Leave data is missing or invalid');
+      return null;
     }
 
-    setLoading(true);
     try {
-      await axios.post(`${API_BASE_URL}/leave/record`, {
-        userId,
-        ...leaveData,
-      });
+      const response = await axios.post(
+        `${API_BASE_URL}/leave/user/${userId}`,
+        leaveData,
+      );
 
-      console.log('Leave marked successfully for user:', userId);
-
-      // Fetch updated leave records for this user only
-      const updatedLeave = await fetchLeave(userId);
-
-      setLeaveRecords((prevState) => ({
-        ...prevState,
-        ...updatedLeave,
-      }));
+      if (response.data?.success && response.data?.data) {
+        // Update local state
+        const newLeaveRecord = response.data.data;
+        setLeaveRecords((prev) => ({
+          ...prev,
+          [userId]: [...(prev[userId] || []), newLeaveRecord],
+        }));
+        return newLeaveRecord;
+      }
+      return null;
     } catch (error) {
-      console.error('Error marking leave:', error);
-    } finally {
-      setLoading(false);
+      logError('Error marking leave', error);
+      return null;
+    }
+  };
+
+  // Fetch leave records for all users
+  const fetchAllLeaveRecords = async (): Promise<Leave> => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/leave`);
+      log('Leave records response:', response.data);
+
+      if (response.data && Array.isArray(response.data)) {
+        const recordsByUser: Leave = {};
+        response.data.forEach((record: LeaveRecord) => {
+          const userId = record.user.id;
+          if (!recordsByUser[userId]) {
+            recordsByUser[userId] = [];
+          }
+          (recordsByUser[userId] as LeaveRecord[]).push(record);
+        });
+        setLeaveRecords(recordsByUser);
+        return recordsByUser;
+      }
+      return {};
+    } catch (error) {
+      logError('Error fetching all leave records', error);
+      return {};
     }
   };
 
@@ -123,5 +156,6 @@ export const useLeave = () => {
     isUserOnLeave,
     fetchUsersLeave,
     loading,
+    fetchAllLeaveRecords,
   };
 };

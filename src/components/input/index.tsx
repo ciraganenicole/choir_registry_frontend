@@ -10,6 +10,7 @@ const Input: React.FC<Props> = (props: Props) => {
     icon,
     type,
     defaultValue,
+    value,
     bgColor = 'bg-green/5',
     required = false,
     max,
@@ -33,8 +34,9 @@ const Input: React.FC<Props> = (props: Props) => {
         max={max}
         min={min}
         defaultValue={defaultValue || ''}
+        value={value}
         onChange={(e) => {
-          props?.onChange?.(e?.target?.value || '');
+          props?.onChange?.(e);
         }}
         onBlur={onBlur}
         required={required}

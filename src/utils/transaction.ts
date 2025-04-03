@@ -1,6 +1,6 @@
 // utils/transaction-utils.ts
 
-import type { Transaction } from '@/pages/transaction/type';
+import type { Transaction } from '@/pages/transaction/types';
 
 export enum TransactionCategories {
   DAILY = 'DAILY',
@@ -55,9 +55,14 @@ export const filterTransactions = (
   searchQuery: string,
 ): Transaction[] => {
   const lowerCaseQuery = searchQuery.toLowerCase();
-  return transactions.filter((transaction) =>
-    [transaction.fullname, transaction.amount].some((field) =>
-      field.toLowerCase().includes(lowerCaseQuery),
-    ),
-  );
+  return transactions.filter((transaction) => {
+    // Get contributor name or external contributor name
+    const contributorName = transaction.contributor
+      ? `${transaction.contributor.firstName} ${transaction.contributor.lastName}`.toLowerCase()
+      : transaction.externalContributorName?.toLowerCase() || '';
+
+    return [contributorName, transaction.amount.toString()].some((field) =>
+      field.includes(lowerCaseQuery),
+    );
+  });
 };

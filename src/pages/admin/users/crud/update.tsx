@@ -144,6 +144,7 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
             value={userData.firstName}
             onChange={handleChange}
             required
+            placeholder="Enter first name"
           />
           <Input
             name="lastName"
@@ -151,6 +152,7 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
             value={userData.lastName}
             onChange={handleChange}
             required
+            placeholder="Enter last name"
           />
         </div>
 
@@ -239,6 +241,7 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
           label="Competence Domain"
           value={userData.competenceDomain}
           onChange={handleChange}
+          placeholder="Enter competence domain"
         />
 
         <Input
@@ -247,6 +250,7 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
           value={userData.churchOfOrigin}
           onChange={handleChange}
           required
+          placeholder="Enter church of origin"
         />
 
         <div className="grid grid-cols-2 gap-4">
@@ -275,6 +279,7 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
             value={userData.quarter}
             onChange={handleChange}
             required
+            placeholder="Enter quarter"
           />
         </div>
 
@@ -284,6 +289,7 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
           value={userData.reference}
           onChange={handleChange}
           required
+          placeholder="Enter reference"
         />
 
         <Input
@@ -292,6 +298,7 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
           value={userData.address}
           onChange={handleChange}
           required
+          placeholder="Enter address"
         />
 
         <div className="grid grid-cols-2 gap-4">
@@ -301,12 +308,14 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
             value={userData.phoneNumber}
             onChange={handleChange}
             required
+            placeholder="Enter phone number"
           />
           <Input
             name="whatsappNumber"
             label="WhatsApp Number"
             value={userData.whatsappNumber}
             onChange={handleChange}
+            placeholder="Enter WhatsApp number"
           />
         </div>
 
@@ -316,6 +325,7 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
           label="Email"
           value={userData.email}
           onChange={handleChange}
+          placeholder="Enter email"
         />
 
         <div>

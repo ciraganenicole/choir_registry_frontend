@@ -15,45 +15,42 @@ const LeaveTable = () => {
   const [isPopupLeaveOpen, setIsPopupLeaveOpen] = useState(false);
   const leavesPerPage = 8;
 
-  const leaveTypes = [
-    { value: 'sick', label: 'Maladie' },
-    { value: 'suspension', label: 'Suspension' },
-    { value: 'vacation', label: 'Vacance' },
-    { value: 'personal', label: 'Personal' },
-    { value: 'work', label: 'Travail' },
-    { value: 'Other', label: 'Autres' },
-  ];
-
-  // Function to get the leaveType label from the value
-  const getLeaveTypeLabel = (value: string) => {
-    const leaveType = leaveTypes.find((type) => type.value === value);
-    return leaveType ? leaveType.label : 'Unknown';
-  };
+  // const leaveTypes = [
+  //   { value: 'sick', label: 'Maladie' },
+  //   { value: 'suspension', label: 'Suspension' },
+  //   { value: 'vacation', label: 'Vacance' },
+  //   { value: 'personal', label: 'Personal' },
+  //   { value: 'work', label: 'Travail' },
+  //   { value: 'Other', label: 'Autres' },
+  // ];
 
   // Flatten leaveRecords into an array with user details
-  console.log(leaveRecords); // Add this to inspect the structure
-
   const allLeaves = Object.entries(leaveRecords).flatMap(
     ([userId, leaveRecord]) => {
-      const leaves = leaveRecord.data; // Access the 'data' property where the leaves are stored
-
-      if (Array.isArray(leaves)) {
-        return leaves.map((leave: any) => ({
-          userId: Number(userId),
-          name: users.find((u) => u.id === Number(userId))?.name || 'Unknown',
-          surname:
-            users.find((u) => u.id === Number(userId))?.surname || 'Unknown',
-          ...leave,
-        }));
+      if (!Array.isArray(leaveRecord) || !leaveRecord.length) {
+        return [];
       }
-      console.warn(`Expected an array of leaves but got:`, leaveRecord);
-      return []; // Return an empty array in case it's not an array
+
+      return leaveRecord.map((leave) => {
+        // If leave already has user info, use it; otherwise look it up
+        const user = leave.user || users.find((u) => u.id === Number(userId));
+
+        return {
+          id: leave.id,
+          userId: Number(userId),
+          name: user?.firstName,
+          surname: user?.lastName,
+          startDate: leave.startDate,
+          endDate: leave.endDate,
+          reason: leave.reason, // Handle both reason and leaveType fields
+        };
+      });
     },
   );
 
   // Filter leaves based on search query
   const filteredLeaves = allLeaves.filter((leave) =>
-    `${leave.name} ${leave.surname} ${leave.motif}`
+    `${leave.name} ${leave.surname} ${leave.reason}`
       .toLowerCase()
       .includes(searchQuery.toLowerCase()),
   );
@@ -82,11 +79,11 @@ const LeaveTable = () => {
           <h2 className="mb-4 text-xl font-semibold md:mb-0 lg:text-2xl">
             Leave Records
           </h2>
-          <div className="mb-4 flex w-full items-center justify-between gap-2 md:mb-0">
+          <div className="mb-4 flex items-center justify-between gap-2 md:mb-0">
             <SearchInput onSearch={setSearchQuery} />
             <button
               onClick={() => setIsPopupLeaveOpen(true)}
-              className="rounded-md bg-blue-600 p-2 text-white shadow-md hover:bg-blue-700"
+              className="rounded-md bg-blue-600 p-2 text-white shadow-md hover:bg-blue-700 md:hidden"
             >
               <FaPlus />
             </button>
@@ -104,18 +101,15 @@ const LeaveTable = () => {
             currentLeaves.map((leave, index) => (
               <div
                 key={leave.id || index}
-                className="rounded-lg border border-gray-300 p-4 shadow-sm sm:table-row"
+                className="rounded-lg border border-gray-300 bg-gray-300 p-4 shadow-sm sm:table-row"
               >
                 <div className="sm:table-cell">
-                  {indexOfFirstLeave + index + 1}
+                  {leave.name} {leave.surname}
                 </div>
-                <div className="sm:table-cell">{leave.name}</div>
-                <div className="sm:table-cell">{leave.surname}</div>
-                <div className="sm:table-cell">{leave.startDate}</div>
-                <div className="sm:table-cell">{leave.endDate}</div>
                 <div className="sm:table-cell">
-                  {getLeaveTypeLabel(leave.leaveType)}
+                  Du {leave.startDate} au {leave.endDate}
                 </div>
+                <div className="sm:table-cell">{leave.reason}</div>
               </div>
             ))
           ) : (
@@ -149,9 +143,7 @@ const LeaveTable = () => {
                     <td className="px-4 py-2">{leave.surname}</td>
                     <td className="px-4 py-2">{leave.startDate}</td>
                     <td className="px-4 py-2">{leave.endDate}</td>
-                    <td className="px-4 py-2">
-                      {getLeaveTypeLabel(leave.leaveType)}
-                    </td>
+                    <td className="px-4 py-2">{leave.reason}</td>
                   </tr>
                 ))
               ) : (
