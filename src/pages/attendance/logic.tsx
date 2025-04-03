@@ -105,14 +105,30 @@ export const useAttendance = () => {
 
   const getFilteredAttendance = (userId: number) => {
     const userAttendance = attendance[userId] || [];
+
+    // If no filters are set, return all attendance records
+    if (
+      !filters.startDate &&
+      !filters.endDate &&
+      !filters.status &&
+      !filters.eventType
+    ) {
+      return userAttendance;
+    }
+
     return userAttendance.filter((record) => {
+      // Date range filter
       const matchesDate =
-        !filters.startDate ||
-        !filters.endDate ||
-        (record.date >= filters.startDate && record.date <= filters.endDate);
+        (!filters.startDate || record.date >= filters.startDate) &&
+        (!filters.endDate || record.date <= filters.endDate);
+
+      // Status filter
       const matchesStatus = !filters.status || record.status === filters.status;
+
+      // Event type filter
       const matchesEventType =
         !filters.eventType || record.eventType === filters.eventType;
+
       return matchesDate && matchesStatus && matchesEventType;
     });
   };
@@ -145,8 +161,29 @@ export const useAttendance = () => {
       // Fetch attendance for each user
       const userAttendancePromises = usersData.map(async (user: User) => {
         try {
+          // Create query parameters for attendance filters
+          const attendanceParams = new URLSearchParams();
+
+          // Add filters to the query parameters if they exist
+          if (filters.startDate) {
+            attendanceParams.append('startDate', filters.startDate);
+          }
+          if (filters.endDate) {
+            attendanceParams.append('endDate', filters.endDate);
+          }
+          if (filters.status) {
+            attendanceParams.append('status', filters.status);
+          }
+          if (filters.eventType) {
+            attendanceParams.append('eventType', filters.eventType);
+          }
+
+          // Add pagination parameters to get all records
+          attendanceParams.append('limit', '1000');
+          attendanceParams.append('page', '1');
+
           const userAttendance = await axios.get(
-            `${API_BASE_URL}/attendance/user/${user.id}`,
+            `${API_BASE_URL}/attendance/user/${user.id}?${attendanceParams.toString()}`,
           );
           log(`Attendance for user ${user.id}:`, userAttendance.data);
 
@@ -185,6 +222,10 @@ export const useAttendance = () => {
   };
 
   useEffect(() => {
+    // Log the current filters for debugging
+    log('Filters changed, fetching data with filters:', filters);
+
+    // Fetch users and attendance data when filters change
     fetchUsersAndAttendance();
   }, [filters]);
 

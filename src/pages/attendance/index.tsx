@@ -279,19 +279,48 @@ const AttendanceTable = () => {
 
   const getDatesWithAttendance = () => {
     const dates = new Set<string>();
+    const currentDate = new Date();
+    const currentMonth = currentDate.getMonth();
+    const currentYear = currentDate.getFullYear();
+
     Object.values(attendance).forEach((records) => {
       if (Array.isArray(records)) {
         records.forEach((record) => {
-          if (
-            record?.date &&
-            // @ts-ignore - We know record.date is a string when it exists
-            record.date <= new Date().toISOString().split('T')[0]
-          ) {
-            dates.add(record.date);
+          if (record?.date) {
+            // If filters are set, include all dates that match the filters
+            if (filters.startDate || filters.endDate) {
+              // Check if the date is within the filter range
+              const recordDate = new Date(record.date);
+              const startDate = filters.startDate
+                ? new Date(filters.startDate)
+                : null;
+              const endDate = filters.endDate
+                ? new Date(filters.endDate)
+                : null;
+
+              const isInDateRange =
+                (!startDate || recordDate >= startDate) &&
+                (!endDate || recordDate <= endDate);
+
+              if (isInDateRange) {
+                dates.add(record.date);
+              }
+            } else {
+              // Otherwise, only include dates from the current month
+              const recordDate = new Date(record.date);
+              if (
+                recordDate.getMonth() === currentMonth &&
+                recordDate.getFullYear() === currentYear &&
+                recordDate <= currentDate
+              ) {
+                dates.add(record.date);
+              }
+            }
           }
         });
       }
     });
+
     const sortedDates = Array.from(dates).sort((a, b) => b.localeCompare(a));
     log('Dates with attendance:', sortedDates);
     return sortedDates;
@@ -370,7 +399,6 @@ const AttendanceTable = () => {
               </option>
             ))}
           </select>
-
           <input
             type="date"
             value={filters.startDate || ''}
