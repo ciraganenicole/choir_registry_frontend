@@ -48,19 +48,10 @@ export enum UserCategory {
   COMMITTEE = 'COMMITTEE',
 }
 
-interface Leave {
-  startDate: string;
-  endDate: string;
-}
-
 interface Attendance {
   id: number;
   date: string;
-  event: {
-    id: number;
-    type: string;
-    date: string;
-  };
+  status: string;
 }
 
 export interface User {
@@ -88,7 +79,6 @@ export interface User {
   joinDate?: Date;
   isActive: boolean;
   attendance: Attendance[];
-  leaves: Leave[];
 }
 
 export interface UserFilters {

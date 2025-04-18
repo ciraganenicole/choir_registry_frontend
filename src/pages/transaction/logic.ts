@@ -3,8 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import axios from 'axios';
 import ExcelJS from 'exceljs';
 
-import { TransactionService } from '@/services/transaction.service';
-
+import { TransactionService } from './service';
 import type {
   CreateTransactionDto,
   DailyContribution,

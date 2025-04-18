@@ -28,9 +28,12 @@ export const TransactionService = {
       limit: pagination.limit,
     };
 
-    // Only include defined filters in the query
+    // Only include defined and non-null filters in the query
     Object.keys(queryParams).forEach((key) => {
-      if (queryParams[key as keyof QueryParams] === undefined) {
+      if (
+        queryParams[key as keyof QueryParams] === undefined ||
+        queryParams[key as keyof QueryParams] === null
+      ) {
         delete queryParams[key as keyof QueryParams];
       }
     });

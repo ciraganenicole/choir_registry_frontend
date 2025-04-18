@@ -1,54 +1,61 @@
 import 'chart.js/auto';
 
-import { useRouter } from 'next/router';
-import React, { useEffect, useState } from 'react';
-import { Bar } from 'react-chartjs-2';
-import { FaPlus } from 'react-icons/fa';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Bar, Doughnut } from 'react-chartjs-2';
+import {
+  HiOutlineCalendar,
+  HiOutlineClock,
+  HiOutlineExclamation,
+  HiOutlineUserGroup,
+} from 'react-icons/hi';
 
 import Layout from '@/components/layout';
+import { useAttendance } from '@/pages/attendance/logic';
 
 import { FetchUsers } from './users/user_actions';
 
-interface User {
-  id: number;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phoneNumber: string;
-  isActive: boolean;
+interface AttendanceMetrics {
+  totalPresent: number;
+  totalLate: number;
+  totalAbsent: number;
+  attendanceRate: number;
 }
 
-interface PaginatedResponse {
-  items: User[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
+interface AttendanceStats {
+  present: number[];
+  late: number[];
+  absent: number[];
+  dates: string[];
+  totalPresent: number;
+  totalLate: number;
+  totalAbsent: number;
 }
 
 const AdminDashboard: React.FC = () => {
-  const router = useRouter();
   const [totalUsers, setTotalUsers] = useState<number>(0);
-  const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const { attendance, loading: attendanceLoading } = useAttendance();
+  const [metrics, setMetrics] = useState<AttendanceMetrics>({
+    totalPresent: 0,
+    totalLate: 0,
+    totalAbsent: 0,
+    attendanceRate: 0,
+  });
+  const [attendanceStats, setAttendanceStats] = useState<AttendanceStats>({
+    present: [],
+    late: [],
+    absent: [],
+    dates: [],
+    totalPresent: 0,
+    totalLate: 0,
+    totalAbsent: 0,
+  });
 
   useEffect(() => {
     const getUsers = async () => {
       try {
-        const response = await FetchUsers({
-          page: 1,
-          limit: 10,
-        });
-        const paginatedResponse: PaginatedResponse = {
-          // items: response.data,
-          total: response.total,
-          page: response.page,
-          limit: response.limit,
-          totalPages: Math.ceil(response.total / response.limit),
-          items: [],
-        };
-        setUsers(paginatedResponse.items);
-        setTotalUsers(paginatedResponse.total);
+        const response = await FetchUsers({ page: 1, limit: 10 });
+        setTotalUsers(response.total);
       } catch (error) {
         console.error('Error fetching users:', error);
       } finally {
@@ -59,57 +66,235 @@ const AdminDashboard: React.FC = () => {
     getUsers();
   }, []);
 
-  const attendanceByDay = {
-    present: Array(7).fill(0),
-    late: Array(7).fill(0),
-    absent: Array(7).fill(0),
-  };
-
-  users.forEach(() => {
-    const randomDay = Math.floor(Math.random() * 7);
-    attendanceByDay.present[randomDay] += 1;
-
-    if (Math.random() > 0.5) {
-      attendanceByDay.late[randomDay] += 1;
-    } else {
-      attendanceByDay.absent[randomDay] += 1;
+  useEffect(() => {
+    if (!attendance) {
+      console.log('No attendance data available');
+      return;
     }
-  });
 
-  const chartData = {
-    labels: ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'],
-    datasets: [
-      {
-        label: 'Présent',
-        backgroundColor: '#04cc25',
-        data: attendanceByDay.present,
+    const yearlyStats = {
+      totalPresent: 0,
+      totalLate: 0,
+      totalAbsent: 0,
+    };
+
+    // Initialize monthly stats with safe type checking
+    const monthlyStats = Array.from({ length: 12 }, () => ({
+      present: 0,
+      late: 0,
+      absent: 0,
+      total: 0,
+    }));
+
+    const currentYear = new Date().getFullYear();
+
+    // First pass: Count total records per month and yearly totals
+    Object.entries(attendance).forEach(([_userId, records]) => {
+      if (!Array.isArray(records)) return;
+
+      records.forEach((record) => {
+        if (!record?.date || !record?.status) return;
+
+        let recordDate: Date;
+        if (record.date.includes('-')) {
+          recordDate = new Date(record.date);
+        } else {
+          const [day, month, year] = record.date.split('/').map(Number);
+          if (!day || !month || !year) return;
+          recordDate = new Date(year, month - 1, day);
+        }
+
+        const recordYear = recordDate.getFullYear();
+        const recordMonth = recordDate.getMonth();
+
+        // Ensure month is valid before accessing monthlyStats
+        if (
+          recordYear === currentYear &&
+          recordMonth >= 0 &&
+          recordMonth < 12
+        ) {
+          const monthStat = monthlyStats[recordMonth];
+          if (!monthStat) return;
+
+          monthStat.total += 1;
+
+          switch (record.status) {
+            case 'PRESENT':
+              yearlyStats.totalPresent += 1;
+              monthStat.present += 1;
+              break;
+            case 'LATE':
+              yearlyStats.totalLate += 1;
+              monthStat.late += 1;
+              break;
+            case 'ABSENT':
+              yearlyStats.totalAbsent += 1;
+              monthStat.absent += 1;
+              break;
+            default:
+              console.warn('Unknown status:', record.status);
+              break;
+          }
+        }
+      });
+    });
+
+    // Calculate total records for the year
+    const totalYearlyRecords =
+      yearlyStats.totalPresent +
+      yearlyStats.totalLate +
+      yearlyStats.totalAbsent;
+
+    // Debug log to check raw numbers
+    console.log('Raw yearly totals:', {
+      present: yearlyStats.totalPresent,
+      late: yearlyStats.totalLate,
+      absent: yearlyStats.totalAbsent,
+      total: totalYearlyRecords,
+    });
+
+    // Calculate percentages based on total records
+    const presentPercentage =
+      totalYearlyRecords > 0
+        ? Math.round((yearlyStats.totalPresent / totalYearlyRecords) * 100)
+        : 0;
+
+    const latePercentage =
+      totalYearlyRecords > 0
+        ? Math.round((yearlyStats.totalLate / totalYearlyRecords) * 100)
+        : 0;
+
+    const absentPercentage =
+      totalYearlyRecords > 0
+        ? Math.round((yearlyStats.totalAbsent / totalYearlyRecords) * 100)
+        : 0;
+
+    // Debug log to check percentages
+    console.log('Calculated percentages:', {
+      present: presentPercentage,
+      late: latePercentage,
+      absent: absentPercentage,
+      total: presentPercentage + latePercentage + absentPercentage,
+    });
+
+    // Update metrics with correct percentages
+    setMetrics({
+      totalPresent: presentPercentage, // Now showing percentage of present
+      totalLate: latePercentage,
+      totalAbsent: absentPercentage,
+      attendanceRate: presentPercentage + latePercentage, // Attendance rate is present + late
+    });
+
+    const monthNames = [
+      'Janvier',
+      'Février',
+      'Mars',
+      'Avril',
+      'Mai',
+      'Juin',
+      'Juillet',
+      'Août',
+      'Septembre',
+      'Octobre',
+      'Novembre',
+      'Décembre',
+    ];
+
+    // Convert monthly stats to chart format
+    setAttendanceStats({
+      present: monthlyStats.map((m) => m.present),
+      late: monthlyStats.map((m) => m.late),
+      absent: monthlyStats.map((m) => m.absent),
+      dates: monthNames,
+      totalPresent: yearlyStats.totalPresent,
+      totalLate: yearlyStats.totalLate,
+      totalAbsent: yearlyStats.totalAbsent,
+    });
+  }, [attendance]);
+
+  const attendanceChartData = useMemo(
+    () => ({
+      labels: attendanceStats.dates,
+      datasets: [
+        {
+          label: 'Présent',
+          backgroundColor: '#04cc25',
+          data: attendanceStats.present,
+          borderRadius: 4,
+        },
+        {
+          label: 'Retard',
+          backgroundColor: '#fc842d',
+          data: attendanceStats.late,
+          borderRadius: 4,
+        },
+        {
+          label: 'Absent',
+          backgroundColor: '#cc0411',
+          data: attendanceStats.absent,
+          borderRadius: 4,
+        },
+      ],
+    }),
+    [attendanceStats],
+  );
+
+  const distributionChartData = useMemo(
+    () => ({
+      labels: ['Présent', 'Retard', 'Absent'],
+      datasets: [
+        {
+          data: [metrics.totalPresent, metrics.totalLate, metrics.totalAbsent],
+          backgroundColor: ['#04cc25', '#fc842d', '#cc0411'],
+          borderWidth: 0,
+        },
+      ],
+    }),
+    [metrics],
+  );
+
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      y: {
+        beginAtZero: true,
+        max: totalUsers,
+        grid: {
+          color: '#E5E7EB',
+        },
+        ticks: {
+          stepSize: 10,
+        },
       },
-      {
-        label: 'Retard',
-        backgroundColor: '#fc842d',
-        data: attendanceByDay.late,
+      x: {
+        grid: {
+          display: false,
+        },
       },
-      {
-        label: 'Absent',
-        backgroundColor: '#cc0411',
-        data: attendanceByDay.absent,
+    },
+    plugins: {
+      legend: {
+        position: 'top' as const,
+        align: 'start' as const,
       },
-    ],
+    },
+    barPercentage: 0.7,
+    categoryPercentage: 0.9,
   };
 
-  const today = new Date();
-  const formattedDate = today.toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    year: 'numeric',
-  });
-
-  const handleAddUser = () => {
-    router.push('/admin/users/new');
+  const doughnutOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom' as const,
+      },
+    },
+    cutout: '70%',
   };
 
-  if (loading) {
+  if (loading || attendanceLoading) {
     return (
       <Layout>
         <div className="flex h-screen items-center justify-center">
@@ -121,90 +306,92 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <Layout>
-      <div className="flex w-full flex-col gap-8 px-3 py-6 md:px-6 lg:px-12">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900">
-            Tableau de bord
-          </h2>
-        </div>
+      <div className="flex w-full flex-col gap-6 p-6">
+        <h2 className="text-xl font-semibold text-gray-900">Tableau de bord</h2>
 
-        <div className="flex flex-col-reverse gap-12 lg:flex-row">
-          <div className="flex-1 rounded-lg bg-white p-4 shadow-lg md:p-6">
-            <div className="mb-8 flex flex-row items-center justify-between">
-              <h3 className="text-[14px] font-semibold text-gray-900 md:text-lg">
-                État des présences
-              </h3>
-
-              <div className="flex flex-row gap-2 md:gap-4">
-                <select className="rounded-md border border-gray-900 px-2 py-[2px] text-[12px] md:px-4 md:py-1">
-                  <option>Janvier</option>
-                  <option>Février</option>
-                  <option>Mars</option>
-                  <option>Avril</option>
-                  <option>Mai</option>
-                  <option>Juin</option>
-                  <option>Juillet</option>
-                  <option>Août</option>
-                  <option>Septembre</option>
-                  <option>Octobre</option>
-                  <option>Novembre</option>
-                  <option>Décembre</option>
-                </select>
-              </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="flex items-center justify-between rounded-lg bg-white p-6 shadow-sm">
+            <div>
+              <p className="text-sm font-medium text-gray-500">Total Membres</p>
+              <p className="mt-2 text-3xl font-semibold">{totalUsers}</p>
             </div>
-            <Bar data={chartData} />
+            <div className="rounded-full bg-blue-50 p-3">
+              <HiOutlineUserGroup className="size-6 text-blue-500" />
+            </div>
           </div>
 
-          <div className="flex flex-col gap-4 lg:w-1/4">
-            <div className="rounded-md bg-white px-4 py-3 shadow-md">
-              <h3 className="mb-2 text-[16px] font-semibold text-gray-900/70">
-                Nombre Total
-              </h3>
-              <div className="flex items-center justify-between">
-                <p className="text-2xl font-bold">{totalUsers}</p>
-                <button
-                  onClick={handleAddUser}
-                  className="rounded-[5px] bg-gray-900 p-[4px] text-sm text-white transition hover:bg-gray-400"
-                >
-                  <FaPlus className="text-[10px]" />
-                </button>
-              </div>
-            </div>
-
-            <div className="flex w-full flex-col gap-4">
-              <p className="text-[16px] font-bold text-blue-700">
-                {formattedDate.replace(/\b\w/g, (char) => char.toUpperCase())}
+          <div className="flex items-center justify-between rounded-lg bg-white p-6 shadow-sm">
+            <div>
+              <p className="text-sm font-medium text-gray-500">
+                Taux de Présence
               </p>
+              <p className="mt-2 text-3xl font-semibold">
+                {metrics.totalPresent}%
+              </p>
+            </div>
+            <div className="rounded-full bg-green-50 p-3">
+              <HiOutlineCalendar className="size-6 text-green-500" />
+            </div>
+          </div>
 
-              <div className="grid w-full gap-4 md:grid-cols-3 lg:grid-cols-1">
-                {[
-                  {
-                    label: 'Présent(s)',
-                    count: attendanceByDay.present.reduce((a, b) => a + b, 0),
-                  },
-                  {
-                    label: 'Retard(s)',
-                    count: attendanceByDay.late.reduce((a, b) => a + b, 0),
-                  },
-                  {
-                    label: 'Absence(s)',
-                    count: attendanceByDay.absent.reduce((a, b) => a + b, 0),
-                  },
-                ].map(({ label, count }) => (
-                  <div key={label} className="rounded-md bg-white shadow-md">
-                    <div className="flex flex-row justify-between px-4 py-3">
-                      <div>
-                        <h3 className="text-[14px] font-medium text-gray-900/70">
-                          {label}
-                        </h3>
-                        <p className="text-[20px] font-bold text-gray-900">
-                          {count}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+          <div className="flex items-center justify-between rounded-lg bg-white p-6 shadow-sm">
+            <div>
+              <p className="text-sm font-medium text-gray-500">
+                Retards cette Année
+              </p>
+              <p className="mt-2 text-3xl font-semibold">
+                {metrics.totalLate}%
+              </p>
+            </div>
+            <div className="rounded-full bg-orange-50 p-3">
+              <HiOutlineClock className="size-6 text-orange-500" />
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between rounded-lg bg-white p-6 shadow-sm">
+            <div>
+              <p className="text-sm font-medium text-gray-500">
+                Absences cette Année
+              </p>
+              <p className="mt-2 text-3xl font-semibold">
+                {metrics.totalAbsent}%
+              </p>
+            </div>
+            <div className="rounded-full bg-red-50 p-3">
+              <HiOutlineExclamation className="size-6 text-red-500" />
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+          <div className="rounded-lg bg-white p-4 shadow-sm lg:col-span-2">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-medium text-gray-900">
+                État des présences
+              </h3>
+              <p className="text-sm text-gray-500">
+                {new Date().getFullYear()}
+              </p>
+            </div>
+            <div className="h-[350px]">
+              <Bar data={attendanceChartData} options={chartOptions} />
+            </div>
+          </div>
+
+          <div className="rounded-lg bg-white p-6 shadow-sm">
+            <div className="mb-6">
+              <h3 className="text-lg font-medium text-gray-900">
+                Distribution des Présences
+              </h3>
+              <p className="mt-1 text-sm text-gray-500">
+                Vue d&apos;ensemble de l&apos;année
+              </p>
+            </div>
+            <div className="h-[300px]">
+              <Doughnut
+                data={distributionChartData}
+                options={doughnutOptions}
+              />
             </div>
           </div>
         </div>

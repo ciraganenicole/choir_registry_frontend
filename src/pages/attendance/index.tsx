@@ -1,8 +1,12 @@
-import { useState } from 'react';
+// eslint-disable-next-line import/no-extraneous-dependencies
+import debounce from 'lodash/debounce';
+import React, { useCallback, useState } from 'react';
 
+import SearchInput from '@/components/filters/search';
 import Layout from '@/components/layout';
 import Pagination from '@/components/pagination';
 
+import { EventTypeSelector } from './components/EventTypeSelector';
 import {
   AttendanceEventType,
   AttendanceStatus,
@@ -53,9 +57,9 @@ const JustificationPopup = ({
 
   const handleSave = () => {
     if (isJustified && reason) {
-      onSave(true, reason);
+      onSave(true, reason as JustificationReason);
     } else if (isNotJustified) {
-      onSave(false);
+      onSave(false, undefined);
     }
   };
 
@@ -63,7 +67,7 @@ const JustificationPopup = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="w-96 rounded-lg bg-white p-6">
+      <div className="w-[80%] rounded-lg bg-white p-6 md:w-96">
         <h3 className="mb-4 text-lg font-semibold">
           {status === AttendanceStatus.LATE
             ? 'Late Attendance'
@@ -80,7 +84,7 @@ const JustificationPopup = ({
             Justified
           </label>
           {isJustified && (
-            <div className="ml-6">
+            <div className="ml-1 md:ml-6">
               <select
                 value={reason}
                 onChange={(e) =>
@@ -90,7 +94,11 @@ const JustificationPopup = ({
               >
                 <option value="">Select a reason</option>
                 {Object.values(JustificationReason).map((r) => (
-                  <option key={r} value={r}>
+                  <option
+                    key={r}
+                    value={r}
+                    className="text-[12px] md:text-[16px]"
+                  >
                     {r.replace(/_/g, ' ')}
                   </option>
                 ))}
@@ -127,33 +135,24 @@ const JustificationPopup = ({
   );
 };
 
-// Simple logging utility that can be disabled in production
-const log = (message: string, data?: any) => {
-  if (process.env.NODE_ENV !== 'production') {
-    if (data) {
-      console.log(message, data);
-    } else {
-      console.log(message);
-    }
-  }
-};
-
-const AttendanceTable = () => {
+const AttendancePage: React.FC = () => {
   const {
-    users,
     markAttendance,
     filters,
     setFilters,
-    exportAttendance,
+    exportAttendanceToPDF,
     attendance,
     loading,
     errorMessage,
+    selectedEventType,
+    changeEventType,
+    filteredUsers,
+    fetchUsersAndAttendance,
   } = useAttendance();
 
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 10;
   const today = new Date().toISOString().split('T')[0] as string;
-  const isToday = (date: string) => date === today;
   const [popupState, setPopupState] = useState<{
     isOpen: boolean;
     userId: number | null;
@@ -164,14 +163,6 @@ const AttendanceTable = () => {
     userId: null,
     date: null,
     status: null,
-  });
-
-  log('Attendance Table State:', {
-    users: users.length,
-    attendance: Object.keys(attendance).length,
-    loading,
-    errorMessage,
-    filters,
   });
 
   const handleStatusChange = async (
@@ -190,36 +181,49 @@ const AttendanceTable = () => {
         status: newStatus,
       });
     } else {
-      await markAttendance(userId, {
-        date,
-        status: newStatus,
-        eventType: AttendanceEventType.REHEARSAL,
-        timeIn: new Date().toLocaleTimeString('en-US', {
-          hour12: false,
-          hour: '2-digit',
-          minute: '2-digit',
-        }),
-      });
+      try {
+        await markAttendance(userId, {
+          date,
+          status: newStatus,
+          eventType: selectedEventType,
+          timeIn: new Date().toLocaleTimeString('en-US', {
+            hour12: false,
+            hour: '2-digit',
+            minute: '2-digit',
+          }),
+        });
+        await fetchUsersAndAttendance();
+      } catch (error) {
+        console.error('Error marking attendance:', error);
+      }
     }
   };
 
   const handleJustificationSave = async (
-    justified: boolean,
+    _justified: boolean,
     reason?: JustificationReason,
   ) => {
     if (!popupState.userId || !popupState.date || !popupState.status) return;
 
-    await markAttendance(popupState.userId, {
+    const attendanceData = {
+      userId: popupState.userId,
       date: popupState.date,
       status: popupState.status,
-      eventType: AttendanceEventType.REHEARSAL,
+      eventType: selectedEventType,
       timeIn: new Date().toLocaleTimeString('en-US', {
         hour12: false,
         hour: '2-digit',
         minute: '2-digit',
       }),
-      justification: justified ? reason : undefined,
-    });
+      justification: reason,
+    };
+
+    try {
+      await markAttendance(popupState.userId, attendanceData);
+      await fetchUsersAndAttendance();
+    } catch (error) {
+      console.error('Error saving attendance:', error);
+    }
 
     setPopupState({
       isOpen: false,
@@ -229,52 +233,41 @@ const AttendanceTable = () => {
     });
   };
 
-  const filteredUsers = users.filter((user) => {
-    if (!user) return false;
-
-    const userAttendance = attendance[user.id] || [];
-    log(`User ${user.id} attendance:`, userAttendance);
-
-    const matchesStatus =
-      !filters.status ||
-      userAttendance.some((record) => record.status === filters.status);
-    const matchesDate =
-      !filters.startDate ||
-      !filters.endDate ||
-      userAttendance.some(
-        (record) =>
-          record.date >= filters.startDate! && record.date <= filters.endDate!,
-      );
-
-    log(`User ${user.id} matches:`, { matchesStatus, matchesDate });
-    return matchesStatus && matchesDate;
-  });
-
-  log('Filtered Users:', filteredUsers.length);
-
   const totalPages = Math.ceil(filteredUsers.length / usersPerPage);
   const indexOfLastUser = currentPage * usersPerPage;
   const indexOfFirstUser = indexOfLastUser - usersPerPage;
   const currentUsers = filteredUsers.slice(indexOfFirstUser, indexOfLastUser);
 
-  const getUserAttendanceForDate = (userId: number, date: string): string => {
+  const getUserAttendanceForDate = (
+    userId: number,
+    date: string,
+  ): { status: string; hasJustification: boolean } => {
     const userAttendance = attendance[userId] || [];
-    const attendanceRecord = userAttendance.find((r) => r.date === date);
-    log(`Attendance for user ${userId} on ${date}:`, attendanceRecord);
-    return attendanceRecord ? attendanceRecord.status.toLowerCase() : '';
+    const attendanceRecord = userAttendance.find(
+      (r) => r.date === date && r.eventType === selectedEventType,
+    );
+    return {
+      status: attendanceRecord ? attendanceRecord.status.toLowerCase() : '',
+      hasJustification: !!attendanceRecord?.justification,
+    };
   };
 
-  const getStatusEmoji = (status: string) => {
+  const getStatusEmoji = (status: string, hasJustification: boolean) => {
+    let emoji = '';
     switch (status.toLowerCase()) {
       case 'present':
-        return '✅';
+        emoji = '✅';
+        break;
       case 'absent':
-        return '❌';
+        emoji = '❌';
+        break;
       case 'late':
-        return '🟡';
+        emoji = '🟡';
+        break;
       default:
-        return '—';
+        emoji = '—';
     }
+    return hasJustification ? `${emoji}J` : emoji;
   };
 
   const getDatesWithAttendance = () => {
@@ -286,10 +279,8 @@ const AttendanceTable = () => {
     Object.values(attendance).forEach((records) => {
       if (Array.isArray(records)) {
         records.forEach((record) => {
-          if (record?.date) {
-            // If filters are set, include all dates that match the filters
+          if (record?.date && record.eventType === selectedEventType) {
             if (filters.startDate || filters.endDate) {
-              // Check if the date is within the filter range
               const recordDate = new Date(record.date);
               const startDate = filters.startDate
                 ? new Date(filters.startDate)
@@ -306,7 +297,6 @@ const AttendanceTable = () => {
                 dates.add(record.date);
               }
             } else {
-              // Otherwise, only include dates from the current month
               const recordDate = new Date(record.date);
               if (
                 recordDate.getMonth() === currentMonth &&
@@ -322,28 +312,43 @@ const AttendanceTable = () => {
     });
 
     const sortedDates = Array.from(dates).sort((a, b) => b.localeCompare(a));
-    log('Dates with attendance:', sortedDates);
     return sortedDates;
   };
 
   const datesWithAttendance = getDatesWithAttendance();
 
+  // Create a debounced search handler
+  const debouncedSearch = useCallback(
+    debounce((searchTerm: string) => {
+      setFilters((prevFilters) => ({
+        ...prevFilters,
+        search: searchTerm,
+      }));
+    }, 300), // Wait 300ms after user stops typing
+    [],
+  );
+
+  const handleSearch = (searchTerm: string) => {
+    // Update UI immediately but debounce the actual filter update
+    debouncedSearch(searchTerm);
+  };
+
   return (
     <Layout>
       <div className="container mx-auto p-4">
         <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Attendance Records</h1>
-          <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-600">
-              Total Users: {users.length}
-            </span>
-            <button
-              onClick={exportAttendance}
-              className="rounded-md bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
-            >
-              Export
-            </button>
-          </div>
+          <h1 className="text-[16px] font-bold md:text-2xl">
+            Attendance Records
+          </h1>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              exportAttendanceToPDF(filters);
+            }}
+            className="rounded-md bg-blue-500 px-2 py-1 text-[12px] text-white hover:bg-blue-600 md:px-4 md:py-2 md:text-[16px]"
+          >
+            Export PDF
+          </button>
         </div>
 
         {errorMessage && (
@@ -357,7 +362,7 @@ const AttendanceTable = () => {
         )}
 
         {/* Filters */}
-        <div className="mb-4 flex flex-wrap gap-4">
+        <div className="mb-4 flex gap-[2px] md:gap-4">
           <select
             value={filters.status || 'all'}
             onChange={(e) =>
@@ -369,9 +374,9 @@ const AttendanceTable = () => {
                     : (e.target.value as AttendanceStatus),
               })
             }
-            className="rounded-md border p-2"
+            className="rounded-md border p-1 text-[10px] md:p-2 md:text-[14px]"
           >
-            <option value="all">All Status</option>
+            <option value="all">Tous</option>
             {Object.values(AttendanceStatus).map((status) => (
               <option key={status} value={status}>
                 {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -379,26 +384,6 @@ const AttendanceTable = () => {
             ))}
           </select>
 
-          <select
-            value={filters.eventType || 'all'}
-            onChange={(e) =>
-              setFilters({
-                ...filters,
-                eventType:
-                  e.target.value === 'all'
-                    ? undefined
-                    : (e.target.value as AttendanceEventType),
-              })
-            }
-            className="rounded-md border p-2"
-          >
-            <option value="all">All Events</option>
-            {Object.values(AttendanceEventType).map((type) => (
-              <option key={type} value={type}>
-                {type.replace(/_/g, ' ')}
-              </option>
-            ))}
-          </select>
           <input
             type="date"
             value={filters.startDate || ''}
@@ -408,7 +393,7 @@ const AttendanceTable = () => {
                 startDate: e.target.value,
               })
             }
-            className="rounded-md border p-2"
+            className="rounded-md border p-1 text-[10px] md:p-2 md:text-[14px]"
           />
           <input
             type="date"
@@ -419,106 +404,231 @@ const AttendanceTable = () => {
                 endDate: e.target.value,
               })
             }
-            className="rounded-md border p-2"
+            className="rounded-md border p-1 text-[10px] md:p-2 md:text-[14px]"
           />
         </div>
 
+        {/* Event Type Selector */}
+        <EventTypeSelector
+          selectedEventType={selectedEventType}
+          onEventTypeChange={changeEventType}
+        />
+
+        {/* Event Type Header */}
+        <div className="mb-4 mt-6 flex flex-row items-center gap-2 md:gap-8">
+          <div className="mb-4 mt-6 w-[50%] md:w-[20%]">
+            <h2 className="text-[14px] font-semibold text-gray-800 md:text-[24px]">
+              {selectedEventType === AttendanceEventType.REHEARSAL &&
+                'Liste des Choristes'}
+              {selectedEventType === AttendanceEventType.SUNDAY_SERVICE &&
+                'Liste des Choristes - Culte Dominical'}
+              {selectedEventType === AttendanceEventType.LOUADO &&
+                'Liste des Choristes - Louado'}
+              {selectedEventType === AttendanceEventType.MUSIC &&
+                'Liste des Musiciens'}
+              {selectedEventType === AttendanceEventType.COMMITTEE &&
+                'Liste des Membres du Comité'}
+            </h2>
+            <p className="mt-1 text-[10px] text-gray-600 md:text-sm">
+              {filteredUsers.length} membre
+              {filteredUsers.length !== 1 ? 's' : ''} trouvé
+              {filteredUsers.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+          <div className="w-[50%] md:w-[20%]">
+            <SearchInput onSearch={handleSearch} />
+          </div>
+        </div>
+
         {/* Table */}
-        <div className="mb-4 overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                  User
-                </th>
-                <th className="bg-blue-50 px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-blue-700">
-                  Today
-                </th>
-                {datesWithAttendance.map((date) => (
-                  <th
-                    key={date}
-                    className={`px-2 py-1 text-left text-xs font-medium uppercase tracking-wider ${
-                      isToday(date)
-                        ? 'bg-blue-50 text-blue-700'
-                        : 'text-gray-500'
-                    }`}
-                  >
-                    {formatDate(date)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200 bg-white">
+        {filteredUsers.length === 0 ? (
+          <div className="mt-4 rounded-md bg-gray-50 p-4 text-center text-gray-600">
+            Aucun membre trouvé pour ce type d&apos;événement
+          </div>
+        ) : (
+          <div>
+            <div className="mb-4 flex flex-col gap-4 md:hidden">
               {currentUsers.map((user) => (
-                <tr key={user.id}>
-                  <td className="whitespace-nowrap px-6 py-2">
-                    <div className="text-sm font-medium text-gray-900">
+                <div
+                  key={user.id}
+                  className="flex flex-col rounded-[10px] border-[1px] border-gray-500 shadow-md"
+                >
+                  <div className="p-2">
+                    <h2 className="mb-4 text-[18px] font-semibold text-gray-900">
                       {user.firstName} {user.lastName}
+                    </h2>
+                    <div className="grid grid-cols-2">
+                      {datesWithAttendance.map((date) => {
+                        const attendanceRecord = getUserAttendanceForDate(
+                          user.id,
+                          date,
+                        );
+                        return (
+                          <div key={date}>
+                            <div className="flex flex-row items-center gap-2">
+                              <span className="text-[12px] font-semibold text-gray-900/80">
+                                {formatDate(date)} :
+                              </span>
+                              <span>
+                                {getStatusEmoji(
+                                  attendanceRecord.status,
+                                  attendanceRecord.hasJustification,
+                                )}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
                     </div>
-                  </td>
-                  <td className="whitespace-nowrap bg-blue-50 p-2">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() =>
-                          handleStatusChange(
-                            user.id,
-                            today,
-                            AttendanceStatus.PRESENT,
-                          )
-                        }
-                        className="rounded-[5px] bg-green-500 px-[4px] py-[1px] text-[10px] text-white hover:bg-green-600"
-                      >
-                        Present
-                      </button>
-                      <button
-                        onClick={() =>
-                          handleStatusChange(
-                            user.id,
-                            today,
-                            AttendanceStatus.LATE,
-                          )
-                        }
-                        className="rounded bg-yellow-500 px-[4px] py-[1px] text-[10px] text-white hover:bg-yellow-600"
-                      >
-                        Retard
-                      </button>
-                      <button
-                        onClick={() =>
-                          handleStatusChange(
-                            user.id,
-                            today,
-                            AttendanceStatus.ABSENT,
-                          )
-                        }
-                        className="rounded bg-red-500 px-[4px] py-[1px] text-[10px] text-white hover:bg-red-600"
-                      >
-                        Absent
-                      </button>
-                    </div>
-                  </td>
-                  {datesWithAttendance.map((date) => {
-                    const currentStatus = getUserAttendanceForDate(
-                      user.id,
-                      date,
-                    );
-                    return (
-                      <td
+                  </div>
+                  <div className="h-[1px] w-full bg-gray-900/40" />
+                  <div className="flex flex-row items-center gap-4 p-2">
+                    <button
+                      onClick={() =>
+                        handleStatusChange(
+                          user.id,
+                          today,
+                          AttendanceStatus.PRESENT,
+                        )
+                      }
+                      className="rounded-[5px] bg-green-500 px-3 py-1 text-[12px] text-white hover:bg-green-600"
+                    >
+                      Present
+                    </button>
+                    <button
+                      onClick={() =>
+                        handleStatusChange(
+                          user.id,
+                          today,
+                          AttendanceStatus.LATE,
+                        )
+                      }
+                      className="rounded bg-yellow-500 px-3 py-1 text-[12px] text-white hover:bg-yellow-600"
+                    >
+                      Retard
+                    </button>
+                    <button
+                      onClick={() =>
+                        handleStatusChange(
+                          user.id,
+                          today,
+                          AttendanceStatus.ABSENT,
+                        )
+                      }
+                      className="rounded bg-red-500 px-3 py-1 text-[12px] text-white hover:bg-red-600"
+                    >
+                      Absent
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="mb-4 hidden overflow-x-auto md:block">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                      User
+                    </th>
+                    <th className="bg-blue-50 px-2 py-1 text-left text-xs font-medium uppercase tracking-wider text-blue-700">
+                      Actions
+                    </th>
+                    {datesWithAttendance.map((date) => (
+                      <th
                         key={date}
-                        className={`whitespace-nowrap p-2 ${
-                          isToday(date) ? 'bg-blue-50' : ''
-                        }`}
+                        className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider "
                       >
-                        <div className="text-center text-sm">
-                          {getStatusEmoji(currentStatus)}
+                        {formatDate(date)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 bg-white">
+                  {currentUsers.map((user) => (
+                    <tr key={user.id}>
+                      <td className="whitespace-nowrap px-6 py-2">
+                        <div className="text-sm font-medium text-gray-900">
+                          {user.firstName} {user.lastName}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {user.commissions
+                            .map((commission) =>
+                              commission
+                                .toLowerCase()
+                                .split('_')
+                                .map(
+                                  (word) =>
+                                    word.charAt(0).toUpperCase() +
+                                    word.slice(1),
+                                )
+                                .join(' '),
+                            )
+                            .join(', ')}
                         </div>
                       </td>
-                    );
-                  })}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                      <td className="whitespace-nowrap bg-blue-50 p-2">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() =>
+                              handleStatusChange(
+                                user.id,
+                                today,
+                                AttendanceStatus.PRESENT,
+                              )
+                            }
+                            className="rounded-[5px] bg-green-500 px-[4px] py-[1px] text-[10px] text-white hover:bg-green-600"
+                          >
+                            Present
+                          </button>
+                          <button
+                            onClick={() =>
+                              handleStatusChange(
+                                user.id,
+                                today,
+                                AttendanceStatus.LATE,
+                              )
+                            }
+                            className="rounded bg-yellow-500 px-[4px] py-[1px] text-[10px] text-white hover:bg-yellow-600"
+                          >
+                            Retard
+                          </button>
+                          <button
+                            onClick={() =>
+                              handleStatusChange(
+                                user.id,
+                                today,
+                                AttendanceStatus.ABSENT,
+                              )
+                            }
+                            className="rounded bg-red-500 px-[4px] py-[1px] text-[10px] text-white hover:bg-red-600"
+                          >
+                            Absent
+                          </button>
+                        </div>
+                      </td>
+                      {datesWithAttendance.map((date) => {
+                        const attendanceRecord = getUserAttendanceForDate(
+                          user.id,
+                          date,
+                        );
+                        return (
+                          <td key={date}>
+                            <div className="ml-2 text-left text-sm">
+                              {getStatusEmoji(
+                                attendanceRecord.status,
+                                attendanceRecord.hasJustification,
+                              )}
+                            </div>
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
 
         {/* Pagination */}
         <Pagination
@@ -546,4 +656,4 @@ const AttendanceTable = () => {
   );
 };
 
-export default AttendanceTable;
+export default AttendancePage;

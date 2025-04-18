@@ -71,7 +71,7 @@ export interface CreateTransactionDto {
   subcategory?: string;
   description?: string;
   transactionDate: Date;
-  contributorId?: number;
+  contributorId?: number | null;
   externalContributorName?: string;
   externalContributorPhone?: string;
   currency: Currency;

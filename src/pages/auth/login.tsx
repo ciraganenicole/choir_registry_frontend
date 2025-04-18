@@ -24,7 +24,14 @@ const Login: React.FC = () => {
       const data = await response.json();
 
       if (response.status === 201 && data.access_token) {
-        localStorage.setItem('user', JSON.stringify(data.user));
+        // Store both user data and access token
+        localStorage.setItem(
+          'user',
+          JSON.stringify({
+            ...data.user,
+            access_token: data.access_token,
+          }),
+        );
         router.push('/admin');
       } else {
         setError('Invalid credentials');

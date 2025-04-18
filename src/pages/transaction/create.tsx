@@ -124,15 +124,15 @@ export const CreateTransaction = ({
       ...formData,
       currency: formData.currency as Currency,
       contributorId:
-        formData.type === TransactionType.EXPENSE
+        formData.contributorType === 'internal'
           ? formData.contributorId
           : undefined,
       externalContributorName:
-        formData.type === TransactionType.INCOME
+        formData.contributorType === 'external'
           ? formData.externalContributorName
           : undefined,
       externalContributorPhone:
-        formData.type === TransactionType.INCOME
+        formData.contributorType === 'external'
           ? formatPhoneNumber(formData.externalContributorPhone || '')
           : undefined,
     };
@@ -315,7 +315,7 @@ export const CreateTransaction = ({
                 onChange={(option) =>
                   setFormData({
                     ...formData,
-                    contributorId: option?.value,
+                    contributorId: option?.value || null,
                   })
                 }
                 placeholder="Sélectionner un utilisateur"
