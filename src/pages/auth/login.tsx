@@ -64,21 +64,21 @@ const Login: React.FC = () => {
 
         <form onSubmit={handleLogin}>
           <Input
+            type="email"
             name="email"
             label="Email"
+            value={email}
             placeholder="Enter your email"
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setEmail(e.target.value)
-            }
+            onChange={setEmail}
           />
 
           <Input
+            type="password"
             name="password"
             label="Password"
+            value={password}
             placeholder="Enter your password"
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setPassword(e.target.value)
-            }
+            onChange={setPassword}
           />
 
           <button
