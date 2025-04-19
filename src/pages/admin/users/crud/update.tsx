@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { FaCamera, FaUpload } from 'react-icons/fa';
+import Select from 'react-select';
 
 import Input from '@/components/input';
 import Popup from '@/components/popup';
-import { useCloudinaryWidget } from '@/utils/cloudinary';
 
 import {
   Commission,
@@ -25,321 +24,308 @@ interface UpdateProps {
 
 const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
   const [userData, setUserData] = useState<User | null>(user);
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const { uploadToCloudinary } = useCloudinaryWidget();
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setUserData(user);
   }, [user]);
 
-  const handleImageUpload = async (source: 'local' | 'camera') => {
-    try {
-      setUploadError(null);
-      setIsUploading(true);
-
-      const imageUrl = await uploadToCloudinary(source);
-      setUserData((prevData) =>
-        prevData ? { ...prevData, profilePicture: imageUrl } : null,
-      );
-    } catch (err) {
-      console.error('Error uploading image:', err);
-      setUploadError(
-        err instanceof Error ? err.message : 'Failed to upload image',
-      );
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+    nameOrEvent:
+      | string
+      | React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
+    value?: string,
   ) => {
-    const { name, value } = e.target;
-    setUserData((prevData) =>
-      prevData ? { ...prevData, [name]: value } : null,
-    );
-  };
-
-  const handleMultiSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const { name, options } = e.target;
-    const values = Array.from(options)
-      .filter((option) => option.selected)
-      .map((option) => option.value);
-    setUserData((prevData) =>
-      prevData ? { ...prevData, [name]: values } : null,
-    );
+    if (typeof nameOrEvent === 'string') {
+      // Handle direct value from Input component
+      setUserData((prevData) => {
+        if (!prevData) return null;
+        return {
+          ...prevData,
+          [nameOrEvent]: value || undefined,
+        };
+      });
+    } else {
+      // Handle event from native inputs
+      const { name, value: eventValue } = nameOrEvent.target;
+      setUserData((prevData) => {
+        if (!prevData) return null;
+        return {
+          ...prevData,
+          [name]: eventValue || undefined,
+        };
+      });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(null);
+
     if (userData) {
       try {
-        const updatedUser = await UpdateUserAction(userData.id, userData);
+        // Exclude read-only and non-updatable fields
+        const updatePayload = {
+          firstName: userData.firstName,
+          lastName: userData.lastName,
+          email: userData.email,
+          gender: userData.gender,
+          maritalStatus: userData.maritalStatus,
+          educationLevel: userData.educationLevel,
+          profession: userData.profession,
+          commune: userData.commune,
+          churchOfOrigin: userData.churchOfOrigin,
+          competenceDomain: userData.competenceDomain,
+          phoneNumber: userData.phoneNumber,
+          whatsappNumber: userData.whatsappNumber,
+          quarter: userData.quarter,
+          reference: userData.reference,
+          address: userData.address,
+          commissions: userData.commissions,
+          categories: userData.categories,
+          isActive: userData.isActive,
+        };
+
+        const updatedUser = await UpdateUserAction(userData.id, updatePayload);
         if (updatedUser) {
           onUpdate(updatedUser);
           onClose();
         }
-      } catch (error) {
-        console.error('Error updating user:', error);
+      } catch (submitError) {
+        setError(
+          submitError instanceof Error
+            ? submitError.message
+            : 'Failed to update user',
+        );
       }
     }
   };
 
+  // Convert array to react-select options
+  const commissionOptions = Object.entries(Commission).map(([_, value]) => ({
+    value,
+    label: value,
+  }));
+
+  const categoryOptions = Object.entries(UserCategory).map(([_, value]) => ({
+    value,
+    label: value,
+  }));
+
   if (!userData) return null;
+
+  const {
+    firstName,
+    lastName,
+    email,
+    gender,
+    maritalStatus,
+    educationLevel,
+    profession,
+    commune,
+    churchOfOrigin,
+    competenceDomain,
+    phoneNumber,
+    whatsappNumber,
+    quarter,
+    reference,
+    address,
+    commissions,
+    categories,
+  } = userData || {};
 
   return (
     <Popup title="Update User" onClose={onClose}>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="mb-6 flex justify-center">
-          <div className="relative">
-            <div className="size-32 overflow-hidden rounded-full border-4 border-gray-200">
-              {userData.profilePicture ? (
-                <img
-                  src={userData.profilePicture}
-                  alt="Photo de profil"
-                  className="size-full object-cover"
-                />
-              ) : (
-                <div className="flex size-full flex-col items-center justify-center bg-gray-100">
-                  <FaCamera className="size-8 text-gray-400" />
-                  <span className="mt-2 text-xs text-gray-500">
-                    Ajouter une photo
-                  </span>
-                </div>
-              )}
-            </div>
-            <div className="absolute -bottom-4 left-1/2 flex -translate-x-1/2 gap-2">
-              <button
-                type="button"
-                onClick={() => handleImageUpload('local')}
-                className="cursor-pointer rounded-full bg-blue-500 p-2 text-white shadow-lg transition-colors hover:bg-blue-600 disabled:opacity-50"
-                title="Choisir depuis la galerie"
-                disabled={isUploading}
-              >
-                <FaUpload className="size-4" />
-              </button>
-              <button
-                type="button"
-                onClick={() => handleImageUpload('camera')}
-                className="cursor-pointer rounded-full bg-blue-500 p-2 text-white shadow-lg transition-colors hover:bg-blue-600 disabled:opacity-50"
-                title="Prendre une photo"
-                disabled={isUploading}
-              >
-                <FaCamera className="size-4" />
-              </button>
-            </div>
-            {uploadError && (
-              <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 text-xs text-red-500">
-                {uploadError}
+      <form
+        onSubmit={handleSubmit}
+        className="grid grid-cols-2 gap-4 md:grid-cols-3"
+      >
+        {error && (
+          <div className="col-span-2 rounded-md bg-red-100 p-4 text-red-700 md:col-span-3">
+            {error}
+          </div>
+        )}
+        {/* <div className="relative">
+          <div className="size-32 overflow-hidden rounded-full border-4 border-gray-200">
+            {userData.profilePicture ? (
+              <img
+                src={userData.profilePicture}
+                alt="Photo de profil"
+                className="size-full object-cover"
+              />
+            ) : (
+              <div className="flex size-full flex-col items-center justify-center bg-gray-100">
+                <FaCamera className="size-8 text-gray-400" />
+                <span className="mt-2 text-xs text-gray-500">
+                  Ajouter une photo
+                </span>
               </div>
             )}
           </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <Input
-            name="firstName"
-            label="First Name"
-            value={userData.firstName}
+          <div className="absolute -bottom-4 left-1/2 flex -translate-x-1/2 gap-2">
+            <button
+              type="button"
+              onClick={() => handleImageUpload('local')}
+              className="cursor-pointer rounded-full bg-blue-500 p-2 text-white shadow-lg transition-colors hover:bg-blue-600 disabled:opacity-50"
+              title="Choisir depuis la galerie"
+              disabled={isUploading}
+            >
+              <FaUpload className="size-4" />
+            </button>
+            <button
+              type="button"
+              onClick={() => handleImageUpload('camera')}
+              className="cursor-pointer rounded-full bg-blue-500 p-2 text-white shadow-lg transition-colors hover:bg-blue-600 disabled:opacity-50"
+              title="Prendre une photo"
+              disabled={isUploading}
+            >
+              <FaCamera className="size-4" />
+            </button>
+          </div>
+          {uploadError && (
+            <div className="absolute -bottom-10 left-1/2 -translate-x-1/2 text-xs text-red-500">
+              {uploadError}
+            </div>
+          )}
+        </div> */}
+        <Input
+          name="firstName"
+          label="Nom"
+          value={firstName || ''}
+          onChange={(value: string) => handleChange('firstName', value)}
+          placeholder="Nom"
+        />
+        <Input
+          name="lastName"
+          label="Prénom"
+          value={lastName || ''}
+          onChange={(value: string) => handleChange('lastName', value)}
+          placeholder="Prénom"
+        />
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Genre
+          </label>
+          <select
+            name="gender"
+            value={gender || ''}
             onChange={handleChange}
-            required
-            placeholder="Enter first name"
-          />
-          <Input
-            name="lastName"
-            label="Last Name"
-            value={userData.lastName}
+            className="block w-full rounded-md border border-gray-300 px-3 py-2"
+          >
+            <option value="">Sélectionner un genre</option>
+            {Object.entries(Gender).map(([key, value]) => (
+              <option key={key} value={value}>
+                {key}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            État Civil
+          </label>
+          <select
+            name="maritalStatus"
+            value={maritalStatus}
             onChange={handleChange}
-            required
-            placeholder="Enter last name"
-          />
+            className="block w-full rounded-md border border-gray-300 px-3 py-2"
+          >
+            <option value="">Sélectionner un état civil</option>
+            {Object.entries(MaritalStatus).map(([key, value]) => (
+              <option key={key} value={value}>
+                {value}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Niveau d&apos;Études
+          </label>
+          <select
+            name="educationLevel"
+            value={educationLevel}
+            onChange={handleChange}
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+          >
+            <option value="">Sélectionner un niveau</option>
+            {Object.entries(EducationLevel).map(([key, value]) => (
+              <option key={key} value={value}>
+                {value}
+              </option>
+            ))}
+          </select>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Gender
-            </label>
-            <select
-              name="gender"
-              value={userData.gender}
-              onChange={handleChange}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-              required
-            >
-              {Object.entries(Gender).map(([key, value]) => (
-                <option key={key} value={value}>
-                  {key}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Marital Status
-            </label>
-            <select
-              name="maritalStatus"
-              value={userData.maritalStatus}
-              onChange={handleChange}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-              required
-            >
-              {Object.entries(MaritalStatus).map(([key, value]) => (
-                <option key={key} value={value}>
-                  {value}
-                </option>
-              ))}
-            </select>
-          </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700">
+            Profession
+          </label>
+          <select
+            name="profession"
+            value={profession}
+            onChange={handleChange}
+            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+          >
+            <option value="">Sélectionner une profession</option>
+            {Object.entries(Profession).map(([key, value]) => (
+              <option key={key} value={value}>
+                {value}
+              </option>
+            ))}
+          </select>
         </div>
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Education Level
-            </label>
-            <select
-              name="educationLevel"
-              value={userData.educationLevel}
-              onChange={handleChange}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-              required
-            >
-              {Object.entries(EducationLevel).map(([key, value]) => (
-                <option key={key} value={value}>
-                  {value}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Profession
-            </label>
-            <select
-              name="profession"
-              value={userData.profession}
-              onChange={handleChange}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-              required
-            >
-              {Object.entries(Profession).map(([key, value]) => (
-                <option key={key} value={value}>
-                  {value}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
         <Input
           name="competenceDomain"
-          label="Competence Domain"
-          value={userData.competenceDomain}
-          onChange={handleChange}
-          placeholder="Enter competence domain"
+          label="Compétence"
+          value={competenceDomain || ''}
+          onChange={(value: string) => handleChange('competenceDomain', value)}
+          placeholder="Compétence"
         />
 
         <Input
           name="churchOfOrigin"
-          label="Church of Origin"
-          value={userData.churchOfOrigin}
-          onChange={handleChange}
-          required
-          placeholder="Enter church of origin"
+          label="Église d'Origine"
+          value={churchOfOrigin || ''}
+          onChange={(value: string) => handleChange('churchOfOrigin', value)}
+          placeholder="Église d'origine"
         />
-
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700">
-              Commune
-            </label>
-            <select
-              name="commune"
-              value={userData.commune}
-              onChange={handleChange}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-              required
-            >
-              {Object.entries(Commune).map(([key, value]) => (
-                <option key={key} value={value}>
-                  {value}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <Input
-            name="quarter"
-            label="Quarter"
-            value={userData.quarter}
-            onChange={handleChange}
-            required
-            placeholder="Enter quarter"
-          />
-        </div>
-
         <Input
-          name="reference"
-          label="Reference"
-          value={userData.reference}
-          onChange={handleChange}
-          required
-          placeholder="Enter reference"
+          name="phoneNumber"
+          label="Téléphone"
+          value={phoneNumber || ''}
+          onChange={(value: string) => handleChange('phoneNumber', value)}
+          placeholder="Téléphone"
         />
-
         <Input
-          name="address"
-          label="Address"
-          value={userData.address}
-          onChange={handleChange}
-          required
-          placeholder="Enter address"
+          name="whatsappNumber"
+          label="WhatsApp"
+          value={whatsappNumber || ''}
+          onChange={(value: string) => handleChange('whatsappNumber', value)}
+          placeholder="WhatsApp"
         />
-
-        <div className="grid grid-cols-2 gap-4">
-          <Input
-            name="phoneNumber"
-            label="Phone Number"
-            value={userData.phoneNumber}
-            onChange={handleChange}
-            required
-            placeholder="Enter phone number"
-          />
-          <Input
-            name="whatsappNumber"
-            label="WhatsApp Number"
-            value={userData.whatsappNumber}
-            onChange={handleChange}
-            placeholder="Enter WhatsApp number"
-          />
-        </div>
 
         <Input
           name="email"
           type="email"
           label="Email"
-          value={userData.email}
-          onChange={handleChange}
-          placeholder="Enter email"
+          value={email || ''}
+          onChange={(value: string) => handleChange('email', value)}
+          placeholder="Email"
         />
-
         <div>
           <label className="block text-sm font-medium text-gray-700">
-            Commissions
+            Commune
           </label>
           <select
-            name="commissions"
-            multiple
-            value={userData.commissions}
-            onChange={handleMultiSelect}
+            name="commune"
+            value={commune || ''}
+            onChange={handleChange}
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
           >
-            {Object.entries(Commission).map(([key, value]) => (
+            <option value="">Sélectionner une commune</option>
+            {Object.entries(Commune).map(([key, value]) => (
               <option key={key} value={value}>
                 {value}
               </option>
@@ -347,32 +333,88 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
           </select>
         </div>
 
-        <div>
+        <Input
+          name="quarter"
+          label="Quartier"
+          value={quarter || ''}
+          onChange={(value: string) => handleChange('quarter', value)}
+          placeholder="Quartier"
+        />
+
+        <Input
+          name="reference"
+          label="Référence"
+          value={reference || ''}
+          onChange={(value: string) => handleChange('reference', value)}
+          placeholder="Référence"
+        />
+
+        <div className="col-span-2 md:col-span-1">
+          <Input
+            name="address"
+            label="Adresse"
+            value={address || ''}
+            onChange={(value: string) => handleChange('address', value)}
+            placeholder="Adresse"
+          />
+        </div>
+
+        <div className="col-span-2 md:col-span-1">
           <label className="block text-sm font-medium text-gray-700">
-            Categories
+            Commissions
           </label>
-          <select
+          <Select
+            isMulti
+            name="commissions"
+            value={commissions?.map((commission) => ({
+              value: commission,
+              label: commission,
+            }))}
+            onChange={(selectedOptions) => {
+              const values = selectedOptions.map((option) => option.value);
+              setUserData((prev) =>
+                prev ? { ...prev, commissions: values } : null,
+              );
+            }}
+            options={commissionOptions}
+            className="mt-1"
+            classNamePrefix="select"
+            placeholder="Commissions..."
+          />
+        </div>
+
+        <div className="col-span-2 md:col-span-1">
+          <label className="block text-sm font-medium text-gray-700">
+            Catégories
+          </label>
+          <Select
+            isMulti
             name="categories"
-            multiple
-            value={userData.categories}
-            onChange={handleMultiSelect}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-          >
-            {Object.entries(UserCategory).map(([key, value]) => (
-              <option key={key} value={value}>
-                {value}
-              </option>
-            ))}
-          </select>
+            value={categories?.map((category) => ({
+              value: category,
+              label: category,
+            }))}
+            onChange={(selectedOptions) => {
+              const values = selectedOptions.map((option) => option.value);
+              setUserData((prev) =>
+                prev ? { ...prev, categories: values } : null,
+              );
+            }}
+            options={categoryOptions}
+            className="mt-1"
+            classNamePrefix="select"
+            placeholder="Catégories..."
+          />
         </div>
 
         <button
           type="submit"
-          className="w-full rounded-md bg-blue-500 px-4 py-2 font-semibold text-white hover:bg-blue-600"
+          className="col-span-2 w-full rounded-md bg-blue-500 px-4 py-2 font-semibold text-white hover:bg-blue-600 md:col-span-1"
         >
-          Update User
+          Mettre à jour
         </button>
       </form>
+      <p>L&apos;utilisateur a été mis à jour avec succès!</p>
     </Popup>
   );
 };

@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 import type { User } from '../admin/users/type';
 import { Commission, UserCategory } from '../admin/users/type';
 
-const API_BASE_URL = 'http://localhost:4000';
+const API_BASE_URL = 'https://choir-registry.onrender.com';
 
 // Simple logging utility that can be disabled in production
 const log = (message: string, data?: any) => {

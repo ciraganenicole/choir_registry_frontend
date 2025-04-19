@@ -3,46 +3,58 @@
 import { startRegistration } from '@simplewebauthn/browser';
 import { useState } from 'react';
 
-import type { User, UserFilters } from './type';
+import type {
+  Commission,
+  Commune,
+  EducationLevel,
+  Gender,
+  MaritalStatus,
+  Profession,
+  User,
+  UserCategory,
+  UserFilters,
+} from './type';
 
 interface DefaultFormData {
   firstName: string;
   lastName: string;
-  gender: string;
-  maritalStatus: string;
-  educationLevel: string;
-  profession: string;
-  competenceDomain: string;
-  churchOfOrigin: string;
-  commune: string;
-  quarter: string;
-  reference: string;
-  address: string;
-  phoneNumber: string;
-  whatsappNumber: string;
-  email: string;
-  commissions: any[];
-  categories: any[];
+  gender: Gender | null;
+  maritalStatus: MaritalStatus | null;
+  educationLevel: EducationLevel | null;
+  profession: Profession | null;
+  competenceDomain: string | null;
+  churchOfOrigin: string | null;
+  commune: Commune | null;
+  quarter: string | null;
+  reference: string | null;
+  address: string | null;
+  phoneNumber: string | null;
+  whatsappNumber: string | null;
+  email: string | null;
+  commissions: Commission[];
+  categories: UserCategory[];
+  profilePicture?: string | null;
 }
 
 const defaultFormData: DefaultFormData = {
   firstName: '',
   lastName: '',
-  gender: '',
-  maritalStatus: '',
-  educationLevel: '',
-  profession: '',
-  competenceDomain: '',
-  churchOfOrigin: '',
-  commune: '',
-  quarter: '',
-  reference: '',
-  address: '',
-  phoneNumber: '',
-  whatsappNumber: '',
-  email: '',
+  gender: null,
+  maritalStatus: null,
+  educationLevel: null,
+  profession: null,
+  competenceDomain: null,
+  churchOfOrigin: null,
+  commune: null,
+  quarter: null,
+  reference: null,
+  address: null,
+  phoneNumber: null,
+  whatsappNumber: null,
+  email: null,
   commissions: [],
   categories: [],
+  profilePicture: null,
 };
 
 export const CreateUser = <T extends DefaultFormData>(
@@ -55,13 +67,46 @@ export const CreateUser = <T extends DefaultFormData>(
     e.preventDefault();
 
     try {
-      const response = await fetch('http://localhost:4000/users', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
+      // Prepare the data for submission
+      const dataToSubmit = {
+        firstName: formData.firstName.trim(),
+        lastName: formData.lastName.trim(),
+        // For enum fields, send empty string if null
+        gender: formData.gender || '',
+        maritalStatus: formData.maritalStatus || '',
+        educationLevel: formData.educationLevel || '',
+        profession: formData.profession || '',
+        // For string fields, send empty string if null
+        competenceDomain: formData.competenceDomain?.trim() || '',
+        churchOfOrigin: formData.churchOfOrigin?.trim() || '',
+        commune: formData.commune || '',
+        quarter: formData.quarter?.trim() || '',
+        reference: formData.reference?.trim() || '',
+        address: formData.address?.trim() || '',
+        phoneNumber: formData.phoneNumber?.trim() || '',
+        whatsappNumber: formData.whatsappNumber?.trim() || '',
+        email: formData.email?.trim() || '',
+        // For arrays, keep as empty arrays
+        commissions: formData.commissions || [],
+        categories: formData.categories || [],
+        // For optional fields that can be null
+        profilePicture: formData.profilePicture || null,
+        joinDate: null,
+        fingerprintData: null,
+        voiceCategory: null,
+        isActive: true,
+      };
+
+      const response = await fetch(
+        'https://choir-registry.onrender.com/users',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(dataToSubmit),
         },
-        body: JSON.stringify(formData),
-      });
+      );
 
       const data = await response.json();
 
@@ -70,10 +115,21 @@ export const CreateUser = <T extends DefaultFormData>(
         onClose();
         onUserCreated();
       } else {
-        console.log('Failed to create user:', data);
+        console.error('Failed to create user:', data);
+        throw new Error(
+          Array.isArray(data.errors)
+            ? data.errors
+                .map(
+                  (err: any) =>
+                    `${err.field}: ${Object.values(err.constraints || {}).join(', ')}`,
+                )
+                .join('\n')
+            : data.message || 'Failed to create user',
+        );
       }
     } catch (error) {
       console.error('Error:', error);
+      throw error;
     }
   };
 
@@ -84,32 +140,45 @@ export const CreateUser = <T extends DefaultFormData>(
   };
 };
 
-export const UpdateUserAction = async (id: number, updatedData: any) => {
+export const UpdateUserAction = async (
+  id: number,
+  updatedData: Partial<User>,
+) => {
   try {
-    const response = await fetch(`http://localhost:4000/users/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
+    console.log('Sending update with payload:', updatedData);
+    const response = await fetch(
+      `https://choir-registry.onrender.com/users/${id}`,
+      {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(updatedData),
       },
-      body: JSON.stringify(updatedData),
-    });
+    );
+
+    const data = await response.json();
+    console.log('Update response:', data);
 
     if (!response.ok) {
-      throw new Error(`Failed to update user with status ${response.status}`);
+      throw new Error(
+        data.message || `Failed to update user with status ${response.status}`,
+      );
     }
 
-    const updatedUser = await response.json();
-    console.log('User updated successfully:', updatedUser);
-    return updatedUser;
+    return data;
   } catch (error) {
     console.error('Error updating user:', error);
-    return null;
+    throw error;
   }
 };
 
 export const DeleteUserAction = async (userId: number): Promise<boolean> => {
   try {
-    await fetch(`http://localhost:4000/users/${userId}`, { method: 'DELETE' });
+    await fetch(`https://choir-registry.onrender.com/users/${userId}`, {
+      method: 'DELETE',
+    });
     return true;
   } catch (error) {
     console.error('Failed to delete user:', error);
@@ -119,7 +188,9 @@ export const DeleteUserAction = async (userId: number): Promise<boolean> => {
 
 export const ViewUser = async (id: number) => {
   try {
-    const response = await fetch(`http://localhost:4000/users/${id}`);
+    const response = await fetch(
+      `https://choir-registry.onrender.com/users/${id}`,
+    );
     const user = await response.json();
     console.log('User Details:', user);
   } catch (error) {
@@ -139,7 +210,7 @@ export const FetchUsers = async (
     });
 
     const response = await fetch(
-      `http://localhost:4000/users?${queryParams.toString()}`,
+      `https://choir-registry.onrender.com/users?${queryParams.toString()}`,
     );
     const data = await response.json();
     return data;
@@ -152,7 +223,7 @@ export const FetchUsers = async (
 export const RegisterFingerprint = async (userId: number) => {
   try {
     const resp = await fetch(
-      'http://localhost:4000/webauthn/register-challenge',
+      'https://choir-registry.onrender.com/webauthn/register-challenge',
       {
         method: 'POST',
         body: JSON.stringify({ userId }),
@@ -167,7 +238,7 @@ export const RegisterFingerprint = async (userId: number) => {
     console.log('Credential:', credential);
 
     const verificationResp = await fetch(
-      'http://localhost:4000/webauthn/verify-registration',
+      'https://choir-registry.onrender.com/webauthn/verify-registration',
       {
         method: 'POST',
         body: JSON.stringify({ userId, credential }),

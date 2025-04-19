@@ -122,10 +122,13 @@ export const uploadImage = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch('http://localhost:4000/upload/image', {
-      method: 'POST',
-      body: formData,
-    });
+    const response = await fetch(
+      'https://choir-registry.onrender.com/upload/image',
+      {
+        method: 'POST',
+        body: formData,
+      },
+    );
 
     if (!response.ok) {
       throw new Error('Failed to upload image');

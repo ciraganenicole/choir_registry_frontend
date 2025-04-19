@@ -9,7 +9,7 @@ import type {
   TransactionStats,
 } from '@/pages/transaction/types';
 
-const API_URL = 'http://localhost:4000';
+const API_URL = 'https://choir-registry.onrender.com';
 
 interface QueryParams extends TransactionFilters {
   page: number;
@@ -72,9 +72,27 @@ export const TransactionService = {
     link.remove();
   },
 
-  fetchStats: async (): Promise<TransactionStats> => {
-    const { data } = await axios.get(`${API_URL}/transactions/stats`);
-    return data;
+  fetchStats: async (
+    filters?: TransactionFilters,
+  ): Promise<TransactionStats> => {
+    const { data } = await axios.get(`${API_URL}/transactions/stats`, {
+      params: filters,
+    });
+
+    return {
+      usd: {
+        totalIncome: Number(data.usd?.totalIncome || 0),
+        totalExpense: Number(data.usd?.totalExpense || 0),
+        netRevenue: Number(data.usd?.netRevenue || 0),
+        currentMonthDailyTotal: Number(data.usd?.currentMonthDailyTotal || 0),
+      },
+      fc: {
+        totalIncome: Number(data.fc?.totalIncome || 0),
+        totalExpense: Number(data.fc?.totalExpense || 0),
+        netRevenue: Number(data.fc?.netRevenue || 0),
+        currentMonthDailyTotal: Number(data.fc?.currentMonthDailyTotal || 0),
+      },
+    };
   },
 
   fetchDailyContributions: async (

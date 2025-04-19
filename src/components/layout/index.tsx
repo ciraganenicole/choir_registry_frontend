@@ -2,7 +2,7 @@
 
 import { motion } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
-import { Calendar, FileText, Home, Menu, Users, X } from 'lucide-react';
+import { Calendar, Home, Menu, Users, X } from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
@@ -24,11 +24,10 @@ const Layout = ({ children }: { children: ReactNode }) => {
   };
 
   const menuItems: MenuItem[] = [
-    { path: '/admin', icon: Home, label: 'Dashboard' },
+    { path: '/admin', icon: Home, label: 'Accueil' },
     { path: '/admin/users/users_list', icon: Users, label: 'Membres' },
-    { path: '/attendance', icon: Calendar, label: 'Attendance' },
-    { path: '/leave/leaves', icon: FileText, label: 'Leave' },
-    { path: '/transaction', icon: IoLogoUsd, label: 'All Transactions' },
+    { path: '/attendance', icon: Calendar, label: 'Registre' },
+    { path: '/transaction', icon: IoLogoUsd, label: 'Transactions' },
   ];
 
   return (
@@ -36,7 +35,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
       {/* Sidebar */}
       <motion.div
         animate={{ width: isOpen ? 250 : 80 }}
-        className="fixed flex h-full flex-col justify-between bg-gray-900 px-6 py-8 text-white"
+        className="fixed flex h-screen flex-col justify-between bg-gray-900 px-6 py-8 text-white"
       >
         <button
           className="mb-4 text-white focus:outline-none"
@@ -66,12 +65,12 @@ const Layout = ({ children }: { children: ReactNode }) => {
           }`}
         >
           <TbLogout2 size={24} />
-          <span className={isOpen ? 'flex' : 'hidden'}>Logout</span>
+          <span className={isOpen ? 'flex' : 'hidden'}>Se déconnecter</span>
         </button>
       </motion.div>
 
       {/* Main Content */}
-      <div className="size-full bg-gray-300/50 pl-20">{children}</div>
+      <div className="size-full h-screen bg-gray-300/50 pl-20">{children}</div>
     </div>
   );
 };

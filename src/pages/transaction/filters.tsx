@@ -116,13 +116,13 @@ const Filters = ({
   };
 
   return (
-    <div className="my-8 flex flex-col space-y-4 md:flex-row md:items-center md:justify-between md:space-y-0">
-      <div className="flex flex-row items-center space-x-4">
+    <div className="my-8 flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0">
+      <div className="flex flex-row items-center space-x-2 md:space-x-4">
         {/* Income/Expense Toggle */}
         <div className="flex flex-row items-center rounded-md border-[1px] border-gray-500">
           <button
             onClick={() => handleTypeChange(undefined)}
-            className={`px-6 py-1 ${
+            className={`px-3 py-1 text-[14px] md:px-6 md:text-[16px] ${
               currentFilters.type === undefined
                 ? 'bg-gray-500/40 text-gray-900'
                 : 'text-gray-500'
@@ -132,7 +132,7 @@ const Filters = ({
           </button>
           <button
             onClick={() => handleTypeChange(TransactionType.INCOME)}
-            className={`px-6 py-1 ${
+            className={`px-3 py-1 text-[14px] md:px-6 md:text-[16px] ${
               currentFilters.type === TransactionType.INCOME
                 ? 'bg-gray-500/40 text-gray-900'
                 : 'text-gray-500'
@@ -142,7 +142,7 @@ const Filters = ({
           </button>
           <button
             onClick={() => handleTypeChange(TransactionType.EXPENSE)}
-            className={`px-6 py-1 ${
+            className={`px-3 py-1 text-[14px] md:px-6 md:text-[16px] ${
               currentFilters.type === TransactionType.EXPENSE
                 ? 'bg-gray-500/40 text-gray-900'
                 : 'text-gray-500'
@@ -162,12 +162,12 @@ const Filters = ({
       </div>
 
       {/* Right side filters */}
-      <div className="flex flex-row items-center space-x-4">
+      <div className="flex flex-row flex-wrap items-center justify-between gap-1 md:space-x-4">
         {/* Category Filter */}
         <select
           value={currentFilters.category || ''}
           onChange={(e) => handleCategoryChange(e.target.value)}
-          className="flex items-center rounded-md border-[1px] border-gray-900/50 px-4 py-1 text-gray-900 shadow-sm"
+          className="flex items-center rounded-md border-[1px] border-gray-900/50 p-1 text-[12px] text-gray-900 shadow-sm md:px-4 md:py-1 md:text-[16px]"
         >
           <option value="">Toutes Catégories</option>
           {categories.map((category) => (
@@ -182,7 +182,7 @@ const Filters = ({
           <select
             value={currentFilters.subcategory || ''}
             onChange={(e) => handleSubcategoryChange(e.target.value)}
-            className="flex items-center rounded-md border-[1px] border-gray-900/50 px-4 py-1 text-gray-900 shadow-sm"
+            className="flex items-center rounded-md border-[1px] border-gray-900/50 p-1 text-[12px] text-gray-900 shadow-sm md:px-4 md:py-1 md:text-[16px]"
           >
             <option value="">Toutes Sous-catégories</option>
             {subcategories.map((subcategory) => (
@@ -193,40 +193,42 @@ const Filters = ({
           </select>
         )}
 
-        {/* Date Range */}
-        <div className="flex items-center space-x-2">
-          <input
-            type="date"
-            placeholder="Date de début"
-            className="rounded-md border-[1px] border-gray-900/50 px-4 py-1 text-gray-900 shadow-sm"
-            value={currentFilters.startDate || ''}
-            onChange={(e) =>
-              onFilterChange({
-                startDate: e.target.value || undefined,
-              })
-            }
-          />
-          <span className="text-gray-500">à</span>
-          <input
-            type="date"
-            placeholder="Date de fin"
-            className="rounded-md border-[1px] border-gray-900/50 px-4 py-1 text-gray-900 shadow-sm"
-            value={currentFilters.endDate || ''}
-            onChange={(e) =>
-              onFilterChange({
-                endDate: e.target.value || undefined,
-              })
-            }
-          />
-        </div>
+        <div className="mt-2 flex flex-row items-center gap-1 md:mt-0 md:space-x-2">
+          {/* Date Range */}
+          <div className="flex items-center gap-1 md:space-x-2">
+            <input
+              type="date"
+              placeholder="Date de début"
+              className="rounded-md border-[1px] border-gray-900/50 p-1 text-[12px] text-gray-900 shadow-sm md:px-4 md:py-1 md:text-[16px]"
+              value={currentFilters.startDate || ''}
+              onChange={(e) =>
+                onFilterChange({
+                  startDate: e.target.value || undefined,
+                })
+              }
+            />
+            <span className="text-gray-500">à</span>
+            <input
+              type="date"
+              placeholder="Date de fin"
+              className="rounded-md border-[1px] border-gray-900/50 p-1 text-[12px] text-gray-900 shadow-sm md:px-4 md:py-1 md:text-[16px]"
+              value={currentFilters.endDate || ''}
+              onChange={(e) =>
+                onFilterChange({
+                  endDate: e.target.value || undefined,
+                })
+              }
+            />
+          </div>
 
-        <button
-          onClick={() => onExport('csv', !currentFilters.type)}
-          className="flex items-center rounded-md bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-700"
-        >
-          <Download className="mr-2 size-4" />
-          Exporter
-        </button>
+          <button
+            onClick={() => onExport('csv', !currentFilters.type)}
+            className="flex items-center justify-center rounded-[5px] bg-gray-900 p-1 text-sm font-semibold text-white hover:bg-gray-700 md:rounded-md md:px-4 md:py-2"
+          >
+            <Download className="mr-0 size-4 md:mr-2" />
+            <span className="hidden md:block">Exporter</span>
+          </button>
+        </div>
       </div>
     </div>
   );

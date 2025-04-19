@@ -1,4 +1,6 @@
-import ExcelJS from 'exceljs';
+import { jsPDF as JSPDF } from 'jspdf';
+import type { CellHookData } from 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import React, { useEffect, useState } from 'react';
 import { FaEdit, FaEye, FaFilter, FaPlus, FaTrash } from 'react-icons/fa';
 import { HiDownload } from 'react-icons/hi';
@@ -30,16 +32,6 @@ const translateGender = (gender: string): string => {
     FEMALE: 'Féminin',
   };
   return translations[gender] || gender;
-};
-
-const translateMaritalStatus = (status: string): string => {
-  const translations: Record<string, string> = {
-    SINGLE: 'Célibataire',
-    MARRIED: 'Marié(e)',
-    DIVORCED: 'Divorcé(e)',
-    WIDOWED: 'Veuf/Veuve',
-  };
-  return translations[status] || status;
 };
 
 const translateEducationLevel = (level: string): string => {
@@ -176,190 +168,138 @@ const UsersManagement: React.FC = () => {
 
   const exportUsers = async () => {
     try {
-      const allUsers = await FetchUsers({ ...filters, limit: totalUsers });
+      const AllUsers = await FetchUsers({ ...filters, limit: totalUsers });
 
-      // Create Excel workbook
-      const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet('Users');
+      // Create PDF document with consistent margins
+      const doc = new JSPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+      const margin = 15;
 
-      // Add organization header
-      worksheet.mergeCells('A1:P1');
-      const orgCell = worksheet.getCell('A1');
-      orgCell.value = 'REGISTRE DE CHORALE';
-      orgCell.font = {
-        name: 'Arial',
-        size: 16,
-        bold: true,
-        color: { argb: '000000' },
-      };
-      orgCell.alignment = {
-        horizontal: 'center',
-        vertical: 'middle',
-      };
-      worksheet.getRow(1).height = 30;
+      // Add logo
+      try {
+        const response = await fetch('/assets/images/Wlogo.png');
+        const blob = await response.blob();
+        const reader = new FileReader();
 
-      // Add report title with date
-      worksheet.mergeCells('A2:P2');
-      const titleCell = worksheet.getCell('A2');
-      titleCell.value = `Liste des Utilisateurs - ${new Date().toLocaleDateString(
-        'fr-FR',
-        {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
-        },
-      )}`;
-      titleCell.font = {
-        name: 'Arial',
-        size: 14,
-        bold: true,
-        color: { argb: '000000' },
-      };
-      titleCell.alignment = {
-        horizontal: 'center',
-        vertical: 'middle',
-      };
-      worksheet.getRow(2).height = 25;
+        const base64 = await new Promise<string>((resolve) => {
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
 
-      // Add empty row for spacing
-      worksheet.addRow([]);
+        doc.addImage(base64, 'PNG', margin, margin, 35, 20);
+      } catch (error) {
+        console.warn('Failed to add logo to PDF:', error);
+      }
 
-      // Define column headers in French
+      // Add header text with exact positioning
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text(
+        'COMMUNAUTE DES EGLISES LIBRES DE PENTECOTE EN AFRIQUE',
+        margin + 40,
+        20,
+      );
+      doc.text('5è CELPA SALEM GOMA', margin + 40, 25);
+      doc.text('CHORALE LA NOUVELLE JERUSALEM', margin + 40, 30);
+
+      doc.setFontSize(12);
+      doc.text('REGISTRE DES CHORISTES', margin, 45);
+
+      // Add current date
+      const currentDate = new Date().toLocaleDateString('fr-FR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+      doc.setFontSize(10);
+      doc.text(`Date: ${currentDate}`, margin, 52);
+
+      // Define table headers
       const headers = [
-        'Matricule',
+        'N°',
         'Nom Complet',
         'Genre',
-        'État Civil',
         'Téléphone',
         'WhatsApp',
-        'Email',
         'Commissions',
-        "Niveau d'Éducation",
         'Profession',
-        'Commune',
-        'Quartier',
         'Adresse',
-        'Église',
       ];
 
-      const headerRow = worksheet.addRow(headers);
+      // Prepare table data
+      const tableData = AllUsers.data.map((user, index) => {
+        // Format address parts
+        const addressParts = [];
+        if (user.commune) addressParts.push(translateCommune(user.commune));
+        if (user.quarter) addressParts.push(user.quarter);
+        if (user.address) addressParts.push(user.address);
+        const fullAddress =
+          addressParts.length > 0 ? addressParts.join(', ') : '-';
 
-      // Set column widths
-      worksheet.getColumn(1).width = 10; // Matricule
-      worksheet.getColumn(2).width = 30; // Nom Complet
-      worksheet.getColumn(3).width = 8; // Genre
-      worksheet.getColumn(4).width = 20; // État Civil
-      worksheet.getColumn(5).width = 20; // Téléphone
-      worksheet.getColumn(6).width = 20; // WhatsApp
-      worksheet.getColumn(7).width = 30; // Email
-      worksheet.getColumn(8).width = 20; // Commissions
-      worksheet.getColumn(9).width = 20; // Niveau d'Éducation
-      worksheet.getColumn(10).width = 20; // Profession
-      worksheet.getColumn(11).width = 15; // Commune
-      worksheet.getColumn(12).width = 20; // Quartier
-      worksheet.getColumn(13).width = 30; // Adresse
-      worksheet.getColumn(14).width = 20; // Église
-
-      // Style header row
-      const styleHeaderCell = (cell: ExcelJS.Cell) => {
-        // eslint-disable-next-line no-param-reassign
-        cell.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: '2B3544' },
-        };
-        // eslint-disable-next-line no-param-reassign
-        cell.font = {
-          bold: true,
-          color: { argb: 'FFFFFF' },
-          name: 'Arial',
-          size: 12,
-        };
-        // eslint-disable-next-line no-param-reassign
-        cell.alignment = {
-          horizontal: 'left',
-          vertical: 'middle',
-        };
-        // eslint-disable-next-line no-param-reassign
-        cell.border = {
-          top: { style: 'thin' },
-          left: { style: 'thin' },
-          bottom: { style: 'thin' },
-          right: { style: 'thin' },
-        };
-      };
-
-      const styleDataCell = (cell: ExcelJS.Cell, rowColor: string) => {
-        // eslint-disable-next-line no-param-reassign
-        cell.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: rowColor },
-        };
-        // eslint-disable-next-line no-param-reassign
-        cell.alignment = {
-          horizontal: 'left',
-          vertical: 'middle',
-        };
-        // eslint-disable-next-line no-param-reassign
-        cell.border = {
-          top: { style: 'thin' },
-          left: { style: 'thin' },
-          bottom: { style: 'thin' },
-          right: { style: 'thin' },
-        };
-        // eslint-disable-next-line no-param-reassign
-        cell.font = {
-          name: 'Arial',
-          size: 11,
-        };
-      };
-
-      headerRow.height = 25;
-      headerRow.eachCell(styleHeaderCell);
-
-      // Add data rows
-      allUsers.data.forEach((user, index) => {
-        const dataRow = worksheet.addRow([
-          user.matricule || '',
+        return [
+          index + 1,
           `${user.firstName} ${user.lastName}`,
           translateGender(user.gender),
-          translateMaritalStatus(user.maritalStatus),
-          user.phoneNumber || '',
-          user.whatsappNumber || '',
-          user.email || '',
-          (user.commissions || []).map(translateCommission).join('; '),
-          translateEducationLevel(user.educationLevel),
+          user.phoneNumber || '-',
+          user.whatsappNumber || '-',
+          (user.commissions || []).map(translateCommission).join('; ') || '-',
           translateProfession(user.profession),
-          translateCommune(user.commune),
-          user.quarter || '',
-          user.address || '',
-          user.churchOfOrigin || '',
-        ]);
-
-        const rowColor = index % 2 === 0 ? 'F3F4F6' : 'FFFFFF';
-
-        dataRow.eachCell((cell) => styleDataCell(cell, rowColor));
+          fullAddress,
+        ];
       });
 
-      // Generate and download file
-      const buffer = await workbook.xlsx.writeBuffer();
-      const blob = new Blob([buffer], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      // Add table
+      autoTable(doc, {
+        head: [headers],
+        body: tableData,
+        startY: 60,
+        margin: { top: margin, right: margin, bottom: margin, left: margin },
+        theme: 'grid',
+        styles: {
+          fontSize: 8,
+          cellPadding: { top: 2, right: 2, bottom: 2, left: 2 },
+          lineColor: [0, 0, 0],
+          lineWidth: 0.1,
+          valign: 'middle',
+        },
+        headStyles: {
+          fillColor: [43, 53, 68],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          halign: 'center',
+          fontSize: 9,
+        },
+        columnStyles: {
+          0: { cellWidth: 8, halign: 'center' }, // N°
+          1: { cellWidth: 35 }, // Nom Complet
+          2: { cellWidth: 15, halign: 'center' }, // Genre
+          3: { cellWidth: 22 }, // Téléphone
+          4: { cellWidth: 22 }, // WhatsApp
+          5: { cellWidth: 30 }, // Commissions
+          6: { cellWidth: 20 }, // Profession
+          7: { cellWidth: 30 }, // Adresse (combined)
+        },
+        didParseCell: (hookData: CellHookData) => {
+          const styles = { ...hookData.cell.styles };
+
+          styles.lineWidth = 0.1;
+          styles.lineColor = [0, 0, 0];
+
+          if (hookData.section === 'body' && hookData.row.index % 2 === 0) {
+            styles.fillColor = [240, 240, 240];
+          }
+
+          Object.assign(hookData.cell.styles, styles);
+        },
       });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute(
-        'download',
-        `users_${new Date().toLocaleDateString('fr-FR').replace(/\//g, '-')}.xlsx`,
-      );
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
+
+      // Save PDF
+      doc.save(`registre_choristes_${currentDate.replace(/\//g, '-')}.pdf`);
     } catch (error) {
-      console.error('Error exporting users:', error);
+      console.log(error);
     }
   };
 
@@ -517,13 +457,19 @@ const UsersManagement: React.FC = () => {
                   Name
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">
+                  Genre
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">
                   Matricule
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">
+                  Commission
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">
                   Phone
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">
-                  Commune
+                  Address
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">
                   Actions
@@ -537,17 +483,19 @@ const UsersManagement: React.FC = () => {
                     <td className="px-4 py-3">
                       {(currentPage - 1) * filters.limit! + index + 1}
                     </td>
-                    <td className="flex flex-row items-center gap-2 px-4 py-3">
-                      <img
+                    <td className="flex flex-row items-center gap-2 px-4 py-3 font-semibold">
+                      {/* <img
                         src="https://res.cloudinary.com/dmkqwd4hm/image/upload/v1741798773/Choir/sample_odjx73.jpg"
                         alt="Profile"
                         className="size-6 rounded-full object-cover"
-                      />
+                      /> */}
                       {user.firstName} {user.lastName}
                     </td>
+                    <td className="px-4 py-3">{user.gender}</td>
                     <td className="px-4 py-3">{user.matricule}</td>
+                    <td className="px-4 py-3">{user.commissions}</td>
                     <td className="px-4 py-3">{user.phoneNumber}</td>
-                    <td className="px-4 py-3">{user.commune}</td>
+                    <td className="px-4 py-3">{user.address}</td>
                     <td className="flex space-x-4 px-4 py-3">
                       <button
                         onClick={() => handleView(user)}
@@ -598,11 +546,11 @@ const UsersManagement: React.FC = () => {
                     </span>
                   </div>
                   <div className="mb-3 flex items-center gap-4">
-                    <img
+                    {/* <img
                       src="https://res.cloudinary.com/dmkqwd4hm/image/upload/v1741798773/Choir/sample_odjx73.jpg"
                       alt="Profile"
                       className="size-12 rounded-full object-cover"
-                    />
+                    /> */}
                     <div className="">
                       <h3 className="text-lg font-medium">
                         {user.firstName} {user.lastName}
@@ -671,7 +619,7 @@ const UsersManagement: React.FC = () => {
       {isPopupOpen && (
         <UserRegistration
           onClose={() => setIsPopupOpen(false)}
-          onUserCreated={handleUserCreated}
+          _onUserCreated={handleUserCreated}
         />
       )}
       {isPopupViewOpen && (

@@ -22,7 +22,7 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
 
     try {
       const response = await axios.post<{ url: string }>(
-        'http://localhost:4000/upload/image',
+        'https://choir-registry.onrender.com/upload/image',
         formData,
         {
           headers: {

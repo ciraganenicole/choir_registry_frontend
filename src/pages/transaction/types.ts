@@ -79,25 +79,18 @@ export interface CreateTransactionDto {
 }
 
 export interface TransactionStats {
-  totalRevenue: {
-    USD: number;
-    FC: number;
+  usd: {
+    totalIncome: number;
+    totalExpense: number;
+    netRevenue: number;
+    currentMonthDailyTotal: number;
   };
-  totalIncome: {
-    USD: number;
-    FC: number;
+  fc: {
+    totalIncome: number;
+    totalExpense: number;
+    netRevenue: number;
+    currentMonthDailyTotal: number;
   };
-  totalExpenses: {
-    USD: number;
-    FC: number;
-  };
-  dailyIncome: {
-    USD: number;
-    FC: number;
-  };
-  incomeChange: number;
-  expenseChange: number;
-  revenueChange: number;
 }
 
 // Daily contribution specific types

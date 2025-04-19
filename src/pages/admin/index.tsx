@@ -153,36 +153,26 @@ const AdminDashboard: React.FC = () => {
       total: totalYearlyRecords,
     });
 
-    // Calculate percentages based on total records
+    // Calculate percentages for the cards
     const presentPercentage =
       totalYearlyRecords > 0
         ? Math.round((yearlyStats.totalPresent / totalYearlyRecords) * 100)
         : 0;
-
     const latePercentage =
       totalYearlyRecords > 0
         ? Math.round((yearlyStats.totalLate / totalYearlyRecords) * 100)
         : 0;
-
     const absentPercentage =
       totalYearlyRecords > 0
         ? Math.round((yearlyStats.totalAbsent / totalYearlyRecords) * 100)
         : 0;
 
-    // Debug log to check percentages
-    console.log('Calculated percentages:', {
-      present: presentPercentage,
-      late: latePercentage,
-      absent: absentPercentage,
-      total: presentPercentage + latePercentage + absentPercentage,
-    });
-
-    // Update metrics with correct percentages
+    // Update metrics with percentages for cards
     setMetrics({
-      totalPresent: presentPercentage, // Now showing percentage of present
-      totalLate: latePercentage,
-      totalAbsent: absentPercentage,
-      attendanceRate: presentPercentage + latePercentage, // Attendance rate is present + late
+      totalPresent: presentPercentage, // Percentage for card display
+      totalLate: latePercentage, // Percentage for card display
+      totalAbsent: absentPercentage, // Percentage for card display
+      attendanceRate: presentPercentage + latePercentage, // Total attendance rate (present + late)
     });
 
     const monthNames = [
@@ -244,13 +234,17 @@ const AdminDashboard: React.FC = () => {
       labels: ['Présent', 'Retard', 'Absent'],
       datasets: [
         {
-          data: [metrics.totalPresent, metrics.totalLate, metrics.totalAbsent],
+          data: [
+            attendanceStats.totalPresent,
+            attendanceStats.totalLate,
+            attendanceStats.totalAbsent,
+          ],
           backgroundColor: ['#04cc25', '#fc842d', '#cc0411'],
           borderWidth: 0,
         },
       ],
     }),
-    [metrics],
+    [attendanceStats],
   );
 
   const chartOptions = {
@@ -259,12 +253,8 @@ const AdminDashboard: React.FC = () => {
     scales: {
       y: {
         beginAtZero: true,
-        max: totalUsers,
         grid: {
           color: '#E5E7EB',
-        },
-        ticks: {
-          stepSize: 10,
         },
       },
       x: {
@@ -323,10 +313,10 @@ const AdminDashboard: React.FC = () => {
           <div className="flex items-center justify-between rounded-lg bg-white p-6 shadow-sm">
             <div>
               <p className="text-sm font-medium text-gray-500">
-                Taux de Présence
+                Présences cette Année
               </p>
               <p className="mt-2 text-3xl font-semibold">
-                {metrics.totalPresent}%
+                {metrics.attendanceRate}%
               </p>
             </div>
             <div className="rounded-full bg-green-50 p-3">
@@ -373,21 +363,26 @@ const AdminDashboard: React.FC = () => {
                 {new Date().getFullYear()}
               </p>
             </div>
-            <div className="h-[350px]">
+            <div className="h-[60vh]">
               <Bar data={attendanceChartData} options={chartOptions} />
             </div>
           </div>
 
           <div className="rounded-lg bg-white p-6 shadow-sm">
-            <div className="mb-6">
-              <h3 className="text-lg font-medium text-gray-900">
-                Distribution des Présences
-              </h3>
-              <p className="mt-1 text-sm text-gray-500">
-                Vue d&apos;ensemble de l&apos;année
+            <div className="flex justify-between">
+              <div className="mb-6">
+                <h3 className="text-lg font-medium text-gray-900">
+                  Distribution des Présences
+                </h3>
+                <p className="mt-1 text-sm text-gray-500">
+                  Vue d&apos;ensemble de l&apos;année
+                </p>
+              </div>
+              <p className="text-[20px] font-semibold text-gray-800">
+                {new Date().getFullYear()}
               </p>
             </div>
-            <div className="h-[300px]">
+            <div className="h-[60vh]">
               <Doughnut
                 data={distributionChartData}
                 options={doughnutOptions}

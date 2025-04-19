@@ -17,6 +17,6 @@ export const filterUsers = (users: User[], searchQuery: string): User[] => {
       `${user.firstName} ${user.lastName}`,
       user.matricule,
       user.phoneNumber,
-    ].some((field) => field.toLowerCase().includes(lowerCaseQuery)),
+    ].some((field) => field?.toLowerCase().includes(lowerCaseQuery)),
   );
 };

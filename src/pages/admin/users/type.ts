@@ -48,12 +48,6 @@ export enum UserCategory {
   COMMITTEE = 'COMMITTEE',
 }
 
-interface Attendance {
-  id: number;
-  date: string;
-  status: string;
-}
-
 export interface User {
   id: number;
   firstName: string;
@@ -62,23 +56,28 @@ export interface User {
   maritalStatus: MaritalStatus;
   educationLevel: EducationLevel;
   profession: Profession;
-  competenceDomain?: string;
-  churchOfOrigin: string;
-  commune: Commune;
-  quarter: string;
-  reference: string;
-  address: string;
-  phoneNumber: string;
-  profilePicture?: string;
-  whatsappNumber?: string;
-  email?: string;
+  competenceDomain: string | null;
+  churchOfOrigin: string | null;
+  commune: Commune | null;
+  quarter: string | null;
+  reference: string | null;
+  address: string | null;
+  phoneNumber: string | null;
+  whatsappNumber: string | null;
+  email: string | null;
+  phone: string | null;
   commissions: Commission[];
   matricule: string;
   categories: UserCategory[];
-  fingerprintData?: string;
-  joinDate?: Date;
+  fingerprintData: string | null;
+  voiceCategory: string | null;
+  joinDate: string;
   isActive: boolean;
-  attendance: Attendance[];
+  profileImageUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+  transactions: any[];
+  attendances: any[];
 }
 
 export interface UserFilters {

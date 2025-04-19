@@ -19,14 +19,6 @@ interface CreateTransactionProps {
   defaultType?: TransactionType;
 }
 
-// Add phone number validation helper
-const formatPhoneNumber = (phone: string) => {
-  // Remove any non-digit characters
-  const cleaned = phone.replace(/\D/g, '');
-  // Add '+' prefix if not present
-  return cleaned.startsWith('+') ? cleaned : `+${cleaned}`;
-};
-
 // Helper function to translate categories to French
 const translateCategoryToFrench = (category: string): string => {
   const translations: Record<string, string> = {
@@ -55,6 +47,15 @@ const translateCategoryToFrench = (category: string): string => {
   return translations[category] || category;
 };
 
+interface FormError {
+  message?: string;
+}
+
+interface FormErrors {
+  amount?: FormError;
+  submit?: FormError;
+}
+
 export const CreateTransaction = ({
   onClose,
   onSubmit,
@@ -63,14 +64,18 @@ export const CreateTransaction = ({
   const [formData, setFormData] = useState<CreateTransactionDto>({
     amount: 0,
     type: defaultType,
-    category: undefined,
-    transactionDate: new Date(),
-    currency: Currency.USD,
+    category: IncomeCategories.DAILY,
+    currency: Currency.FC,
     contributorType: 'internal',
+    contributorId: undefined,
+    externalContributorName: undefined,
+    externalContributorPhone: undefined,
+    transactionDate: new Date(),
   });
   const [users, setUsers] = useState<Array<{ value: number; label: string }>>(
     [],
   );
+  const [errors, setErrors] = useState<FormErrors>({});
 
   const availableCategories =
     formData.type === TransactionType.INCOME
@@ -100,45 +105,43 @@ export const CreateTransaction = ({
     loadUsers();
   }, [formData.type]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // Validate form data
-    if (!formData.amount || !formData.category || !formData.currency) {
-      return;
-    }
-
-    // For expenses, validate that the selected user is a committee member
-    if (formData.type === TransactionType.EXPENSE && formData.contributorId) {
-      const selectedUser = users.find(
-        (u) => u.value === formData.contributorId,
-      );
-      if (!selectedUser) {
-        alert('Selectionner un membre');
+    try {
+      if (!formData.amount || formData.amount <= 0) {
+        setErrors({
+          amount: { message: 'Le montant doit être supérieur à 0' },
+        });
         return;
       }
+
+      await onSubmit(formData);
+
+      // Reset form data
+      setFormData({
+        ...formData,
+        amount: 0,
+        type: defaultType,
+        category: IncomeCategories.DAILY,
+        currency: Currency.FC,
+        contributorType: 'internal',
+        contributorId: undefined,
+        externalContributorName: undefined,
+        externalContributorPhone: undefined,
+      });
+
+      // Clear errors
+      setErrors({});
+    } catch (error) {
+      setErrors({
+        submit: { message: 'Une erreur est survenue lors de la soumission' },
+      });
+      if (process.env.NODE_ENV !== 'production') {
+        // eslint-disable-next-line no-console
+        console.error('Error submitting transaction:', error);
+      }
     }
-
-    // For expenses, we only need committee members
-    const transactionData: CreateTransactionDto = {
-      ...formData,
-      currency: formData.currency as Currency,
-      contributorId:
-        formData.contributorType === 'internal'
-          ? formData.contributorId
-          : undefined,
-      externalContributorName:
-        formData.contributorType === 'external'
-          ? formData.externalContributorName
-          : undefined,
-      externalContributorPhone:
-        formData.contributorType === 'external'
-          ? formatPhoneNumber(formData.externalContributorPhone || '')
-          : undefined,
-    };
-
-    await onSubmit(transactionData);
-    onClose();
   };
 
   return (
@@ -149,6 +152,31 @@ export const CreateTransaction = ({
     >
       <div className="p-6">
         <form onSubmit={handleSubmit} className="space-y-2">
+          {errors.submit && (
+            <div className="mb-4 rounded-md bg-red-50 p-4">
+              <div className="flex">
+                <div className="shrink-0">
+                  <svg
+                    className="size-5 text-red-400"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-red-800">
+                    {errors.submit.message}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-4">
             <div className="flex-1">
               <label className="block text-sm font-medium text-gray-700">
@@ -156,13 +184,20 @@ export const CreateTransaction = ({
               </label>
               <input
                 type="number"
-                className="mt-1 block w-full rounded-md border border-gray-300 p-2"
-                value={formData.amount}
+                className={`mt-1 block w-full rounded-md border ${
+                  errors.amount ? 'border-red-500' : 'border-gray-300'
+                } p-2`}
+                value={formData.amount || ''}
                 onChange={(e) =>
                   setFormData({ ...formData, amount: Number(e.target.value) })
                 }
                 required
               />
+              {errors.amount && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.amount.message}
+                </p>
+              )}
             </div>
             <div className="w-32">
               <label className="block text-sm font-medium text-gray-700">
@@ -185,75 +220,66 @@ export const CreateTransaction = ({
             </div>
           </div>
 
-          <div className="flex gap-4">
-            <div className="flex-1">
-              <label className="block text-sm font-medium text-gray-700">
-                Catégorie
-              </label>
-              <select
-                className="mt-1 block w-full rounded-md border border-gray-300 p-2"
-                value={formData.category || ''}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    category: e.target.value as TransactionCategories,
-                  })
-                }
-                required
-              >
-                <option value="">Sélectionner une catégorie</option>
-                {availableCategories.map((category) => (
-                  <option key={category} value={category}>
-                    {translateCategoryToFrench(category)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            {formData.category &&
-              Object.keys(availableSubcategories).length > 0 && (
-                <div className="flex-1">
-                  <label className="block text-sm font-medium text-gray-700">
-                    Sous-catégorie
-                  </label>
-                  <select
-                    className="mt-1 block w-full rounded-md border border-gray-300 p-2"
-                    value={formData.subcategory || ''}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        subcategory: e.target.value,
-                      })
-                    }
-                  >
-                    <option value="">Sélectionner une sous-catégorie</option>
-                    {Object.values(
-                      availableSubcategories as Record<string, string>,
-                    ).map((subcategory: string) => (
-                      <option key={subcategory} value={subcategory}>
-                        {translateCategoryToFrench(subcategory)}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-          </div>
-
-          {/* <div>
+          <div className="flex-1">
             <label className="block text-sm font-medium text-gray-700">
-              Description
+              Catégorie
             </label>
-            <textarea
-              className="mt-1 block w-full rounded-md border border-gray-300 p-2"
-              value={formData.description || ''}
-              onChange={(e) =>
+            <Select
+              value={{
+                value: formData.category,
+                label: translateCategoryToFrench(formData.category || ''),
+              }}
+              onChange={(newValue) =>
                 setFormData({
                   ...formData,
-                  description: e.target.value,
+                  category: newValue?.value as TransactionCategories,
                 })
               }
-              rows={3}
+              options={availableCategories.map((category) => ({
+                value: category,
+                label: translateCategoryToFrench(category),
+              }))}
+              className="mt-1"
+              classNamePrefix="react-select"
+              placeholder="Sélectionner une catégorie"
+              noOptionsMessage={() => 'Aucune catégorie disponible'}
             />
-          </div> */}
+          </div>
+
+          {Object.keys(availableSubcategories).length > 0 && (
+            <div className="flex-1">
+              <label className="block text-sm font-medium text-gray-700">
+                Sous-catégorie
+              </label>
+              <Select
+                value={
+                  formData.subcategory
+                    ? {
+                        value: formData.subcategory,
+                        label: translateCategoryToFrench(formData.subcategory),
+                      }
+                    : null
+                }
+                onChange={(newValue) =>
+                  setFormData({
+                    ...formData,
+                    subcategory: newValue?.value,
+                  })
+                }
+                options={Object.values(
+                  availableSubcategories as Record<string, string>,
+                ).map((subcategory: string) => ({
+                  value: subcategory,
+                  label: translateCategoryToFrench(subcategory),
+                }))}
+                className="mt-1"
+                classNamePrefix="react-select"
+                placeholder="Sélectionner une sous-catégorie"
+                noOptionsMessage={() => 'Aucune sous-catégorie disponible'}
+                isClearable
+              />
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700">
@@ -277,7 +303,9 @@ export const CreateTransaction = ({
 
           <div>
             <label className="block text-sm font-medium text-gray-700">
-              Type de Contributeur
+              {formData.type === TransactionType.EXPENSE
+                ? 'Type de Bénéficiaire'
+                : 'Type de Contributeur'}
             </label>
             <select
               className="mt-1 block w-full rounded-md border border-gray-300 p-2"
@@ -305,7 +333,9 @@ export const CreateTransaction = ({
           {formData.contributorType === 'internal' ? (
             <div>
               <label className="block text-sm font-medium text-gray-700">
-                Contributeur
+                {formData.type === TransactionType.EXPENSE
+                  ? 'Bénéficiaire'
+                  : 'Contributeur'}
               </label>
               <Select
                 options={users}
@@ -320,7 +350,7 @@ export const CreateTransaction = ({
                 }
                 placeholder="Sélectionner un utilisateur"
                 isClearable
-                required
+                // required
               />
             </div>
           ) : (
@@ -339,7 +369,7 @@ export const CreateTransaction = ({
                       externalContributorName: e.target.value,
                     })
                   }
-                  required
+                  // required
                 />
               </div>
               <div>
@@ -381,3 +411,5 @@ export const CreateTransaction = ({
     </Popup>
   );
 };
+
+export default CreateTransaction;
