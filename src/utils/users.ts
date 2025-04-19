@@ -1,4 +1,4 @@
-import type { User } from '@/pages/admin/users/type';
+import type { User } from '@/lib/user/type';
 
 export const sortUsers = (users: User[]): User[] => {
   return [...users].sort((a, b) => {

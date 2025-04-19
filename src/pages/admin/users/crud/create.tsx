@@ -11,8 +11,8 @@ import type {
   Gender,
   MaritalStatus,
   Profession,
-} from '../type';
-import { Commission, UserCategory } from '../type';
+} from '../../../../lib/user/type';
+import { Commission, UserCategory } from '../../../../lib/user/type';
 
 interface CreateUserProps {
   onClose: () => void;

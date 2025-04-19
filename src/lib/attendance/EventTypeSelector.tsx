@@ -1,6 +1,6 @@
 import React from 'react';
 
-import { AttendanceEventType } from '../logic';
+import { AttendanceEventType } from './logic';
 
 interface EventTypeSelectorProps {
   selectedEventType: AttendanceEventType;

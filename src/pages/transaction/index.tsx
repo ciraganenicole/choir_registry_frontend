@@ -6,22 +6,22 @@ import { Card, CardContent } from '@/components/card';
 import SearchInput from '@/components/filters/search';
 import Layout from '@/components/layout';
 import Pagination from '@/components/pagination';
-
-import { CreateTransaction } from './create';
-import Filters from './filters';
 import {
   useCreateTransaction,
   useExportTransactions,
   useExportTransactionsPDF,
   useTransactions,
   useTransactionStats,
-} from './logic';
+} from '@/lib/transaction/logic';
 import type {
   CreateTransactionDto,
   Transaction,
   TransactionFilters,
-} from './types';
-import { Currency, TransactionType } from './types';
+} from '@/lib/transaction/types';
+import { Currency, TransactionType } from '@/lib/transaction/types';
+
+import Filters from '../../lib/transaction/filters';
+import { CreateTransaction } from './create';
 
 interface TransactionResponse {
   data: Transaction[];

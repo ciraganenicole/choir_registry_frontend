@@ -3,8 +3,8 @@ import React, { useEffect, useState } from 'react';
 import Popup from '@/components/popup';
 import { logger } from '@/utils/logger';
 
-import type { User } from '../type';
-import { RegisterFingerprint } from '../user_actions';
+import type { User } from '../../../../lib/user/type';
+import { RegisterFingerprint } from '../../../../lib/user/user_actions';
 
 interface ViewUserProps {
   user: User | null;

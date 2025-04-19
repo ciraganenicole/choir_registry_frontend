@@ -5,10 +5,13 @@ import { Card } from '@/components/card';
 import SearchInput from '@/components/filters/search';
 import Layout from '@/components/layout';
 import Pagination from '@/components/pagination';
-
-import { useDailyContributions, useExportDailyContributions } from '../logic';
-import type { DailyContributionFilters } from '../types';
-import DailyFilters from './filters';
+import DailyFilters from '@/lib/transaction/components/filters';
+import {
+  useDailyContributions,
+  useExportDailyContributions,
+} from '@/lib/transaction/logic';
+import type { DailyContributionFilters } from '@/lib/transaction/types';
+import { logger } from '@/utils/logger';
 
 const formatDate = (dateString: string) => {
   return new Date(dateString).toLocaleDateString('fr-FR', {
@@ -55,7 +58,7 @@ const DailyContributions = () => {
     try {
       await exportDailyContributions.mutateAsync(filters);
     } catch (error) {
-      console.error(`Error exporting daily contributions as ${format}:`, error);
+      logger.error(`Error exporting daily contributions as ${format}:`, error);
     }
   };
 

@@ -1,6 +1,6 @@
 // utils/transaction-utils.ts
 
-import type { Transaction } from '@/pages/transaction/types';
+import type { Transaction } from '@/lib/transaction/types';
 
 export enum TransactionCategories {
   DAILY = 'DAILY',

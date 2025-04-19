@@ -1,18 +1,17 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import debounce from 'lodash/debounce';
-import React, { useCallback, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import SearchInput from '@/components/filters/search';
 import Layout from '@/components/layout';
 import Pagination from '@/components/pagination';
-
-import { EventTypeSelector } from './components/EventTypeSelector';
+import { EventTypeSelector } from '@/lib/attendance/EventTypeSelector';
 import {
   AttendanceEventType,
   AttendanceStatus,
   JustificationReason,
   useAttendance,
-} from './logic';
+} from '@/lib/attendance/logic';
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);

@@ -7,7 +7,7 @@ import type {
   Transaction,
   TransactionFilters,
   TransactionStats,
-} from '@/pages/transaction/types';
+} from './types';
 
 const API_URL = 'https://choir-registry.onrender.com';
 

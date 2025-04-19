@@ -2,16 +2,18 @@ import React, { useEffect, useState } from 'react';
 import Select from 'react-select';
 
 import Popup from '@/components/popup';
-
-import { FetchUsers } from '../admin/users/user_actions';
-import type { CreateTransactionDto, TransactionCategories } from './types';
+import type {
+  CreateTransactionDto,
+  TransactionCategories,
+} from '@/lib/transaction/types';
 import {
   Currency,
   ExpenseCategories,
   IncomeCategories,
   Subcategories,
   TransactionType,
-} from './types';
+} from '@/lib/transaction/types';
+import { FetchUsers } from '@/lib/user/user_actions';
 
 interface CreateTransactionProps {
   onClose: () => void;

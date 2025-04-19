@@ -13,8 +13,8 @@ import {
   Profession,
   type User,
   UserCategory,
-} from '../type';
-import { UpdateUserAction } from '../user_actions';
+} from '../../../../lib/user/type';
+import { UpdateUserAction } from '../../../../lib/user/user_actions';
 
 interface UpdateProps {
   onClose: () => void;

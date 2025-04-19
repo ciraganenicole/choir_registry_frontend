@@ -9,10 +9,6 @@ import SearchInput from '@/components/filters/search';
 import Layout from '@/components/layout';
 import Pagination from '@/components/pagination';
 
-import UserRegistration from './crud/create';
-import DeleteUser from './crud/delete';
-import UpdateUser from './crud/update';
-import ViewUser from './crud/view';
 import {
   Commission,
   Commune,
@@ -22,8 +18,12 @@ import {
   type User,
   UserCategory,
   type UserFilters,
-} from './type';
-import { FetchUsers } from './user_actions';
+} from '../../../lib/user/type';
+import { FetchUsers } from '../../../lib/user/user_actions';
+import UserRegistration from './crud/create';
+import DeleteUser from './crud/delete';
+import UpdateUser from './crud/update';
+import ViewUser from './crud/view';
 
 // Translation functions
 const translateGender = (gender: string): string => {

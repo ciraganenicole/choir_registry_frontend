@@ -10,9 +10,9 @@ import {
 } from 'react-icons/hi';
 
 import Layout from '@/components/layout';
-import { useAttendance } from '@/pages/attendance/logic';
+import { useAttendance } from '@/lib/attendance/logic';
 
-import { FetchUsers } from './users/user_actions';
+import { FetchUsers } from '../../lib/user/user_actions';
 
 interface AttendanceMetrics {
   totalPresent: number;

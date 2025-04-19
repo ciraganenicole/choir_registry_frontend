@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs';
 
-import type { DailyContributionSummary } from '../types';
+import type { DailyContributionSummary } from './types';
 
 export const exportToExcel = async (data: DailyContributionSummary[]) => {
   const workbook = new ExcelJS.Workbook();

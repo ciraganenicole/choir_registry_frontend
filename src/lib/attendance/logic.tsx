@@ -7,8 +7,8 @@ import type { CellHookData, RowInput } from 'jspdf-autotable';
 import autoTable from 'jspdf-autotable';
 import { useEffect, useState } from 'react';
 
-import type { User } from '../admin/users/type';
-import { Commission, UserCategory } from '../admin/users/type';
+import type { User } from '../user/type';
+import { Commission, UserCategory } from '../user/type';
 
 const API_BASE_URL = 'https://choir-registry.onrender.com';
 

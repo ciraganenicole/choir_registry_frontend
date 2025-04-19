@@ -2,8 +2,8 @@ import React from 'react';
 
 import Popup from '@/components/popup';
 
-import type { User } from '../type';
-import { DeleteUserAction } from '../user_actions';
+import type { User } from '../../../../lib/user/type';
+import { DeleteUserAction } from '../../../../lib/user/user_actions';
 
 interface DeleteProps {
   onClose: () => void;
