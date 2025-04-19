@@ -31,46 +31,82 @@ const Layout = ({ children }: { children: ReactNode }) => {
   ];
 
   return (
-    <div>
+    <div className="flex">
+      {/* Overlay for mobile */}
+      {isOpen && (
+        <div
+          className="fixed inset-0 z-20 bg-black/50 md:hidden"
+          onClick={() => setIsOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <motion.div
-        animate={{ width: isOpen ? 250 : 80 }}
-        className="fixed flex h-screen flex-col justify-between bg-gray-900 px-6 py-8 text-white"
+        initial={false}
+        animate={{
+          width: isOpen
+            ? '250px' // Mobile open width
+            : 'w-[45px]', // Mobile closed width
+        }}
+        className="fixed z-30 flex h-screen flex-col justify-between bg-gray-900 px-2 py-4 text-white transition-all duration-300 md:px-6 md:py-8"
       >
-        <button
-          className="mb-4 text-white focus:outline-none"
-          onClick={() => setIsOpen(!isOpen)}
-        >
-          {isOpen ? <X size={24} /> : <Menu size={24} />}
-        </button>
+        <div>
+          <button
+            className="mb-4 flex size-8 items-center justify-center rounded-lg hover:bg-gray-800 focus:outline-none md:size-10"
+            onClick={() => setIsOpen(!isOpen)}
+          >
+            {isOpen ? (
+              <X className="size-4 md:size-6" />
+            ) : (
+              <Menu className="size-4 md:size-6" />
+            )}
+          </button>
 
-        <nav className="mt-8 flex flex-col gap-8">
-          {menuItems.map((item) => (
-            <Link
-              key={item.path}
-              href={item.path}
-              className="flex items-center gap-2 text-white"
-            >
-              {item.icon && <item.icon size={24} />}
-              <span className={isOpen ? 'block' : 'hidden'}>{item.label}</span>
-            </Link>
-          ))}
-        </nav>
+          <nav className="mt-4 flex flex-col gap-4 md:mt-8 md:gap-8">
+            {menuItems.map((item) => (
+              <Link
+                key={item.path}
+                href={item.path}
+                className="flex items-center gap-3 rounded-lg p-2 text-gray-300 transition-colors hover:bg-gray-800 hover:text-white"
+                onClick={() => setIsOpen(false)}
+              >
+                {item.icon && (
+                  <item.icon className="size-4 shrink-0 md:size-6" />
+                )}
+                <span
+                  className={`${
+                    isOpen ? 'block' : 'hidden'
+                  } whitespace-nowrap text-sm md:text-base`}
+                >
+                  {item.label}
+                </span>
+              </Link>
+            ))}
+          </nav>
+        </div>
 
         {/* Logout Button */}
         <button
           onClick={handleLogout}
-          className={`mt-auto flex items-center justify-center gap-3 rounded-md border-[1px] px-6 py-2 text-center text-white ${
-            isOpen ? 'border-white' : 'border-transparent'
+          className={`mt-auto flex items-center justify-center gap-3 rounded-lg p-2 transition-colors hover:bg-gray-800 ${
+            isOpen ? 'border-[1px] border-gray-700' : 'border-transparent'
           }`}
         >
-          <TbLogout2 size={24} />
-          <span className={isOpen ? 'flex' : 'hidden'}>Se déconnecter</span>
+          <TbLogout2 className="size-4 shrink-0 md:size-6" />
+          <span
+            className={`${
+              isOpen ? 'block' : 'hidden'
+            } whitespace-nowrap text-sm md:text-base`}
+          >
+            Se déconnecter
+          </span>
         </button>
       </motion.div>
 
       {/* Main Content */}
-      <div className="size-full h-screen bg-gray-300/50 pl-20">{children}</div>
+      <div className="min-h-screen w-full flex-1 bg-gray-300/50 pl-10 md:pl-20">
+        <div className="h-full">{children}</div>
+      </div>
     </div>
   );
 };

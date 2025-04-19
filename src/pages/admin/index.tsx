@@ -296,93 +296,97 @@ const AdminDashboard: React.FC = () => {
 
   return (
     <Layout>
-      <div className="flex w-full flex-col gap-6 p-6">
+      <div className="flex w-full flex-col gap-2 p-6 md:gap-6">
         <h2 className="text-xl font-semibold text-gray-900">Tableau de bord</h2>
 
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <div className="flex items-center justify-between rounded-lg bg-white p-6 shadow-sm">
+        <div className="grid grid-cols-2 gap-2 md:gap-4 lg:grid-cols-4">
+          <div className="flex items-center justify-between rounded-lg bg-white p-2 shadow-sm md:p-6">
             <div>
-              <p className="text-sm font-medium text-gray-500">Total Membres</p>
-              <p className="mt-2 text-3xl font-semibold">{totalUsers}</p>
+              <p className="text-xs font-medium text-gray-500 md:text-sm">
+                Total Membres
+              </p>
+              <p className="mt-2 text-xl font-semibold md:text-3xl">
+                {totalUsers}
+              </p>
             </div>
-            <div className="rounded-full bg-blue-50 p-3">
-              <HiOutlineUserGroup className="size-6 text-blue-500" />
+            <div className="hidden rounded-full bg-blue-50 p-3 md:block">
+              <HiOutlineUserGroup className="size-3 text-blue-500 md:size-6" />
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between rounded-lg bg-white p-2 shadow-sm md:p-6">
             <div>
-              <p className="text-sm font-medium text-gray-500">
+              <p className="text-xs font-medium text-gray-500 md:text-sm">
                 Présences cette Année
               </p>
-              <p className="mt-2 text-3xl font-semibold">
+              <p className="mt-2 text-xl font-semibold md:text-3xl">
                 {metrics.attendanceRate}%
               </p>
             </div>
-            <div className="rounded-full bg-green-50 p-3">
-              <HiOutlineCalendar className="size-6 text-green-500" />
+            <div className="hidden rounded-full bg-green-50 p-3 md:block">
+              <HiOutlineCalendar className="size-3 text-green-500 md:size-6" />
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between rounded-lg bg-white p-2 shadow-sm md:p-6">
             <div>
-              <p className="text-sm font-medium text-gray-500">
+              <p className="text-xs font-medium text-gray-500 md:text-sm">
                 Retards cette Année
               </p>
-              <p className="mt-2 text-3xl font-semibold">
+              <p className="mt-2 text-xl font-semibold md:text-3xl">
                 {metrics.totalLate}%
               </p>
             </div>
-            <div className="rounded-full bg-orange-50 p-3">
-              <HiOutlineClock className="size-6 text-orange-500" />
+            <div className="hidden rounded-full bg-orange-50 p-3 md:block">
+              <HiOutlineClock className="size-3 text-orange-500 md:size-6" />
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg bg-white p-6 shadow-sm">
+          <div className="flex items-center justify-between rounded-lg bg-white p-2 shadow-sm md:p-6">
             <div>
-              <p className="text-sm font-medium text-gray-500">
+              <p className="text-xs font-medium text-gray-500 md:text-sm">
                 Absences cette Année
               </p>
-              <p className="mt-2 text-3xl font-semibold">
+              <p className="mt-2 text-xl font-semibold md:text-3xl">
                 {metrics.totalAbsent}%
               </p>
             </div>
-            <div className="rounded-full bg-red-50 p-3">
-              <HiOutlineExclamation className="size-6 text-red-500" />
+            <div className="hidden rounded-full bg-red-50 p-3 md:block">
+              <HiOutlineExclamation className="size-3 text-red-500 md:size-6" />
             </div>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-          <div className="rounded-lg bg-white p-4 shadow-sm lg:col-span-2">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-900">
+        <div className="mt-4 grid grid-cols-1 gap-2 md:mt-0 md:gap-4 lg:grid-cols-3">
+          <div className="hidden rounded-sm bg-white p-4 shadow-sm md:col-span-2 md:block md:rounded-lg">
+            <div className="mb-2 flex items-center justify-between md:mb-4">
+              <h3 className="text-sm font-medium text-gray-900 md:text-lg">
                 État des présences
               </h3>
-              <p className="text-sm text-gray-500">
+              <p className="text-xs text-gray-500 md:text-sm">
                 {new Date().getFullYear()}
               </p>
             </div>
-            <div className="h-[60vh]">
+            <div className="h-[35vh] md:h-[60vh]">
               <Bar data={attendanceChartData} options={chartOptions} />
             </div>
           </div>
 
-          <div className="rounded-lg bg-white p-6 shadow-sm">
+          <div className="rounded-[10px] bg-white p-2 shadow-sm md:rounded-lg md:p-6">
             <div className="flex justify-between">
-              <div className="mb-6">
-                <h3 className="text-lg font-medium text-gray-900">
+              <div className="mb-2 md:mb-6">
+                <h3 className="text-sm font-medium text-gray-900 md:text-lg">
                   Distribution des Présences
                 </h3>
-                <p className="mt-1 text-sm text-gray-500">
+                <p className="mt-1 text-xs text-gray-500 md:text-sm">
                   Vue d&apos;ensemble de l&apos;année
                 </p>
               </div>
-              <p className="text-[20px] font-semibold text-gray-800">
+              <p className="text-[16px] font-semibold text-gray-800 md:text-[20px]">
                 {new Date().getFullYear()}
               </p>
             </div>
-            <div className="h-[60vh]">
+            <div className="h-[40vh] md:h-[60vh]">
               <Doughnut
                 data={distributionChartData}
                 options={doughnutOptions}
