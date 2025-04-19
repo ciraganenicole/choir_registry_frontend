@@ -320,7 +320,7 @@ const Transactions = () => {
                   onClick={() => handleAddTransaction(TransactionType.EXPENSE)}
                   className="rounded-full bg-red-500 p-2 text-white hover:bg-red-600"
                 >
-                  <FaPlus />
+                  <FaPlus className="size-2 md:size-4" />
                 </button>
               </div>
             </CardContent>
@@ -358,7 +358,7 @@ const Transactions = () => {
                   })}
                 </span>
                 <Link
-                  className="rounded-md bg-gray-900 px-3 py-1 text-[12px] font-medium text-white"
+                  className="rounded-sm bg-gray-900 p-1 text-[10px] font-medium text-white md:rounded-md md:px-3 md:py-1 md:text-[12px]"
                   href={'/transaction/daily'}
                 >
                   Voir
