@@ -116,7 +116,11 @@ const Transactions = () => {
   const createTransaction = useCreateTransaction();
   const exportTransactions = useExportTransactions();
   const exportTransactionsPDF = useExportTransactionsPDF();
-  const { data: stats, refetch: refetchStats } = useTransactionStats(filters);
+  // Use the same filters for stats
+  const { data: stats, refetch: refetchStats } = useTransactionStats({
+    startDate: filters.startDate,
+    endDate: filters.endDate,
+  });
 
   const handleCreateTransaction = async (
     transactionData: CreateTransactionDto,
@@ -283,7 +287,7 @@ const Transactions = () => {
           <Card>
             <CardContent>
               <h3 className="font-regular mb-[4px] text-[12px] text-green-600 md:mb-[8px] md:text-[14px]">
-                Revenu Total
+                Revenu Total ({filters.startDate ? 'Période filtrée' : 'Tout'})
               </h3>
               <div className="flex items-center justify-between">
                 <div className="text-[12px] font-bold md:text-[24px]">
@@ -307,7 +311,8 @@ const Transactions = () => {
           <Card>
             <CardContent>
               <h3 className="font-regular mb-[4px] text-[12px] text-red-600 md:mb-[8px] md:text-[14px]">
-                Dépense Totale
+                Dépense Totale ({filters.startDate ? 'Période filtrée' : 'Tout'}
+                )
               </h3>
               <div className="flex items-center justify-between">
                 <span className="text-2xl font-bold text-red-600">
@@ -329,7 +334,7 @@ const Transactions = () => {
           <Card>
             <CardContent>
               <h3 className="font-regular mb-[4px] text-[12px] text-blue-500 md:mb-[8px] md:text-[14px]">
-                Revenu Net
+                Revenu Net ({filters.startDate ? 'Période filtrée' : 'Tout'})
               </h3>
               <span className="text-2xl font-bold">
                 {formatCurrencyStats({

@@ -7,10 +7,12 @@ import type { CellHookData, RowInput } from 'jspdf-autotable';
 import autoTable from 'jspdf-autotable';
 import { useEffect, useState } from 'react';
 
+import { API_URL } from '@/config/api';
+
 import type { User } from '../user/type';
 import { Commission, UserCategory } from '../user/type';
 
-const API_BASE_URL = 'https://choir-registry.onrender.com';
+// const API_BASE_URL = 'https://choir-registry.onrender.com';
 
 // Simple logging utility that can be disabled in production
 const log = (message: string, data?: any) => {
@@ -199,7 +201,7 @@ export const useAttendance = () => {
       queryParams.append('page', '1');
 
       const response = await axios.get(
-        `${API_BASE_URL}/users?${queryParams.toString()}`,
+        `${API_URL}/users?${queryParams.toString()}`,
       );
       log('Users response:', response.data);
 
@@ -237,7 +239,7 @@ export const useAttendance = () => {
           attendanceParams.append('page', '1');
 
           const userAttendance = await axios.get(
-            `${API_BASE_URL}/attendance/user/${user.id}?${attendanceParams.toString()}`,
+            `${API_URL}/attendance/user/${user.id}?${attendanceParams.toString()}`,
           );
           log(`Attendance for user ${user.id}:`, userAttendance.data);
 
@@ -294,7 +296,7 @@ export const useAttendance = () => {
     data: Partial<AttendanceRecord>,
   ) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/attendance/manual`, {
+      const response = await axios.post(`${API_URL}/attendance/manual`, {
         ...data,
         userId,
       });

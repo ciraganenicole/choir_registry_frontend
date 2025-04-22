@@ -1,3 +1,5 @@
+import { API_URL } from '@/config/api';
+
 declare global {
   interface Window {
     cloudinary: {
@@ -122,13 +124,10 @@ export const uploadImage = async (file: File): Promise<string> => {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch(
-      'https://choir-registry.onrender.com/upload/image',
-      {
-        method: 'POST',
-        body: formData,
-      },
-    );
+    const response = await fetch(`${API_URL}/upload/image`, {
+      method: 'POST',
+      body: formData,
+    });
 
     if (!response.ok) {
       throw new Error('Failed to upload image');

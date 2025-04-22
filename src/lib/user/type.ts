@@ -81,17 +81,16 @@ export interface User {
 }
 
 export interface UserFilters {
+  page?: number;
+  limit?: number;
   search?: string;
   gender?: Gender;
-  maritalStatus?: MaritalStatus;
   educationLevel?: EducationLevel;
   profession?: Profession;
   commune?: Commune;
   commission?: Commission;
   category?: UserCategory;
-  page?: number;
-  limit?: number;
   sortBy?: string;
   order?: 'ASC' | 'DESC';
-  letter?: string;
+  isActive?: boolean;
 }

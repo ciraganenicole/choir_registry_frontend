@@ -1,5 +1,7 @@
 import axios from 'axios';
 
+import { API_URL } from '@/config/api';
+
 import type {
   CreateTransactionDto,
   DailyContributionFilters,
@@ -8,8 +10,6 @@ import type {
   TransactionFilters,
   TransactionStats,
 } from './types';
-
-const API_URL = 'https://choir-registry.onrender.com';
 
 interface QueryParams extends TransactionFilters {
   page: number;
@@ -75,6 +75,16 @@ export const TransactionService = {
   fetchStats: async (
     filters?: TransactionFilters,
   ): Promise<TransactionStats> => {
+    // Create query params from filters
+    const queryParams = new URLSearchParams();
+    if (filters) {
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') {
+          queryParams.append(key, value.toString());
+        }
+      });
+    }
+
     const { data } = await axios.get(`${API_URL}/transactions/stats`, {
       params: filters,
     });

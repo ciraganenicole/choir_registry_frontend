@@ -3,7 +3,7 @@ import Select from 'react-select';
 
 import Input from '@/components/input';
 import Popup from '@/components/popup';
-import { logger } from '@/utils/logger';
+import { API_URL } from '@/config/api';
 
 import type {
   Commune,
@@ -81,18 +81,13 @@ const UserRegistration: React.FC<CreateUserProps> = ({
         isActive: true,
       };
 
-      logger.debug('Submitting user data:', userData);
-
-      const response = await fetch(
-        'https://choir-registry.onrender.com/users',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(userData),
+      const response = await fetch(`${API_URL}/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-      );
+        body: JSON.stringify(userData),
+      });
 
       if (response.status === 201) {
         onClose();
@@ -116,7 +111,6 @@ const UserRegistration: React.FC<CreateUserProps> = ({
         throw new Error(errorResponse);
       }
     } catch (submitError) {
-      logger.error('Error creating user:', submitError);
       setError('Failed to create user');
     }
   };
@@ -128,7 +122,11 @@ const UserRegistration: React.FC<CreateUserProps> = ({
   };
 
   return (
-    <Popup title="Register New User" onClose={onClose} style="md:w-[70%]">
+    <Popup
+      title="Enregistrer un nouveau membre"
+      onClose={onClose}
+      style="md:w-[70%]"
+    >
       <form
         onSubmit={handleSubmit}
         className="grid grid-cols-2 gap-4 md:grid-cols-3"

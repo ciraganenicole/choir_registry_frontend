@@ -4,6 +4,8 @@ import axios from 'axios';
 import { jsPDF as JSPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+import { API_URL } from '@/config/api';
+
 import { TransactionService } from './service';
 import type {
   CreateTransactionDto,
@@ -13,9 +15,6 @@ import type {
   TransactionStats,
 } from './types';
 import { Currency, TransactionType } from './types';
-
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'https://choir-registry.onrender.com';
 
 // Helper to determine transaction type
 export const getTransactionType = (category: string): 'INCOME' | 'EXPENSE' => {

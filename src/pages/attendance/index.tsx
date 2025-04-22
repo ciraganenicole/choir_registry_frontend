@@ -15,6 +15,8 @@ import {
 
 const formatDate = (dateString: string) => {
   const date = new Date(dateString);
+  // Add one day to match the database date
+  date.setDate(date.getDate() + 1);
   return date.toLocaleDateString('fr-FR', {
     day: '2-digit',
     month: '2-digit',
@@ -151,7 +153,17 @@ const AttendancePage: React.FC = () => {
 
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 10;
-  const today = new Date().toISOString().split('T')[0] as string;
+
+  // Initialize with today's date in local timezone
+  const getTodayDate = (): string => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const [selectedDate, setSelectedDate] = useState<string>(getTodayDate());
   const [popupState, setPopupState] = useState<{
     isOpen: boolean;
     userId: number | null;
@@ -164,11 +176,24 @@ const AttendancePage: React.FC = () => {
     status: null,
   });
 
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const inputDate = e.target.value;
+    setSelectedDate(inputDate || getTodayDate());
+  };
+
+  const adjustDateForTimezone = (dateStr: string): string => {
+    const date = new Date(dateStr);
+    date.setDate(date.getDate() + 1);
+    return date.toISOString().substring(0, 10);
+  };
+
   const handleStatusChange = async (
     userId: number,
-    date: string,
     newStatus: AttendanceStatus,
   ) => {
+    // Adjust the date to compensate for timezone conversion
+    const dateToUse = adjustDateForTimezone(selectedDate);
+
     if (
       newStatus === AttendanceStatus.LATE ||
       newStatus === AttendanceStatus.ABSENT
@@ -176,16 +201,16 @@ const AttendancePage: React.FC = () => {
       setPopupState({
         isOpen: true,
         userId,
-        date,
+        date: dateToUse,
         status: newStatus,
       });
     } else {
       try {
         await markAttendance(userId, {
-          date,
+          date: dateToUse,
           status: newStatus,
           eventType: selectedEventType,
-          timeIn: new Date().toLocaleTimeString('en-US', {
+          timeIn: new Date().toLocaleTimeString('fr-FR', {
             hour12: false,
             hour: '2-digit',
             minute: '2-digit',
@@ -204,12 +229,13 @@ const AttendancePage: React.FC = () => {
   ) => {
     if (!popupState.userId || !popupState.date || !popupState.status) return;
 
+    const dateToUse = adjustDateForTimezone(popupState.date);
     const attendanceData = {
       userId: popupState.userId,
-      date: popupState.date,
+      date: dateToUse,
       status: popupState.status,
       eventType: selectedEventType,
-      timeIn: new Date().toLocaleTimeString('en-US', {
+      timeIn: new Date().toLocaleTimeString('fr-FR', {
         hour12: false,
         hour: '2-digit',
         minute: '2-digit',
@@ -296,6 +322,7 @@ const AttendancePage: React.FC = () => {
                 dates.add(record.date);
               }
             } else {
+              // If no filters, show only current month records
               const recordDate = new Date(record.date);
               if (
                 recordDate.getMonth() === currentMonth &&
@@ -361,7 +388,7 @@ const AttendancePage: React.FC = () => {
         )}
 
         {/* Filters */}
-        <div className="mb-4 flex gap-[2px] md:gap-4">
+        <div className="mb-4 flex flex-wrap gap-[2px] md:gap-4">
           <select
             value={filters.status || 'all'}
             onChange={(e) =>
@@ -413,29 +440,44 @@ const AttendancePage: React.FC = () => {
           onEventTypeChange={changeEventType}
         />
 
-        {/* Event Type Header */}
-        <div className="mb-4 mt-6 flex flex-row items-center gap-2 md:gap-8">
-          <div className="mb-4 mt-6 w-[50%] md:w-[20%]">
-            <h2 className="text-[14px] font-semibold text-gray-800 md:text-[24px]">
-              {selectedEventType === AttendanceEventType.REHEARSAL &&
-                'Liste des Choristes'}
-              {selectedEventType === AttendanceEventType.SUNDAY_SERVICE &&
-                'Liste des Choristes - Culte Dominical'}
-              {selectedEventType === AttendanceEventType.LOUADO &&
-                'Liste des Choristes - Louado'}
-              {selectedEventType === AttendanceEventType.MUSIC &&
-                'Liste des Musiciens'}
-              {selectedEventType === AttendanceEventType.COMMITTEE &&
-                'Liste des Membres du Comité'}
-            </h2>
-            <p className="mt-1 text-[10px] text-gray-600 md:text-sm">
-              {filteredUsers.length} membre
-              {filteredUsers.length !== 1 ? 's' : ''} trouvé
-              {filteredUsers.length !== 1 ? 's' : ''}
-            </p>
+        {/* Event Type Header and Date Selector */}
+        <div className="mb-4 mt-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div className="flex flex-row items-center gap-2 md:gap-8">
+            <div className="w-[50%] md:w-auto">
+              <h2 className="text-[14px] font-semibold text-gray-800 md:text-[24px]">
+                {selectedEventType === AttendanceEventType.REHEARSAL &&
+                  'Liste des Choristes'}
+                {selectedEventType === AttendanceEventType.SUNDAY_SERVICE &&
+                  'Liste des Choristes - Culte Dominical'}
+                {selectedEventType === AttendanceEventType.LOUADO &&
+                  'Liste des Choristes - Louado'}
+                {selectedEventType === AttendanceEventType.MUSIC &&
+                  'Liste des Musiciens'}
+                {selectedEventType === AttendanceEventType.COMMITTEE &&
+                  'Liste des Membres du Comité'}
+              </h2>
+              <p className="mt-1 text-[10px] text-gray-600 md:text-sm">
+                {filteredUsers.length} membre
+                {filteredUsers.length !== 1 ? 's' : ''} trouvé
+                {filteredUsers.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+            <div className="w-[50%] md:w-auto">
+              <SearchInput onSearch={handleSearch} />
+            </div>
           </div>
-          <div className="w-[50%] md:w-[20%]">
-            <SearchInput onSearch={handleSearch} />
+
+          {/* Manual Date Selector */}
+          <div className="flex items-center gap-2">
+            <label className="text-[12px] font-medium text-gray-700 md:text-[14px]">
+              Date de présence:
+            </label>
+            <input
+              type="date"
+              value={selectedDate}
+              onChange={handleDateChange}
+              className="rounded-md border p-1 text-[12px] md:p-2 md:text-[14px]"
+            />
           </div>
         </div>
 
@@ -484,11 +526,7 @@ const AttendancePage: React.FC = () => {
                   <div className="flex flex-row items-center gap-4 p-2">
                     <button
                       onClick={() =>
-                        handleStatusChange(
-                          user.id,
-                          today,
-                          AttendanceStatus.PRESENT,
-                        )
+                        handleStatusChange(user.id, AttendanceStatus.PRESENT)
                       }
                       className="rounded-[5px] bg-green-500 px-3 py-1 text-[12px] text-white hover:bg-green-600"
                     >
@@ -496,11 +534,7 @@ const AttendancePage: React.FC = () => {
                     </button>
                     <button
                       onClick={() =>
-                        handleStatusChange(
-                          user.id,
-                          today,
-                          AttendanceStatus.LATE,
-                        )
+                        handleStatusChange(user.id, AttendanceStatus.LATE)
                       }
                       className="rounded bg-yellow-500 px-3 py-1 text-[12px] text-white hover:bg-yellow-600"
                     >
@@ -508,11 +542,7 @@ const AttendancePage: React.FC = () => {
                     </button>
                     <button
                       onClick={() =>
-                        handleStatusChange(
-                          user.id,
-                          today,
-                          AttendanceStatus.ABSENT,
-                        )
+                        handleStatusChange(user.id, AttendanceStatus.ABSENT)
                       }
                       className="rounded bg-red-500 px-3 py-1 text-[12px] text-white hover:bg-red-600"
                     >
@@ -535,7 +565,7 @@ const AttendancePage: React.FC = () => {
                     {datesWithAttendance.map((date) => (
                       <th
                         key={date}
-                        className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider "
+                        className="px-2 py-1 text-left text-xs font-medium uppercase tracking-wider"
                       >
                         {formatDate(date)}
                       </th>
@@ -571,7 +601,6 @@ const AttendancePage: React.FC = () => {
                             onClick={() =>
                               handleStatusChange(
                                 user.id,
-                                today,
                                 AttendanceStatus.PRESENT,
                               )
                             }
@@ -581,11 +610,7 @@ const AttendancePage: React.FC = () => {
                           </button>
                           <button
                             onClick={() =>
-                              handleStatusChange(
-                                user.id,
-                                today,
-                                AttendanceStatus.LATE,
-                              )
+                              handleStatusChange(user.id, AttendanceStatus.LATE)
                             }
                             className="rounded bg-yellow-500 px-[4px] py-[1px] text-[10px] text-white hover:bg-yellow-600"
                           >
@@ -595,7 +620,6 @@ const AttendancePage: React.FC = () => {
                             onClick={() =>
                               handleStatusChange(
                                 user.id,
-                                today,
                                 AttendanceStatus.ABSENT,
                               )
                             }

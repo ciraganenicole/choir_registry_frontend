@@ -135,7 +135,7 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
   } = userData || {};
 
   return (
-    <Popup title="Update User" onClose={onClose}>
+    <Popup title="Mettre à jour" onClose={onClose}>
       <form
         onSubmit={handleSubmit}
         className="grid grid-cols-2 gap-4 md:grid-cols-3"
@@ -414,7 +414,6 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
           Mettre à jour
         </button>
       </form>
-      <p>L&apos;utilisateur a été mis à jour avec succès!</p>
     </Popup>
   );
 };

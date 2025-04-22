@@ -2,12 +2,25 @@ import { jsPDF as JSPDF } from 'jspdf';
 import type { CellHookData } from 'jspdf-autotable';
 import autoTable from 'jspdf-autotable';
 import React, { useEffect, useState } from 'react';
-import { FaEdit, FaEye, FaFilter, FaPlus, FaTrash } from 'react-icons/fa';
+import {
+  FaCalendarAlt,
+  FaEdit,
+  FaEye,
+  FaFilter,
+  FaMoneyBill,
+  FaPlus,
+  FaToggleOff,
+  FaToggleOn,
+  FaTrash,
+} from 'react-icons/fa';
 import { HiDownload } from 'react-icons/hi';
 
+import AttendanceDetailsPopup from '@/components/attendance/UserAttendanceDetails';
 import SearchInput from '@/components/filters/search';
 import Layout from '@/components/layout';
 import Pagination from '@/components/pagination';
+import UserContributionsDetails from '@/components/transactions/UserContributionsDetails';
+import { showNotification } from '@/utils/notifications';
 
 import {
   Commission,
@@ -19,7 +32,7 @@ import {
   UserCategory,
   type UserFilters,
 } from '../../../lib/user/type';
-import { FetchUsers } from '../../../lib/user/user_actions';
+import { FetchUsers, toggleUserStatus } from '../../../lib/user/user_actions';
 import UserRegistration from './crud/create';
 import DeleteUser from './crud/delete';
 import UpdateUser from './crud/update';
@@ -89,6 +102,38 @@ const translateCommission = (commission: string): string => {
   return translations[commission] || commission;
 };
 
+// Move handleError to the top level
+const handleError = (error: unknown, setError: (msg: string) => void) => {
+  const errorMessage =
+    error instanceof Error ? error.message : 'An error occurred';
+  setError(errorMessage);
+};
+
+const getActiveFilterButton = (isActive: boolean | undefined) => {
+  if (isActive === true) {
+    return {
+      className: 'bg-green-600 hover:bg-green-700',
+      icon: <FaToggleOn className="size-3 md:size-4" />,
+      text: 'Actifs',
+      title: 'Afficher les inactifs',
+    };
+  }
+  if (isActive === false) {
+    return {
+      className: 'bg-red-600 hover:bg-red-700',
+      icon: <FaToggleOff className="size-3 md:size-4" />,
+      text: 'Inactifs',
+      title: 'Afficher tous',
+    };
+  }
+  return {
+    className: 'bg-yellow-600 hover:bg-yellow-700',
+    icon: null,
+    text: 'Status',
+    title: 'Afficher les actifs',
+  };
+};
+
 const UsersManagement: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -105,11 +150,31 @@ const UsersManagement: React.FC = () => {
     sortBy: 'firstName',
     order: 'ASC',
   });
+  const [isAttendancePopupOpen, setIsAttendancePopupOpen] = useState(false);
+  const [isContributionsPopupOpen, setIsContributionsPopupOpen] =
+    useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const handleLogoError = () => {
+    showNotification('Failed to add logo to PDF', 'error');
+  };
 
   const loadUsers = async () => {
-    const response = await FetchUsers({ ...filters, page: currentPage });
-    setUsers(response.data);
-    setTotalUsers(response.total);
+    try {
+      const apiFilters = {
+        ...filters,
+        page: currentPage,
+        isActive: filters.isActive === undefined ? undefined : filters.isActive,
+      };
+      const response = await FetchUsers(apiFilters);
+
+      if (response.data) {
+        setUsers(response.data);
+        setTotalUsers(response.total);
+      }
+    } catch (err) {
+      handleError(err, setErrorMessage);
+    }
   };
 
   useEffect(() => {
@@ -166,6 +231,33 @@ const UsersManagement: React.FC = () => {
     setCurrentPage(1);
   };
 
+  const handleViewAttendance = (user: User) => {
+    setSelectedUser(user);
+    setIsAttendancePopupOpen(true);
+  };
+
+  const handleViewContributions = (user: User) => {
+    setSelectedUser(user);
+    setIsContributionsPopupOpen(true);
+  };
+
+  const handleToggleStatus = async (userId: number, currentStatus: boolean) => {
+    try {
+      const newStatus = await toggleUserStatus(userId, currentStatus);
+      setUsers((prevUsers) =>
+        prevUsers.map((user) =>
+          user.id === userId ? { ...user, isActive: newStatus } : user,
+        ),
+      );
+      showNotification(
+        `Utilisateur ${newStatus ? 'activé' : 'désactivé'} avec succès`,
+        'success',
+      );
+    } catch (err) {
+      handleError(err, setErrorMessage);
+    }
+  };
+
   const exportUsers = async () => {
     try {
       const AllUsers = await FetchUsers({ ...filters, limit: totalUsers });
@@ -191,7 +283,7 @@ const UsersManagement: React.FC = () => {
 
         doc.addImage(base64, 'PNG', margin, margin, 35, 20);
       } catch (error) {
-        console.warn('Failed to add logo to PDF:', error);
+        handleLogoError();
       }
 
       // Add header text with exact positioning
@@ -298,14 +390,81 @@ const UsersManagement: React.FC = () => {
 
       // Save PDF
       doc.save(`registre_choristes_${currentDate.replace(/\//g, '-')}.pdf`);
-    } catch (error) {
-      console.log(error);
+    } catch (err) {
+      handleError(err, setErrorMessage);
     }
   };
+
+  const handleActiveFilterToggle = () => {
+    setFilters((prev) => {
+      let newIsActive;
+      if (prev.isActive === undefined) {
+        newIsActive = true;
+      } else if (prev.isActive === true) {
+        newIsActive = false;
+      } else {
+        newIsActive = undefined;
+      }
+
+      return {
+        ...prev,
+        isActive: newIsActive,
+        page: 1,
+      };
+    });
+    setCurrentPage(1);
+  };
+
+  const getStatusIndicator = (user: User) => {
+    if (user.isActive) {
+      return (
+        <div className="flex items-center">
+          <div className="size-2.5 rounded-full bg-green-400"></div>
+          <span className="ml-2 text-sm font-medium text-green-600">Actif</span>
+        </div>
+      );
+    }
+    return (
+      <div className="flex items-center">
+        <div className="size-2.5 rounded-full bg-red-400"></div>
+        <span className="ml-2 text-sm font-medium text-red-600">Inactif</span>
+      </div>
+    );
+  };
+
+  const getRoleIndicator = (user: User) => {
+    if (user.categories.includes(UserCategory.COMMITTEE)) {
+      return (
+        <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
+          Comité
+        </span>
+      );
+    }
+    if (user.commissions.includes(Commission.SINGING_MUSIC)) {
+      return (
+        <span className="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-700 ring-1 ring-inset ring-yellow-700/10">
+          Leader
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-700/10">
+        Membre
+      </span>
+    );
+  };
+
+  // In the render section, replace nested ternaries with the helper function
+  const activeFilterButton = getActiveFilterButton(filters.isActive);
 
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
+        {errorMessage && (
+          <div className="mb-4 rounded-md bg-red-50 p-4 text-red-700">
+            {errorMessage}
+          </div>
+        )}
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-2xl font-bold">Liste des choristes</h1>
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
@@ -316,6 +475,14 @@ const UsersManagement: React.FC = () => {
             >
               <FaFilter className="size-3 md:size-4" />
               <span>Filtres</span>
+            </button>
+            <button
+              onClick={handleActiveFilterToggle}
+              className={`flex flex-1 items-center justify-center gap-2 rounded-md p-1 text-[12px] font-semibold text-white sm:flex-none sm:px-4 md:px-3 md:py-2 md:text-sm ${activeFilterButton.className}`}
+              title={activeFilterButton.title}
+            >
+              {activeFilterButton.icon}
+              <span>{activeFilterButton.text}</span>
             </button>
             <button
               onClick={exportUsers}
@@ -472,6 +639,9 @@ const UsersManagement: React.FC = () => {
                   Address
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">
                   Actions
                 </th>
               </tr>
@@ -496,22 +666,61 @@ const UsersManagement: React.FC = () => {
                     <td className="px-4 py-3">{user.commissions}</td>
                     <td className="px-4 py-3">{user.phoneNumber}</td>
                     <td className="px-4 py-3">{user.address}</td>
-                    <td className="flex space-x-4 px-4 py-3">
+                    <td className="px-4 py-3">
+                      <div className="flex items-center">
+                        <div
+                          className={`size-2.5 rounded-full ${user.isActive ? 'bg-green-400' : 'bg-red-400'}`}
+                        ></div>
+                        <span
+                          className={`ml-2 text-sm font-medium ${user.isActive ? 'text-green-600' : 'text-red-600'}`}
+                        >
+                          {user.isActive ? 'Actif' : 'Inactif'}
+                        </span>
+                        <button
+                          onClick={() =>
+                            handleToggleStatus(user.id, user.isActive)
+                          }
+                          className={`ml-2 text-xl ${user.isActive ? 'text-green-500' : 'text-gray-400'}`}
+                          title={user.isActive ? 'Désactiver' : 'Activer'}
+                        >
+                          {user.isActive ? <FaToggleOn /> : <FaToggleOff />}
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">{getRoleIndicator(user)}</td>
+                    <td className="flex items-center space-x-4 px-4 py-3">
                       <button
                         onClick={() => handleView(user)}
                         className="text-green-500 hover:text-green-700"
+                        title="View Details"
                       >
                         <FaEye />
                       </button>
                       <button
                         onClick={() => handleUpdate(user)}
                         className="text-blue-500 hover:text-blue-700"
+                        title="Edit"
                       >
                         <FaEdit />
                       </button>
                       <button
+                        onClick={() => handleViewAttendance(user)}
+                        className="text-purple-500 hover:text-purple-700"
+                        title="View Attendance"
+                      >
+                        <FaCalendarAlt />
+                      </button>
+                      <button
+                        onClick={() => handleViewContributions(user)}
+                        className="text-yellow-500 hover:text-yellow-700"
+                        title="View Contributions"
+                      >
+                        <FaMoneyBill />
+                      </button>
+                      <button
                         onClick={() => handleDelete(user)}
                         className="text-red-500 hover:text-red-700"
+                        title="Delete"
                       >
                         <FaTrash />
                       </button>
@@ -520,7 +729,7 @@ const UsersManagement: React.FC = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan={6} className="py-4 text-center">
+                  <td colSpan={9} className="py-4 text-center">
                     No users found.
                   </td>
                 </tr>
@@ -575,6 +784,12 @@ const UsersManagement: React.FC = () => {
                       <span className="text-gray-500">Email:</span>
                       <span className="truncate">{user.email}</span>
                     </div>
+                    <div className="flex items-center justify-between">
+                      <span className="text-gray-500">Status:</span>
+                      <div className="flex items-center">
+                        {getStatusIndicator(user)}
+                      </div>
+                    </div>
                   </div>
 
                   <div className="my-2 h-[1px] w-full bg-gray-500" />
@@ -582,19 +797,36 @@ const UsersManagement: React.FC = () => {
                   <div className="flex justify-end space-x-6">
                     <button
                       onClick={() => handleView(user)}
-                      className=" text-green-500 hover:bg-green-50"
+                      className="text-green-500 hover:bg-green-50"
+                      title="View Details"
                     >
                       <FaEye className="size-4 md:size-5" />
                     </button>
                     <button
                       onClick={() => handleUpdate(user)}
-                      className=" text-blue-500 hover:bg-blue-50"
+                      className="text-blue-500 hover:bg-blue-50"
+                      title="Edit"
                     >
                       <FaEdit className="size-4 md:size-5" />
                     </button>
                     <button
+                      onClick={() => handleViewAttendance(user)}
+                      className="text-purple-500 hover:bg-purple-50"
+                      title="View Attendance"
+                    >
+                      <FaCalendarAlt className="size-4 md:size-5" />
+                    </button>
+                    <button
+                      onClick={() => handleViewContributions(user)}
+                      className="text-yellow-500 hover:bg-yellow-50"
+                      title="View Contributions"
+                    >
+                      <FaMoneyBill className="size-4 md:size-5" />
+                    </button>
+                    <button
                       onClick={() => handleDelete(user)}
-                      className=" text-red-500 hover:bg-red-50"
+                      className="text-red-500 hover:bg-red-50"
+                      title="Delete"
                     >
                       <FaTrash className="size-4 md:size-5" />
                     </button>
@@ -641,6 +873,18 @@ const UsersManagement: React.FC = () => {
           onClose={() => setIsPopupDeleteOpen(false)}
           onUserDeleted={handleDeleteConfirmed}
           selectedUser={selectedUser}
+        />
+      )}
+      {isAttendancePopupOpen && selectedUser && (
+        <AttendanceDetailsPopup
+          user={selectedUser}
+          onClose={() => setIsAttendancePopupOpen(false)}
+        />
+      )}
+      {isContributionsPopupOpen && selectedUser && (
+        <UserContributionsDetails
+          user={selectedUser}
+          onClose={() => setIsContributionsPopupOpen(false)}
         />
       )}
     </Layout>

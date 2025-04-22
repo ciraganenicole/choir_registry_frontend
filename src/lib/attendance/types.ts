@@ -63,7 +63,9 @@ export type EventTypeToUserMapping = Record<
 >;
 
 export interface AttendanceState {
-  [userId: number]: AttendanceRecord[];
+  records: { [userId: number]: AttendanceRecord[] };
+  loading: boolean;
+  error: null | string;
 }
 
 export interface AttendanceHookState {

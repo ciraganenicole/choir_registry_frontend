@@ -15,7 +15,7 @@ const Popup: React.FC<PopupProps> = ({ title, children, onClose, style }) => {
         className={`relative flex h-[95vh] w-[90%] flex-col rounded-lg bg-white shadow-md ${style}`}
       >
         {/* Header Section - Fixed */}
-        <div className="relative border-b border-gray-200 px-8 py-4">
+        <div className="relative border-b border-gray-200 px-2 py-4 md:px-8">
           <button
             type="button"
             onClick={onClose}
@@ -24,7 +24,7 @@ const Popup: React.FC<PopupProps> = ({ title, children, onClose, style }) => {
             <IoClose />
           </button>
 
-          <h2 className="text-center text-[18px] font-bold text-gray-900 md:text-[24px]">
+          <h2 className="text-start text-[16px] font-bold text-gray-900 md:text-center md:text-[24px]">
             {title}
           </h2>
         </div>

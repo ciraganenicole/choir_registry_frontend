@@ -16,6 +16,8 @@
   "dependencies": {
     "@headlessui/react": "^2.2.0",
     "@react-pdf/renderer": "^4.2.4",
+    "@redux-offline/redux-offline": "^2.6.0",
+    "@reduxjs/toolkit": "^2.7.0",
     "@simplewebauthn/browser": "^13.1.0",
     "@simplewebauthn/server": "^13.1.1",
     "@tanstack/react-query": "^5.66.11",
@@ -35,8 +37,11 @@
     "react-chartjs-2": "^5.3.0",
     "react-dom": "^18.2.0",
     "react-icons": "^5.4.0",
+    "react-redux": "^9.2.0",
     "react-select": "^5.10.0",
     "react-webcam": "^7.2.0",
+    "redux": "^5.0.1",
+    "redux-persist": "^6.0.0",
     "styled-jsx-plugin-postcss": "^4.0.1",
     "xlsx": "^0.18.5"
   },

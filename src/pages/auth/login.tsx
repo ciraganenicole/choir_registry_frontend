@@ -3,6 +3,7 @@ import { useRouter } from 'next/router';
 import { useState } from 'react';
 
 import Input from '@/components/input';
+import { API_URL } from '@/config/api';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -13,16 +14,13 @@ const Login: React.FC = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await fetch(
-        'https://choir-registry.onrender.com/auth/login',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ email, password }),
+      const response = await fetch(`${API_URL}/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-      );
+        body: JSON.stringify({ email, password }),
+      });
 
       const data = await response.json();
 

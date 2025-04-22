@@ -1,5 +1,6 @@
-import axios from 'axios';
 import React, { useRef, useState } from 'react';
+
+import { API_URL } from '@/config/api';
 
 interface ImageUploadProps {
   onUploadSuccess: (imageUrl: string) => void;
@@ -21,21 +22,20 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
     setIsUploading(true);
 
     try {
-      const response = await axios.post<{ url: string }>(
-        'https://choir-registry.onrender.com/upload/image',
-        formData,
-        {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-          },
-          withCredentials: true, // Add this if you need to send cookies
-        },
-      );
+      const response = await fetch(`${API_URL}/upload/image`, {
+        method: 'POST',
+        body: formData,
+      });
 
-      if (response.data?.url) {
-        onUploadSuccess(response.data.url);
+      if (response.ok) {
+        const data = await response.json();
+        if (data?.url) {
+          onUploadSuccess(data.url);
+        } else {
+          throw new Error('No URL returned from server');
+        }
       } else {
-        throw new Error('No URL returned from server');
+        throw new Error('Failed to upload image');
       }
     } catch (error) {
       const errorMessage =

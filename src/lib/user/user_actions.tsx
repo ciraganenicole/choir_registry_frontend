@@ -3,6 +3,8 @@
 import { startRegistration } from '@simplewebauthn/browser';
 import { useState } from 'react';
 
+import { API_URL } from '@/config/api';
+
 import type {
   Commission,
   Commune,
@@ -97,16 +99,13 @@ export const CreateUser = <T extends DefaultFormData>(
         isActive: true,
       };
 
-      const response = await fetch(
-        'https://choir-registry.onrender.com/users',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(dataToSubmit),
+      const response = await fetch(`${API_URL}/users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
-      );
+        body: JSON.stringify(dataToSubmit),
+      });
 
       const data = await response.json();
 
@@ -146,17 +145,14 @@ export const UpdateUserAction = async (
 ) => {
   try {
     console.log('Sending update with payload:', updatedData);
-    const response = await fetch(
-      `https://choir-registry.onrender.com/users/${id}`,
-      {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify(updatedData),
+    const response = await fetch(`${API_URL}/users/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
       },
-    );
+      body: JSON.stringify(updatedData),
+    });
 
     const data = await response.json();
     console.log('Update response:', data);
@@ -174,9 +170,38 @@ export const UpdateUserAction = async (
   }
 };
 
+export const toggleUserStatus = async (
+  userId: number,
+  currentStatus: boolean,
+): Promise<boolean> => {
+  try {
+    const response = await fetch(`${API_URL}/users/${userId}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      },
+      body: JSON.stringify({ isActive: !currentStatus }),
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(
+        data.message ||
+          `Failed to toggle user status with status ${response.status}`,
+      );
+    }
+
+    return !currentStatus; // Return the new status
+  } catch (error) {
+    console.error('Error toggling user status:', error);
+    throw error;
+  }
+};
+
 export const DeleteUserAction = async (userId: number): Promise<boolean> => {
   try {
-    await fetch(`https://choir-registry.onrender.com/users/${userId}`, {
+    await fetch(`${API_URL}/users/${userId}`, {
       method: 'DELETE',
     });
     return true;
@@ -188,9 +213,7 @@ export const DeleteUserAction = async (userId: number): Promise<boolean> => {
 
 export const ViewUser = async (id: number) => {
   try {
-    const response = await fetch(
-      `https://choir-registry.onrender.com/users/${id}`,
-    );
+    const response = await fetch(`${API_URL}/users/${id}`);
     const user = await response.json();
     console.log('User Details:', user);
   } catch (error) {
@@ -203,33 +226,46 @@ export const FetchUsers = async (
 ): Promise<{ data: User[]; total: number; page: number; limit: number }> => {
   try {
     const queryParams = new URLSearchParams();
+
+    // Handle each filter parameter explicitly
     Object.entries(filters).forEach(([key, value]) => {
       if (value !== undefined && value !== '') {
-        queryParams.append(key, value.toString());
+        // Special handling for isActive to ensure it's a proper boolean
+        if (key === 'isActive') {
+          // Only append if it's explicitly true or false
+          if (value === true) {
+            queryParams.append('isActive', 'true');
+          } else if (value === false) {
+            queryParams.append('isActive', 'false');
+          }
+        } else {
+          queryParams.append(key, value.toString());
+        }
       }
     });
 
-    const response = await fetch(
-      `https://choir-registry.onrender.com/users?${queryParams.toString()}`,
-    );
+    const url = `${API_URL}/users?${queryParams.toString()}`;
+    console.log('Fetching users with query:', url);
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
     const data = await response.json();
     return data;
   } catch (error) {
     console.error('Error fetching users:', error);
-    return { data: [], total: 0, page: 1, limit: 8 };
+    throw error;
   }
 };
 
 export const RegisterFingerprint = async (userId: number) => {
   try {
-    const resp = await fetch(
-      'https://choir-registry.onrender.com/webauthn/register-challenge',
-      {
-        method: 'POST',
-        body: JSON.stringify({ userId }),
-        headers: { 'Content-Type': 'application/json' },
-      },
-    );
+    const resp = await fetch(`${API_URL}/webauthn/register-challenge`, {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
+      headers: { 'Content-Type': 'application/json' },
+    });
 
     const challengeData = await resp.json();
     console.log('Challenge:', challengeData);
@@ -238,7 +274,7 @@ export const RegisterFingerprint = async (userId: number) => {
     console.log('Credential:', credential);
 
     const verificationResp = await fetch(
-      'https://choir-registry.onrender.com/webauthn/verify-registration',
+      `${API_URL}/webauthn/verify-registration`,
       {
         method: 'POST',
         body: JSON.stringify({ userId, credential }),
