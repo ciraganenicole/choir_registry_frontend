@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch } from 'react-redux';
 
 import Pagination from '@/components/pagination';
 import Popup from '@/components/popup';
@@ -10,7 +10,6 @@ import type {
   JustificationReason,
 } from '@/lib/attendance/logic';
 import type { User } from '@/lib/user/type';
-import type { RootState } from '@/store';
 import { setAttendanceRecords } from '@/store';
 
 interface UserAttendanceDetailsProps {
@@ -31,9 +30,6 @@ export const UserAttendanceDetails: React.FC<UserAttendanceDetailsProps> = ({
   onClose,
 }) => {
   const dispatch = useDispatch();
-  const attendanceRecords = useSelector(
-    (state: RootState) => state.attendance.records[user.id] || [],
-  );
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +76,9 @@ export const UserAttendanceDetails: React.FC<UserAttendanceDetailsProps> = ({
       );
 
       setAttendance(sortedRecords);
+      dispatch(
+        setAttendanceRecords({ userId: user.id, records: sortedRecords }),
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred');
       setAttendance([]);
@@ -87,22 +86,6 @@ export const UserAttendanceDetails: React.FC<UserAttendanceDetailsProps> = ({
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    const fetchInitialAttendance = async () => {
-      try {
-        const response = await fetch(`${API_URL}/attendance/${user.id}`);
-        const data = await response.json();
-        dispatch(setAttendanceRecords({ userId: user.id, records: data }));
-      } catch (err) {
-        console.error('Failed to fetch attendance:', err);
-      }
-    };
-
-    if (!attendanceRecords.length) {
-      fetchInitialAttendance();
-    }
-  }, [user.id, dispatch, attendanceRecords.length]);
 
   useEffect(() => {
     fetchAttendance();

@@ -144,7 +144,6 @@ export const UpdateUserAction = async (
   updatedData: Partial<User>,
 ) => {
   try {
-    console.log('Sending update with payload:', updatedData);
     const response = await fetch(`${API_URL}/users/${id}`, {
       method: 'PUT',
       headers: {
@@ -155,7 +154,6 @@ export const UpdateUserAction = async (
     });
 
     const data = await response.json();
-    console.log('Update response:', data);
 
     if (!response.ok) {
       throw new Error(

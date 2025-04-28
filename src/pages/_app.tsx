@@ -10,7 +10,20 @@ import { PersistGate } from 'redux-persist/integration/react';
 import OfflineIndicator from '@/components/pwa/OfflineIndicator';
 import { persistor, store } from '@/store';
 
-export default function App({ Component, pageProps }: AppProps) {
+import { ProtectedRoute } from '../components/ProtectedRoute';
+import { AuthProvider } from '../providers/AuthProvider';
+
+// Add paths that should be protected
+const protectedPaths = [
+  '/dashboard',
+  '/profile',
+  '/admin',
+  '/attendance',
+  '/transaction',
+  // Add other protected routes here
+];
+
+export default function App({ Component, pageProps, router }: AppProps) {
   // Ensure a stable QueryClient instance
   const [queryClient] = useState(() => new QueryClient());
 
@@ -27,11 +40,23 @@ export default function App({ Component, pageProps }: AppProps) {
     }
   }, []);
 
+  const isProtectedRoute = protectedPaths.some((path) =>
+    router.pathname.startsWith(path),
+  );
+
   return (
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
         <QueryClientProvider client={queryClient}>
-          <Component {...pageProps} />
+          <AuthProvider>
+            {isProtectedRoute ? (
+              <ProtectedRoute>
+                <Component {...pageProps} />
+              </ProtectedRoute>
+            ) : (
+              <Component {...pageProps} />
+            )}
+          </AuthProvider>
           <OfflineIndicator />
         </QueryClientProvider>
       </PersistGate>

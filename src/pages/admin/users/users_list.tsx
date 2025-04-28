@@ -20,7 +20,6 @@ import SearchInput from '@/components/filters/search';
 import Layout from '@/components/layout';
 import Pagination from '@/components/pagination';
 import UserContributionsDetails from '@/components/transactions/UserContributionsDetails';
-import { showNotification } from '@/utils/notifications';
 
 import {
   Commission,
@@ -154,10 +153,7 @@ const UsersManagement: React.FC = () => {
   const [isContributionsPopupOpen, setIsContributionsPopupOpen] =
     useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-
-  const handleLogoError = () => {
-    showNotification('Failed to add logo to PDF', 'error');
-  };
+  console.log(errorMessage, 'error');
 
   const loadUsers = async () => {
     try {
@@ -249,10 +245,6 @@ const UsersManagement: React.FC = () => {
           user.id === userId ? { ...user, isActive: newStatus } : user,
         ),
       );
-      showNotification(
-        `Utilisateur ${newStatus ? 'activé' : 'désactivé'} avec succès`,
-        'success',
-      );
     } catch (err) {
       handleError(err, setErrorMessage);
     }
@@ -283,7 +275,7 @@ const UsersManagement: React.FC = () => {
 
         doc.addImage(base64, 'PNG', margin, margin, 35, 20);
       } catch (error) {
-        handleLogoError();
+        console.warn('Failed to add logo to PDF:', error);
       }
 
       // Add header text with exact positioning
@@ -416,43 +408,52 @@ const UsersManagement: React.FC = () => {
   };
 
   const getStatusIndicator = (user: User) => {
-    if (user.isActive) {
-      return (
-        <div className="flex items-center">
-          <div className="size-2.5 rounded-full bg-green-400"></div>
-          <span className="ml-2 text-sm font-medium text-green-600">Actif</span>
-        </div>
-      );
-    }
     return (
-      <div className="flex items-center">
-        <div className="size-2.5 rounded-full bg-red-400"></div>
-        <span className="ml-2 text-sm font-medium text-red-600">Inactif</span>
-      </div>
+      <button
+        onClick={() => handleToggleStatus(user.id, user.isActive)}
+        className={`flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium transition-colors ${
+          user.isActive
+            ? 'bg-green-100 text-green-800 hover:bg-green-200'
+            : 'bg-red-100 text-red-800 hover:bg-red-200'
+        }`}
+        title={user.isActive ? 'Désactiver' : 'Activer'}
+      >
+        {user.isActive ? (
+          <>
+            <FaToggleOn className="size-4" />
+            <span>Actif</span>
+          </>
+        ) : (
+          <>
+            <FaToggleOff className="size-4" />
+            <span>Inactif</span>
+          </>
+        )}
+      </button>
     );
   };
 
-  const getRoleIndicator = (user: User) => {
-    if (user.categories.includes(UserCategory.COMMITTEE)) {
-      return (
-        <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
-          Comité
-        </span>
-      );
-    }
-    if (user.commissions.includes(Commission.SINGING_MUSIC)) {
-      return (
-        <span className="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-700 ring-1 ring-inset ring-yellow-700/10">
-          Leader
-        </span>
-      );
-    }
-    return (
-      <span className="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-700/10">
-        Membre
-      </span>
-    );
-  };
+  // const getRoleIndicator = (user: User) => {
+  //   if (user.categories.includes(UserCategory.COMMITTEE)) {
+  //     return (
+  //       <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
+  //         Comité
+  //       </span>
+  //     );
+  //   }
+  //   if (user.commissions.includes(Commission.SINGING_MUSIC)) {
+  //     return (
+  //       <span className="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-700 ring-1 ring-inset ring-yellow-700/10">
+  //         Leader
+  //       </span>
+  //     );
+  //   }
+  //   return (
+  //     <span className="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-700/10">
+  //       Membre
+  //     </span>
+  //   );
+  // };
 
   // In the render section, replace nested ternaries with the helper function
   const activeFilterButton = getActiveFilterButton(filters.isActive);
@@ -460,11 +461,6 @@ const UsersManagement: React.FC = () => {
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
-        {errorMessage && (
-          <div className="mb-4 rounded-md bg-red-50 p-4 text-red-700">
-            {errorMessage}
-          </div>
-        )}
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="text-2xl font-bold">Liste des choristes</h1>
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
@@ -666,28 +662,7 @@ const UsersManagement: React.FC = () => {
                     <td className="px-4 py-3">{user.commissions}</td>
                     <td className="px-4 py-3">{user.phoneNumber}</td>
                     <td className="px-4 py-3">{user.address}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center">
-                        <div
-                          className={`size-2.5 rounded-full ${user.isActive ? 'bg-green-400' : 'bg-red-400'}`}
-                        ></div>
-                        <span
-                          className={`ml-2 text-sm font-medium ${user.isActive ? 'text-green-600' : 'text-red-600'}`}
-                        >
-                          {user.isActive ? 'Actif' : 'Inactif'}
-                        </span>
-                        <button
-                          onClick={() =>
-                            handleToggleStatus(user.id, user.isActive)
-                          }
-                          className={`ml-2 text-xl ${user.isActive ? 'text-green-500' : 'text-gray-400'}`}
-                          title={user.isActive ? 'Désactiver' : 'Activer'}
-                        >
-                          {user.isActive ? <FaToggleOn /> : <FaToggleOff />}
-                        </button>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">{getRoleIndicator(user)}</td>
+                    <td className="px-4 py-3">{getStatusIndicator(user)}</td>
                     <td className="flex items-center space-x-4 px-4 py-3">
                       <button
                         onClick={() => handleView(user)}

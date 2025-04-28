@@ -4,12 +4,14 @@ import { useState } from 'react';
 
 import Input from '@/components/input';
 import { API_URL } from '@/config/api';
+import { useAuth } from '@/providers/AuthProvider';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const router = useRouter();
+  const { login } = useAuth();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -25,14 +27,8 @@ const Login: React.FC = () => {
       const data = await response.json();
 
       if (response.status === 201 && data.access_token) {
-        // Store both user data and access token
-        localStorage.setItem(
-          'user',
-          JSON.stringify({
-            ...data.user,
-            access_token: data.access_token,
-          }),
-        );
+        // Use the AuthProvider's login function
+        login(data.access_token, data.user);
         router.push('/admin');
       } else {
         setError('Invalid credentials');
@@ -46,11 +42,7 @@ const Login: React.FC = () => {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gray-900 px-4 py-12 sm:px-6 lg:px-8">
       <h2 className="mb-6 flex flex-row items-center text-center text-5xl font-extrabold text-gray-400">
-        <img
-          src="./assets/images/Wlogo.png"
-          alt="logo"
-          className="h-20 w-32 "
-        />
+        <img src="/assets/images/Wlogo.png" alt="logo" className="h-20 w-32 " />
         <span>NJC</span>
       </h2>
       <div className="w-[90%] rounded-lg bg-white p-8 shadow-md md:w-[60%] lg:w-[40%]">

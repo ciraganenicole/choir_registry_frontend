@@ -4,15 +4,13 @@ import { motion } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
 import { Calendar, Home, Menu, Users, X } from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/router';
 import type { ReactNode } from 'react';
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import type { IconType } from 'react-icons';
 import { IoLogoUsd } from 'react-icons/io';
 import { TbLogout2 } from 'react-icons/tb';
 
-import { API_URL } from '@/config/api';
-import { showNotification } from '@/utils/notifications';
+import { useAuth } from '@/providers/AuthProvider';
 
 import InstallPrompt from '../pwa/InstallPrompt';
 import OfflineIndicator from '../pwa/OfflineIndicator';
@@ -23,35 +21,12 @@ interface MenuItem {
   label: string;
 }
 
-const Layout: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const router = useRouter();
+const Layout = ({ children }: { children: ReactNode }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    const checkAuth = async () => {
-      try {
-        const response = await fetch(`${API_URL}/auth/check`, {
-          credentials: 'include',
-        });
-
-        if (!response.ok) {
-          throw new Error('Authentication check failed');
-        }
-
-        setIsLoading(false);
-      } catch (err) {
-        showNotification('Session expired. Please login again.', 'error');
-        router.push('/login');
-      }
-    };
-
-    checkAuth();
-  }, [router]);
+  const { logout } = useAuth();
 
   const handleLogout = () => {
-    showNotification('Logged out successfully', 'success');
-    router.push('/login');
+    logout();
   };
 
   const menuItems: MenuItem[] = [
@@ -61,17 +36,9 @@ const Layout: React.FC<{ children: ReactNode }> = ({ children }) => {
     { path: '/transaction', icon: IoLogoUsd, label: 'Transactions' },
   ];
 
-  if (isLoading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="size-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
-      </div>
-    );
-  }
-
   return (
     <div className="flex">
-      {/* Mobile overlay */}
+      {/* Overlay for mobile */}
       {isOpen && (
         <div
           className="fixed inset-0 z-20 bg-black/50 md:hidden"
@@ -79,11 +46,13 @@ const Layout: React.FC<{ children: ReactNode }> = ({ children }) => {
         />
       )}
 
-      {/* Sidebar navigation */}
+      {/* Sidebar */}
       <motion.div
         initial={false}
         animate={{
-          width: isOpen ? '200px' : '85px',
+          width: isOpen
+            ? '200px' // Mobile open width
+            : '85px', // Mobile closed width
         }}
         className="fixed z-30 flex h-screen flex-col justify-between bg-gray-900 px-2 py-4 text-white transition-all duration-300 md:px-6 md:py-8"
       >
@@ -107,11 +76,13 @@ const Layout: React.FC<{ children: ReactNode }> = ({ children }) => {
                 className="flex items-center gap-3 rounded-lg p-2 text-gray-300 transition-colors hover:bg-gray-800 hover:text-white"
                 onClick={() => setIsOpen(false)}
               >
-                {item.icon && <item.icon className="size-4 md:size-6" />}
+                {item.icon && (
+                  <item.icon className="size-4 shrink-0 md:size-6" />
+                )}
                 <span
-                  className={`whitespace-nowrap ${
-                    isOpen ? 'opacity-100' : 'opacity-0'
-                  } transition-opacity duration-300 md:opacity-100`}
+                  className={`${
+                    isOpen ? 'block' : 'hidden'
+                  } whitespace-nowrap text-sm md:text-base`}
                 >
                   {item.label}
                 </span>
@@ -120,28 +91,30 @@ const Layout: React.FC<{ children: ReactNode }> = ({ children }) => {
           </nav>
         </div>
 
-        {/* Logout button */}
+        {/* Logout Button */}
         <button
           onClick={handleLogout}
-          className="flex items-center gap-3 rounded-lg p-2 text-gray-300 transition-colors hover:bg-gray-800 hover:text-white"
+          className={`mt-auto flex items-center justify-center gap-3 rounded-lg p-2 transition-colors hover:bg-gray-800 ${
+            isOpen ? 'border-[1px] border-gray-700' : 'border-transparent'
+          }`}
         >
-          <TbLogout2 className="size-4 md:size-6" />
+          <TbLogout2 className="size-4 shrink-0 md:size-6" />
           <span
-            className={`whitespace-nowrap ${
-              isOpen ? 'opacity-100' : 'opacity-0'
-            } transition-opacity duration-300 md:opacity-100`}
+            className={`${
+              isOpen ? 'block' : 'hidden'
+            } whitespace-nowrap text-sm md:text-base`}
           >
-            Déconnexion
+            Se déconnecter
           </span>
         </button>
       </motion.div>
 
-      {/* Main content */}
-      <div className="flex-1 pl-[85px] md:pl-[200px]">
-        <div className="container mx-auto p-4">
+      {/* Main Content */}
+      <div className="min-h-screen w-full flex-1 bg-gray-300/50 pl-10 md:pl-20">
+        <div className="h-full">
+          {children}
           <InstallPrompt />
           <OfflineIndicator />
-          {children}
         </div>
       </div>
     </div>
