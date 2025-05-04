@@ -1,16 +1,18 @@
+import { useQuery } from '@tanstack/react-query';
 import { Download } from 'lucide-react';
 import { useState } from 'react';
 
 import { Card } from '@/components/card';
 import SearchInput from '@/components/filters/search';
 import Layout from '@/components/layout';
-import Pagination from '@/components/pagination';
 import DailyFilters from '@/lib/transaction/components/filters';
-import {
-  useDailyContributions,
-  useExportDailyContributions,
-} from '@/lib/transaction/logic';
-import type { DailyContributionFilters } from '@/lib/transaction/types';
+import { TransactionService } from '@/lib/transaction/service';
+import type {
+  DailyContributionFilters,
+  DailyContributionsResponse,
+  DailyContributor,
+} from '@/lib/transaction/types';
+import { TransactionType } from '@/lib/transaction/types';
 import { logger } from '@/utils/logger';
 
 const formatDate = (dateString: string) => {
@@ -35,12 +37,19 @@ const DailyContributions = () => {
     ).toISOString(),
   });
 
-  const { data, isLoading } = useDailyContributions(filters, {
-    page: currentPage,
-    limit: 10,
+  const { data, isLoading } = useQuery<DailyContributionsResponse>({
+    queryKey: [
+      'daily-contributions',
+      filters,
+      { page: currentPage, limit: 10 },
+    ],
+    queryFn: () =>
+      TransactionService.fetchDailyContributions(filters, {
+        page: currentPage,
+        limit: 10,
+      }),
+    staleTime: 1000 * 60,
   });
-
-  const exportDailyContributions = useExportDailyContributions();
 
   const handleSearch = (query: string) => {
     setFilters((prev) => ({ ...prev, search: query }));
@@ -56,7 +65,11 @@ const DailyContributions = () => {
 
   const handleExport = async (format: 'csv') => {
     try {
-      await exportDailyContributions.mutateAsync(filters);
+      await TransactionService.exportTransactions({
+        ...filters,
+        type: TransactionType.INCOME,
+        category: 'DAILY',
+      });
     } catch (error) {
       logger.error(`Error exporting daily contributions as ${format}:`, error);
     }
@@ -64,7 +77,7 @@ const DailyContributions = () => {
 
   const dates = data?.dates || [];
   const contributors = data?.contributors || [];
-  const totalPages = Math.ceil((data?.total || 0) / 10);
+  // const totalPages = Math.ceil((data?.total || 0) / 10);
 
   // Calculate total amounts correctly by summing individual contributions
   const calculateContributorTotal = (contributor: any) => {
@@ -77,10 +90,13 @@ const DailyContributions = () => {
   };
 
   // Calculate the grand total correctly
-  const totalUSD = contributors.reduce((sum, contributor) => {
-    const contributorTotal = calculateContributorTotal(contributor);
-    return Number((sum + contributorTotal).toFixed(2));
-  }, 0);
+  const totalUSD = contributors.reduce(
+    (sum: number, contributor: DailyContributor) => {
+      const contributorTotal = calculateContributorTotal(contributor);
+      return Number((sum + contributorTotal).toFixed(2));
+    },
+    0,
+  );
 
   return (
     <Layout>
@@ -139,7 +155,7 @@ const DailyContributions = () => {
                       <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500 sm:px-6">
                         Nom
                       </th>
-                      {dates.map((date) => (
+                      {dates.map((date: string) => (
                         <th
                           key={date}
                           className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 sm:px-6"
@@ -153,7 +169,7 @@ const DailyContributions = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
-                    {contributors.map((contributor) => {
+                    {contributors.map((contributor: any) => {
                       const contributorTotal =
                         calculateContributorTotal(contributor);
                       return (
@@ -164,9 +180,9 @@ const DailyContributions = () => {
                           <td className="whitespace-nowrap px-4 py-3 text-sm sm:px-6">
                             {contributor.lastName}
                           </td>
-                          {dates.map((date) => {
+                          {dates.map((date: string) => {
                             const contribution = contributor.contributions.find(
-                              (c) => c.date === date,
+                              (c: any) => c.date === date,
                             );
                             return (
                               <td
@@ -215,7 +231,7 @@ const DailyContributions = () => {
                   </span>
                 </div>
               </Card>
-              {contributors.map((contributor) => (
+              {contributors.map((contributor: any) => (
                 <Card
                   key={contributor.userId}
                   className="overflow-hidden bg-white p-2 shadow-sm"
@@ -235,9 +251,9 @@ const DailyContributions = () => {
                   </div>
 
                   <div className="grid grid-cols-1 divide-y divide-gray-200 sm:grid-cols-2 sm:divide-y-0">
-                    {dates.map((date, index) => {
+                    {dates.map((date: string, index: number) => {
                       const contribution = contributor.contributions.find(
-                        (c) => c.date === date,
+                        (c: any) => c.date === date,
                       );
                       return (
                         <div
@@ -270,15 +286,6 @@ const DailyContributions = () => {
               ))}
             </>
           )}
-        </div>
-
-        {/* Pagination */}
-        <div className="mt-2 sm:mt-6">
-          <Pagination
-            totalPages={totalPages}
-            currentPage={currentPage}
-            onPageChange={setCurrentPage}
-          />
         </div>
       </div>
     </Layout>

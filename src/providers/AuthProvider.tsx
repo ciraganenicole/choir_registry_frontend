@@ -34,17 +34,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const router = useRouter();
 
   const login = (token: string, userData: any) => {
-    const authData = { ...userData, access_token: token };
+    const authData = { ...userData, accessToken: token };
     localStorage.setItem('user', JSON.stringify(authData));
     setIsAuthenticated(true);
     setUser(authData);
   };
 
   const logout = () => {
+    // Clear all auth-related data
     localStorage.removeItem('user');
+    sessionStorage.removeItem('user');
     setIsAuthenticated(false);
     setUser(null);
-    router.push('/auth/login');
+
+    // Add a small delay to ensure cleanup is complete
+    setTimeout(() => {
+      router.push('/auth/login');
+    }, 100);
   };
 
   const initializeAuth = () => {
@@ -52,7 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const storedUser = localStorage.getItem('user');
       if (storedUser) {
         const userData = JSON.parse(storedUser);
-        if (userData.access_token) {
+        if (userData.accessToken) {
           setIsAuthenticated(true);
           setUser(userData);
         }

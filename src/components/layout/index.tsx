@@ -10,6 +10,7 @@ import type { IconType } from 'react-icons';
 import { IoLogoUsd } from 'react-icons/io';
 import { TbLogout2 } from 'react-icons/tb';
 
+import { UserRole } from '@/lib/user/type';
 import { useAuth } from '@/providers/AuthProvider';
 
 import InstallPrompt from '../pwa/InstallPrompt';
@@ -19,99 +20,118 @@ interface MenuItem {
   path: string;
   icon?: LucideIcon | IconType;
   label: string;
+  roles: UserRole[];
 }
 
 const Layout = ({ children }: { children: ReactNode }) => {
   const [isOpen, setIsOpen] = useState(false);
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
 
   const handleLogout = () => {
     logout();
   };
 
   const menuItems: MenuItem[] = [
-    { path: '/admin', icon: Home, label: 'Accueil' },
-    { path: '/admin/users/users_list', icon: Users, label: 'Membres' },
-    { path: '/attendance', icon: Calendar, label: 'Registre' },
-    { path: '/transaction', icon: IoLogoUsd, label: 'Transactions' },
+    {
+      path: '/admin',
+      icon: Home,
+      label: 'Accueil',
+      roles: [UserRole.SUPER_ADMIN],
+    },
+    {
+      path: '/admin/users',
+      icon: Users,
+      label: 'Membres',
+      roles: [
+        UserRole.SUPER_ADMIN,
+        UserRole.ATTENDANCE_ADMIN,
+        UserRole.FINANCE_ADMIN,
+      ],
+    },
+    {
+      path: '/attendance',
+      icon: Calendar,
+      label: 'Registre',
+      roles: [UserRole.SUPER_ADMIN, UserRole.ATTENDANCE_ADMIN],
+    },
+    {
+      path: '/transaction',
+      icon: IoLogoUsd,
+      label: 'Transactions',
+      roles: [UserRole.SUPER_ADMIN, UserRole.FINANCE_ADMIN],
+    },
   ];
 
+  // Filter menu items based on user role
+  const filteredMenuItems = menuItems.filter(
+    (item) => user && item.roles.includes(user.role),
+  );
+
+  const renderSidebarContent = (isMobile = false) => (
+    <>
+      <div>
+        <nav className={`flex flex-col gap-4 ${isMobile ? 'mt-16' : 'mt-8'}`}>
+          {filteredMenuItems.map((item) => (
+            <Link
+              key={item.path}
+              href={item.path}
+              className="flex items-center gap-3 rounded-lg p-2 text-white transition-colors hover:bg-gray-800 hover:text-white"
+              onClick={isMobile ? () => setIsOpen(false) : undefined}
+            >
+              {item.icon && <item.icon className="size-6 shrink-0" />}
+              <span className="whitespace-nowrap text-base">{item.label}</span>
+            </Link>
+          ))}
+        </nav>
+      </div>
+
+      <button
+        onClick={handleLogout}
+        className="flex items-center gap-3 rounded-lg border border-gray-700 p-2 text-white transition-colors hover:bg-gray-800 hover:text-white"
+      >
+        <TbLogout2 className="size-6 shrink-0" />
+        <span className="whitespace-nowrap text-base">Se déconnecter</span>
+      </button>
+    </>
+  );
+
   return (
-    <div className="flex">
+    <div className="flex min-h-screen">
+      {/* Mobile Menu Button */}
+      <button
+        className="fixed left-8 top-4 z-50 rounded-lg bg-gray-900 p-2 text-white md:hidden"
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        {isOpen ? <X className="size-6" /> : <Menu className="h-4 w-6" />}
+      </button>
+
       {/* Overlay for mobile */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-20 bg-black/50 md:hidden"
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
           onClick={() => setIsOpen(false)}
         />
       )}
 
-      {/* Sidebar */}
+      {/* Desktop Sidebar */}
+      <div className="fixed left-0 top-0 z-40 hidden h-screen w-64 flex-col justify-between bg-gray-900 px-4 py-6 text-white md:sticky md:flex">
+        {renderSidebarContent()}
+      </div>
+
+      {/* Mobile Sidebar */}
       <motion.div
         initial={false}
         animate={{
-          width: isOpen
-            ? '200px' // Mobile open width
-            : '85px', // Mobile closed width
+          translateX: isOpen ? '0%' : '-100%',
         }}
-        className="fixed z-30 flex h-screen flex-col justify-between bg-gray-900 px-2 py-4 text-white transition-all duration-300 md:px-6 md:py-8"
+        className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col justify-between bg-gray-900 px-4 py-6 text-white transition-all duration-300 md:hidden"
       >
-        <div>
-          <button
-            className="mb-4 flex size-8 items-center justify-center rounded-lg hover:bg-gray-800 focus:outline-none md:size-10"
-            onClick={() => setIsOpen(!isOpen)}
-          >
-            {isOpen ? (
-              <X className="size-4 md:size-6" />
-            ) : (
-              <Menu className="size-4 md:size-6" />
-            )}
-          </button>
-
-          <nav className="mt-4 flex flex-col gap-4 md:mt-8 md:gap-8">
-            {menuItems.map((item) => (
-              <Link
-                key={item.path}
-                href={item.path}
-                className="flex items-center gap-3 rounded-lg p-2 text-gray-300 transition-colors hover:bg-gray-800 hover:text-white"
-                onClick={() => setIsOpen(false)}
-              >
-                {item.icon && (
-                  <item.icon className="size-4 shrink-0 md:size-6" />
-                )}
-                <span
-                  className={`${
-                    isOpen ? 'block' : 'hidden'
-                  } whitespace-nowrap text-sm md:text-base`}
-                >
-                  {item.label}
-                </span>
-              </Link>
-            ))}
-          </nav>
-        </div>
-
-        {/* Logout Button */}
-        <button
-          onClick={handleLogout}
-          className={`mt-auto flex items-center justify-center gap-3 rounded-lg p-2 transition-colors hover:bg-gray-800 ${
-            isOpen ? 'border-[1px] border-gray-700' : 'border-transparent'
-          }`}
-        >
-          <TbLogout2 className="size-4 shrink-0 md:size-6" />
-          <span
-            className={`${
-              isOpen ? 'block' : 'hidden'
-            } whitespace-nowrap text-sm md:text-base`}
-          >
-            Se déconnecter
-          </span>
-        </button>
+        {renderSidebarContent(true)}
       </motion.div>
 
       {/* Main Content */}
-      <div className="min-h-screen w-full flex-1 bg-gray-300/50 pl-10 md:pl-20">
-        <div className="h-full">
+      <div className="flex-1 bg-gray-100">
+        <div className="h-full p-4 md:p-8">
           {children}
           <InstallPrompt />
           <OfflineIndicator />

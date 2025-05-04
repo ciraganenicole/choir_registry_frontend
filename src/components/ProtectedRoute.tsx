@@ -11,7 +11,7 @@ export const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
       const storedUser = localStorage.getItem('user');
       if (storedUser) {
         const userData = JSON.parse(storedUser);
-        if (userData.access_token) {
+        if (userData.accessToken) {
           setIsAuthorized(true);
         } else {
           router.push('/auth/login');

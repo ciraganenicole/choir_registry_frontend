@@ -48,14 +48,22 @@ export enum UserCategory {
   COMMITTEE = 'COMMITTEE',
 }
 
+export enum UserRole {
+  SUPER_ADMIN = 'SUPER_ADMIN',
+  FINANCE_ADMIN = 'FINANCE_ADMIN',
+  ATTENDANCE_ADMIN = 'ATTENDANCE_ADMIN',
+  USER = 'USER',
+}
+
 export interface User {
   id: number;
   firstName: string;
   lastName: string;
-  gender: Gender;
-  maritalStatus: MaritalStatus;
-  educationLevel: EducationLevel;
-  profession: Profession;
+  email: string | null;
+  gender: Gender | null;
+  maritalStatus: MaritalStatus | null;
+  educationLevel: EducationLevel | null;
+  profession: Profession | null;
   competenceDomain: string | null;
   churchOfOrigin: string | null;
   commune: Commune | null;
@@ -64,7 +72,6 @@ export interface User {
   address: string | null;
   phoneNumber: string | null;
   whatsappNumber: string | null;
-  email: string | null;
   phone: string | null;
   commissions: Commission[];
   matricule: string;
@@ -76,8 +83,7 @@ export interface User {
   profileImageUrl: string | null;
   createdAt: string;
   updatedAt: string;
-  transactions: any[];
-  attendances: any[];
+  role: UserRole;
 }
 
 export interface UserFilters {

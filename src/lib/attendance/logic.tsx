@@ -7,7 +7,7 @@ import type { CellHookData, RowInput } from 'jspdf-autotable';
 import autoTable from 'jspdf-autotable';
 import { useEffect, useState } from 'react';
 
-import { API_URL } from '@/config/api';
+import { api } from '@/config/api';
 
 import type { User } from '../user/type';
 import { Commission, UserCategory } from '../user/type';
@@ -200,9 +200,7 @@ export const useAttendance = () => {
       queryParams.append('limit', '1000'); // Set a high limit to get all users
       queryParams.append('page', '1');
 
-      const response = await axios.get(
-        `${API_URL}/users?${queryParams.toString()}`,
-      );
+      const response = await api.get(`/users?${queryParams.toString()}`);
       log('Users response:', response.data);
 
       // Check if the response has the expected structure
@@ -238,8 +236,8 @@ export const useAttendance = () => {
           attendanceParams.append('limit', '1000');
           attendanceParams.append('page', '1');
 
-          const userAttendance = await axios.get(
-            `${API_URL}/attendance/user/${user.id}?${attendanceParams.toString()}`,
+          const userAttendance = await api.get(
+            `/attendance/user/${user.id}?${attendanceParams.toString()}`,
           );
           log(`Attendance for user ${user.id}:`, userAttendance.data);
 
@@ -296,7 +294,7 @@ export const useAttendance = () => {
     data: Partial<AttendanceRecord>,
   ) => {
     try {
-      const response = await axios.post(`${API_URL}/attendance/manual`, {
+      const response = await api.post('/attendance/manual', {
         ...data,
         userId,
       });

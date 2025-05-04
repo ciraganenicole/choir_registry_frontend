@@ -8,9 +8,11 @@ import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
 
 import OfflineIndicator from '@/components/pwa/OfflineIndicator';
+import { UserRole } from '@/lib/user/type';
 import { persistor, store } from '@/store';
 
 import { ProtectedRoute } from '../components/ProtectedRoute';
+import { RoleBasedRoute } from '../components/RoleBasedRoute';
 import { AuthProvider } from '../providers/AuthProvider';
 
 // Add paths that should be protected
@@ -20,8 +22,21 @@ const protectedPaths = [
   '/admin',
   '/attendance',
   '/transaction',
-  // Add other protected routes here
+  '/admin/users',
 ];
+
+// Define role-based routes
+const roleBasedRoutes = {
+  [UserRole.FINANCE_ADMIN]: ['/transaction', '/admin/users'],
+  [UserRole.ATTENDANCE_ADMIN]: ['/attendance', '/admin/users'],
+  [UserRole.SUPER_ADMIN]: [
+    '/admin',
+    '/attendance',
+    '/transaction',
+    '/admin/users',
+  ],
+  [UserRole.USER]: ['/profile'],
+};
 
 export default function App({ Component, pageProps, router }: AppProps) {
   // Ensure a stable QueryClient instance
@@ -31,15 +46,19 @@ export default function App({ Component, pageProps, router }: AppProps) {
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker
         .register('/sw.js')
-        .then((registration) => {
-          console.log('Service Worker registered:', registration);
+        .then(() => {
+          // Service Worker registered successfully
         })
-        .catch((error) => {
-          console.error('Service Worker registration failed:', error);
+        .catch((error: Error) => {
+          // Log error to monitoring service in production
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Service Worker registration failed:', error);
+          }
         });
     }
   }, []);
 
+  // Check if current route is protected
   const isProtectedRoute = protectedPaths.some((path) =>
     router.pathname.startsWith(path),
   );
@@ -51,7 +70,15 @@ export default function App({ Component, pageProps, router }: AppProps) {
           <AuthProvider>
             {isProtectedRoute ? (
               <ProtectedRoute>
-                <Component {...pageProps} />
+                <RoleBasedRoute
+                  allowedRoles={Object.entries(roleBasedRoutes)
+                    .filter(([_, paths]) =>
+                      paths.some((path) => router.pathname.startsWith(path)),
+                    )
+                    .map(([role]) => role as UserRole)}
+                >
+                  <Component {...pageProps} />
+                </RoleBasedRoute>
               </ProtectedRoute>
             ) : (
               <Component {...pageProps} />

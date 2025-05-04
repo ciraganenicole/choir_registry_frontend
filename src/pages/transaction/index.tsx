@@ -12,7 +12,7 @@ import {
   useExportTransactionsPDF,
   useTransactions,
   useTransactionStats,
-} from '@/lib/transaction/logic';
+} from '@/lib/transaction/logics';
 import type {
   CreateTransactionDto,
   Transaction,
@@ -334,7 +334,7 @@ const Transactions = () => {
           <Card>
             <CardContent>
               <h3 className="font-regular mb-[4px] text-[12px] text-blue-500 md:mb-[8px] md:text-[14px]">
-                Revenu Net ({filters.startDate ? 'Période filtrée' : 'Tout'})
+                Solde ({filters.startDate ? 'Période filtrée' : 'Tout'})
               </h3>
               <span className="text-2xl font-bold">
                 {formatCurrencyStats({

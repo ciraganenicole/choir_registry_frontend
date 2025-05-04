@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import Input from '@/components/input';
 import { API_URL } from '@/config/api';
+import { UserRole } from '@/lib/user/type';
 import { useAuth } from '@/providers/AuthProvider';
 
 const Login: React.FC = () => {
@@ -13,9 +14,30 @@ const Login: React.FC = () => {
   const router = useRouter();
   const { login } = useAuth();
 
+  const getRedirectPath = (role: UserRole) => {
+    switch (role) {
+      case UserRole.FINANCE_ADMIN:
+        return '/transaction';
+      case UserRole.ATTENDANCE_ADMIN:
+        return '/attendance';
+      case UserRole.SUPER_ADMIN:
+        return '/admin';
+      case UserRole.USER:
+        return '/profile';
+      default:
+        return '/users';
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError(''); // Clear previous errors
+
     try {
+      // Clear any existing auth data before attempting to login
+      localStorage.removeItem('user');
+      sessionStorage.removeItem('user');
+
       const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: {
@@ -26,16 +48,27 @@ const Login: React.FC = () => {
 
       const data = await response.json();
 
-      if (response.status === 201 && data.access_token) {
-        // Use the AuthProvider's login function
-        login(data.access_token, data.user);
-        router.push('/admin');
-      } else {
-        setError('Invalid credentials');
+      if (!response.ok) {
+        throw new Error(data.message || 'Login failed');
       }
+
+      if (!data.accessToken || !data.user) {
+        throw new Error('Invalid response from server');
+      }
+
+      // Use the AuthProvider's login function
+      login(data.accessToken, data.user);
+
+      // Use setTimeout to ensure state updates are processed
+      setTimeout(() => {
+        const redirectPath = getRedirectPath(data.user.role);
+        router.push(redirectPath);
+      }, 100);
     } catch (err) {
-      console.error('Error:', err);
-      setError('Something went wrong');
+      console.error('Login error:', err);
+      setError(
+        err instanceof Error ? err.message : 'An unexpected error occurred',
+      );
     }
   };
 

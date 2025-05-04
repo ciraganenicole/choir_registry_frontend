@@ -161,4 +161,6 @@ export interface TransactionFilters {
   currency?: Currency;
   minAmount?: number;
   maxAmount?: number;
+  page?: number;
+  limit?: number;
 }
