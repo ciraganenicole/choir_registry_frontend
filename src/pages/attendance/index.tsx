@@ -368,7 +368,7 @@ const AttendancePage: React.FC = () => {
 
   return (
     <Layout>
-      <div className="container mx-auto p-4">
+      <div className="container mx-auto p-4 pt-8">
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-[16px] font-bold md:text-2xl">
             Attendance Records

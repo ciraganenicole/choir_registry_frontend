@@ -99,7 +99,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
     <div className="flex min-h-screen">
       {/* Mobile Menu Button */}
       <button
-        className="fixed left-8 top-4 z-50 rounded-lg bg-gray-900 p-2 text-white md:hidden"
+        className="fixed left-8 z-50 my-3 rounded-lg bg-gray-900 p-2 text-white md:hidden"
         onClick={() => setIsOpen(!isOpen)}
       >
         {isOpen ? <X className="size-6" /> : <Menu className="h-4 w-6" />}
@@ -131,7 +131,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
 
       {/* Main Content */}
       <div className="flex-1 bg-gray-300 md:bg-gray-100">
-        <div className="h-full p-4 md:p-8">
+        <div className="h-full p-2 md:p-8">
           {children}
           <InstallPrompt />
           <OfflineIndicator />

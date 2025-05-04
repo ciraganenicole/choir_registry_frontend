@@ -305,6 +305,25 @@ export const useAttendance = () => {
     }
   };
 
+  const updateAttendance = async (
+    id: number,
+    data: Partial<AttendanceRecord>,
+  ) => {
+    try {
+      const response = await api.put(`/attendance/${id}`, data);
+
+      // Refresh attendance data after update
+      await fetchUsersAndAttendance();
+
+      return response.data;
+    } catch (error) {
+      logError('Error updating attendance:', error);
+      throw new Error(
+        error instanceof Error ? error.message : 'Failed to update attendance',
+      );
+    }
+  };
+
   // Add function to handle event type change
   const changeEventType = (eventType: AttendanceEventType) => {
     setSelectedEventType(eventType);
@@ -1021,6 +1040,7 @@ export const useAttendance = () => {
     users,
     attendance,
     markAttendance,
+    updateAttendance,
     loading,
     errorMessage,
     filters,
