@@ -130,7 +130,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
       </motion.div>
 
       {/* Main Content */}
-      <div className="flex-1 bg-gray-100">
+      <div className="flex-1 bg-gray-300 md:bg-gray-100">
         <div className="h-full p-4 md:p-8">
           {children}
           <InstallPrompt />

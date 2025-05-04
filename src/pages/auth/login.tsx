@@ -34,30 +34,68 @@ const Login: React.FC = () => {
     setError(''); // Clear previous errors
 
     try {
-      // Clear any existing auth data before attempting to login
-      localStorage.removeItem('user');
-      sessionStorage.removeItem('user');
+      // Clear all storage
+      localStorage.clear();
+      sessionStorage.clear();
 
+      // Unregister service worker
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        // Use Promise.all to handle all unregistrations in parallel
+        await Promise.all(
+          registrations.map((registration) => registration.unregister()),
+        );
+      }
+
+      // Clear all caches
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(
+          cacheNames.map((cacheName) => caches.delete(cacheName)),
+        );
+      }
+
+      console.log('Attempting login with:', { email });
       const response = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ email, password }),
+        credentials: 'include', // Include cookies in the request
       });
 
-      const data = await response.json();
+      console.log('Login response status:', response.status);
+      console.log(
+        'Login response headers:',
+        Object.fromEntries(response.headers.entries()),
+      );
 
       if (!response.ok) {
-        throw new Error(data.message || 'Login failed');
+        const errorData = await response.json().catch(() => ({}));
+        console.error('Login error response:', errorData);
+        throw new Error(
+          errorData.message ||
+            `Login failed: ${response.status} ${response.statusText}`,
+        );
       }
 
-      if (!data.accessToken || !data.user) {
+      const data = await response.json();
+      console.log('Login response data:', data);
+
+      // Handle both snake_case and camelCase token names
+      const token = data.access_token || data.accessToken;
+      if (!token || !data.user) {
+        console.error('Invalid response structure:', {
+          hasToken: !!token,
+          hasUser: !!data.user,
+          responseData: data,
+        });
         throw new Error('Invalid response from server');
       }
 
-      // Use the AuthProvider's login function
-      login(data.accessToken, data.user);
+      // Use the AuthProvider's login function with the correct token
+      login(token, data.user);
 
       // Use setTimeout to ensure state updates are processed
       setTimeout(() => {

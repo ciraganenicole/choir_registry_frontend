@@ -1,4 +1,3 @@
-import { useRouter } from 'next/router';
 import React, {
   createContext,
   useContext,
@@ -31,7 +30,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
-  const router = useRouter();
 
   const login = (token: string, userData: any) => {
     const authData = { ...userData, accessToken: token };
@@ -40,17 +38,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setUser(authData);
   };
 
-  const logout = () => {
+  const logout = async () => {
     // Clear all auth-related data
     localStorage.removeItem('user');
     sessionStorage.removeItem('user');
     setIsAuthenticated(false);
     setUser(null);
 
-    // Add a small delay to ensure cleanup is complete
-    setTimeout(() => {
-      router.push('/auth/login');
-    }, 100);
+    // Clear all storage
+    localStorage.clear();
+    sessionStorage.clear();
+
+    // Unregister service worker
+    if ('serviceWorker' in navigator) {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      // Use Promise.all to handle all unregistrations in parallel
+      await Promise.all(
+        registrations.map((registration) => registration.unregister()),
+      );
+    }
+
+    // Clear all caches
+    if ('caches' in window) {
+      const cacheNames = await caches.keys();
+      await Promise.all(
+        cacheNames.map((cacheName) => caches.delete(cacheName)),
+      );
+    }
+
+    // Force a hard reload to clear any cached state
+    window.location.href = '/auth/login';
   };
 
   const initializeAuth = () => {
