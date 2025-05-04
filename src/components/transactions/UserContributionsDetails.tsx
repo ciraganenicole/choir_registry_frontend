@@ -51,17 +51,17 @@ const UserContributionsDetails: React.FC<UserContributionsDetailsProps> = ({
   const [filters, setFilters] = useState<TransactionFilterDto>({});
 
   // Use the transactions hook from logic.ts
-  const { data: transactionData, isLoading: loading } = useTransactions(
-    {
-      contributorId: user.id,
-      type: TransactionType.INCOME,
-      ...filters,
-    },
-    { page: 1, limit: 1000 },
-  );
+  const { data: transactionData, error: queryError } = useTransactions({
+    contributorId: user.id,
+    type: TransactionType.INCOME,
+    ...filters,
+    page: 1,
+    limit: 1000,
+  });
 
+  // Safely access the transactions data
   const transactions = transactionData?.data || [];
-  const error = transactionData?.error;
+  const error = queryError || transactionData?.error;
 
   // Get current records for pagination
   const indexOfLastRecord = currentPage * recordsPerPage;
@@ -187,12 +187,12 @@ const UserContributionsDetails: React.FC<UserContributionsDetailsProps> = ({
         )}
 
         {/* Loading state */}
-        {loading && (
+        {transactionData?.isLoading && (
           <div className="flex justify-center py-4">
             <div className="size-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
           </div>
         )}
-        {!loading && transactions?.length > 0 && (
+        {!transactionData?.isLoading && transactions?.length > 0 && (
           <div className="mt-2 flex flex-col gap-3 md:hidden">
             <div className="flex flex-col gap-3 rounded-md border border-gray-500">
               {getCurrentRecords().map((transaction: Transaction) => (
@@ -228,7 +228,7 @@ const UserContributionsDetails: React.FC<UserContributionsDetailsProps> = ({
         )}
 
         {/* Transactions table */}
-        {!loading && transactions?.length > 0 && (
+        {!transactionData?.isLoading && transactions?.length > 0 && (
           <div className="hidden flex-col gap-3 md:flex">
             <div className="overflow-auto">
               <table className="min-w-full divide-y divide-gray-200">
@@ -288,7 +288,7 @@ const UserContributionsDetails: React.FC<UserContributionsDetailsProps> = ({
         )}
 
         {/* No data state */}
-        {!loading && transactions?.length === 0 && (
+        {!transactionData?.isLoading && transactions?.length === 0 && (
           <div className="py-4 text-center text-gray-500">
             Aucune contribution enregistrée pour cet utilisateur.
           </div>

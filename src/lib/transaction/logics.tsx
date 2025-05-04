@@ -1,15 +1,15 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import axios from 'axios';
 import { jsPDF as JSPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
-import { API_URL } from '@/config/api';
+import { api } from '@/config/api';
 
 import { TransactionService } from './service';
 import type {
   CreateTransactionDto,
   DailyContributionFilters,
+  DailyContributionsResponse,
   Transaction,
   TransactionFilters,
   TransactionStats,
@@ -39,9 +39,7 @@ export const fetchTransactions = async (filters: TransactionFilters) => {
       }
     });
 
-    const response = await axios.get(
-      `${API_URL}/transactions?${queryParams.toString()}`,
-    );
+    const response = await api.get(`/transactions?${queryParams.toString()}`);
     return response.data.map((transaction: Transaction) => ({
       ...transaction,
       type: getTransactionType(transaction.category),
@@ -54,7 +52,7 @@ export const fetchTransactions = async (filters: TransactionFilters) => {
 };
 
 const createTransaction = async (transaction: CreateTransactionDto) => {
-  const { data } = await axios.post(`${API_URL}/transactions`, transaction);
+  const { data } = await api.post('/transactions', transaction);
   return data;
 };
 
@@ -76,7 +74,19 @@ export const useTransactions = (
 ) => {
   return useQuery({
     queryKey: ['transactions', filters, pagination],
-    queryFn: () => TransactionService.fetchTransactions(filters, pagination),
+    queryFn: async () => {
+      const queryParams = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') {
+          queryParams.append(key, value.toString());
+        }
+      });
+      queryParams.append('page', pagination.page.toString());
+      queryParams.append('limit', pagination.limit.toString());
+
+      const { data } = await api.get(`/transactions?${queryParams.toString()}`);
+      return data;
+    },
     staleTime: 1000 * 60,
   });
 };
@@ -144,8 +154,8 @@ export const useExportTransactions = () => {
         queryParams.append('page', '1');
         queryParams.append('limit', '999999');
 
-        const transactionResponse = await axios.get(
-          `${API_URL}/transactions?${queryParams.toString()}`,
+        const transactionResponse = await api.get(
+          `/transactions?${queryParams.toString()}`,
         );
 
         // Create PDF document with consistent margins
@@ -367,23 +377,24 @@ export const useExportTransactions = () => {
 };
 
 // Get daily contributions for a specific user
-export const useDailyContributions = (
+export function useDailyContributions(
   filters: DailyContributionFilters,
   pagination: { page: number; limit: number },
-) => {
-  return useQuery({
+) {
+  const query = useQuery<DailyContributionsResponse>({
     queryKey: ['daily-contributions', filters, pagination],
     queryFn: () =>
       TransactionService.fetchDailyContributions(filters, pagination),
     staleTime: 1000 * 60,
   });
-};
+  return query;
+}
 
 export const useExportDailyContributions = () => {
   return useMutation({
     mutationFn: async (filters: DailyContributionFilters) => {
       try {
-        const response = await axios.get(`${API_URL}/transactions/daily`, {
+        const response = await api.get('/transactions/daily', {
           params: {
             ...filters,
             limit: 999999,
@@ -576,12 +587,9 @@ export const useTransactionStats = (filters?: TransactionFilters) => {
     queryKey: ['transactionStats', filters],
     queryFn: async () => {
       try {
-        const { data: responseData } = await axios.get(
-          `${API_URL}/transactions/stats`,
-          {
-            params: filters,
-          },
-        );
+        const { data: responseData } = await api.get('/transactions/stats', {
+          params: filters,
+        });
 
         const stats: TransactionStats = {
           usd: {
@@ -647,15 +655,13 @@ export const useExportTransactionsPDF = () => {
         queryParams.append('limit', '999999'); // Use a large number to get all records
 
         // Fetch the report data
-        const { data: reportData } = await axios.get(
-          `${API_URL}/transactions?${queryParams.toString()}`,
-          {
-            responseType: 'blob',
-            headers: {
-              Accept: 'application/pdf',
-            },
+        const { data: reportData } = await api.get('/transactions', {
+          params: queryParams,
+          responseType: 'blob',
+          headers: {
+            Accept: 'application/pdf',
           },
-        );
+        });
 
         // Create and download the PDF file
         const blob = new Blob([reportData], { type: 'application/pdf' });

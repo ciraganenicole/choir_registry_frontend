@@ -177,22 +177,22 @@ const AttendancePage: React.FC = () => {
   });
 
   const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const inputDate = e.target.value;
-    setSelectedDate(inputDate || getTodayDate());
+    const inputDate = e.target.value || getTodayDate();
+    setSelectedDate(inputDate);
   };
 
-  const adjustDateForTimezone = (dateStr: string): string => {
-    const date = new Date(dateStr);
-    date.setDate(date.getDate() + 1);
-    return date.toISOString().substring(0, 10);
-  };
+  // const adjustDateForTimezone = (dateStr: string): string => {
+  //   const date = new Date(dateStr);
+  //   date.setDate(date.getDate() + 1);
+  //   return date.toISOString().substring(0, 10);
+  // };
 
   const handleStatusChange = async (
     userId: number,
     newStatus: AttendanceStatus,
   ) => {
-    // Adjust the date to compensate for timezone conversion
-    const dateToUse = adjustDateForTimezone(selectedDate);
+    // Normalize the date to YYYY-MM-DD format
+    const dateToUse = new Date(selectedDate).toISOString().split('T')[0];
 
     if (
       newStatus === AttendanceStatus.LATE ||
@@ -201,7 +201,7 @@ const AttendancePage: React.FC = () => {
       setPopupState({
         isOpen: true,
         userId,
-        date: dateToUse,
+        date: dateToUse || null,
         status: newStatus,
       });
     } else {
@@ -229,7 +229,8 @@ const AttendancePage: React.FC = () => {
   ) => {
     if (!popupState.userId || !popupState.date || !popupState.status) return;
 
-    const dateToUse = adjustDateForTimezone(popupState.date);
+    // Normalize the date to YYYY-MM-DD format
+    const dateToUse = new Date(popupState.date).toISOString().split('T')[0];
     const attendanceData = {
       userId: popupState.userId,
       date: dateToUse,
@@ -268,25 +269,31 @@ const AttendancePage: React.FC = () => {
     date: string,
   ): { status: string; hasJustification: boolean } => {
     const userAttendance = attendance[userId] || [];
-    const attendanceRecord = userAttendance.find(
-      (r) => r.date === date && r.eventType === selectedEventType,
-    );
+    // Normalize both dates to YYYY-MM-DD format for comparison
+    const normalizedSearchDate = new Date(date).toISOString().split('T')[0];
+    const attendanceRecord = userAttendance.find((r) => {
+      const normalizedRecordDate = new Date(r.date).toISOString().split('T')[0];
+      return (
+        normalizedRecordDate === normalizedSearchDate &&
+        r.eventType === selectedEventType
+      );
+    });
     return {
-      status: attendanceRecord ? attendanceRecord.status.toLowerCase() : '',
+      status: attendanceRecord ? attendanceRecord.status : '',
       hasJustification: !!attendanceRecord?.justification,
     };
   };
 
   const getStatusEmoji = (status: string, hasJustification: boolean) => {
     let emoji = '';
-    switch (status.toLowerCase()) {
-      case 'present':
+    switch (status.toUpperCase()) {
+      case 'PRESENT':
         emoji = '✅';
         break;
-      case 'absent':
+      case 'ABSENT':
         emoji = '❌';
         break;
-      case 'late':
+      case 'LATE':
         emoji = '🟡';
         break;
       default:

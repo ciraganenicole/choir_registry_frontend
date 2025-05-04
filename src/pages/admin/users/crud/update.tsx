@@ -31,30 +31,35 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
   }, [user]);
 
   const handleChange = (
-    nameOrEvent:
-      | string
-      | React.ChangeEvent<HTMLInputElement | HTMLSelectElement>,
-    value?: string,
+    field: keyof User,
+    value: string | string[] | null | undefined,
   ) => {
-    if (typeof nameOrEvent === 'string') {
-      // Handle direct value from Input component
-      setUserData((prevData) => {
-        if (!prevData) return null;
-        return {
-          ...prevData,
-          [nameOrEvent]: value || undefined,
-        };
-      });
-    } else {
-      // Handle event from native inputs
-      const { name, value: eventValue } = nameOrEvent.target;
-      setUserData((prevData) => {
-        if (!prevData) return null;
-        return {
-          ...prevData,
-          [name]: eventValue || undefined,
-        };
-      });
+    setUserData((prevData) => {
+      if (!prevData) return null;
+      return {
+        ...prevData,
+        [field]: value,
+      };
+    });
+  };
+
+  const handleSelectChange = (
+    field: keyof User,
+    value: string | null,
+    enumType:
+      | typeof MaritalStatus
+      | typeof EducationLevel
+      | typeof Profession
+      | typeof Gender
+      | typeof Commune,
+  ) => {
+    if (!value) {
+      handleChange(field, null);
+      return;
+    }
+    // Validate that the value exists in the enum
+    if (Object.values(enumType).includes(value as any)) {
+      handleChange(field, value);
     }
   };
 
@@ -209,7 +214,9 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
           <select
             name="gender"
             value={gender || ''}
-            onChange={handleChange}
+            onChange={(e) =>
+              handleSelectChange('gender', e.target.value, Gender)
+            }
             className="block w-full rounded-md border border-gray-300 px-3 py-2"
           >
             <option value="">Sélectionner un genre</option>
@@ -227,13 +234,15 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
           </label>
           <select
             name="maritalStatus"
-            value={maritalStatus}
-            onChange={handleChange}
-            className="block w-full rounded-md border border-gray-300 px-3 py-2"
+            className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            value={maritalStatus || ''}
+            onChange={(e) =>
+              handleSelectChange('maritalStatus', e.target.value, MaritalStatus)
+            }
           >
             <option value="">Sélectionner un état civil</option>
-            {Object.entries(MaritalStatus).map(([key, value]) => (
-              <option key={key} value={value}>
+            {Object.values(MaritalStatus).map((value) => (
+              <option key={value} value={value}>
                 {value}
               </option>
             ))}
@@ -245,13 +254,19 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
           </label>
           <select
             name="educationLevel"
-            value={educationLevel}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+            className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            value={educationLevel || ''}
+            onChange={(e) =>
+              handleSelectChange(
+                'educationLevel',
+                e.target.value,
+                EducationLevel,
+              )
+            }
           >
             <option value="">Sélectionner un niveau</option>
-            {Object.entries(EducationLevel).map(([key, value]) => (
-              <option key={key} value={value}>
+            {Object.values(EducationLevel).map((value) => (
+              <option key={value} value={value}>
                 {value}
               </option>
             ))}
@@ -264,13 +279,15 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
           </label>
           <select
             name="profession"
-            value={profession}
-            onChange={handleChange}
-            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+            className="mt-1 block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            value={profession || ''}
+            onChange={(e) =>
+              handleSelectChange('profession', e.target.value, Profession)
+            }
           >
             <option value="">Sélectionner une profession</option>
-            {Object.entries(Profession).map(([key, value]) => (
-              <option key={key} value={value}>
+            {Object.values(Profession).map((value) => (
+              <option key={value} value={value}>
                 {value}
               </option>
             ))}
@@ -321,7 +338,9 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
           <select
             name="commune"
             value={commune || ''}
-            onChange={handleChange}
+            onChange={(e) =>
+              handleSelectChange('commune', e.target.value, Commune)
+            }
             className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
           >
             <option value="">Sélectionner une commune</option>

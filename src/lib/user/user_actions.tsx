@@ -1,9 +1,7 @@
 // userActions.ts
-
-import { startRegistration } from '@simplewebauthn/browser';
 import { useState } from 'react';
 
-import { API_URL } from '@/config/api';
+import { api } from '@/config/api';
 
 import type {
   Commission,
@@ -99,31 +97,23 @@ export const CreateUser = <T extends DefaultFormData>(
         isActive: true,
       };
 
-      const response = await fetch(`${API_URL}/users`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(dataToSubmit),
-      });
-
-      const data = await response.json();
+      const response = await api.post('/users', dataToSubmit);
 
       if (response.status === 201) {
         setFormData({ ...defaultFormData } as T);
         onClose();
         onUserCreated();
       } else {
-        console.error('Failed to create user:', data);
+        console.error('Failed to create user:', response.data);
         throw new Error(
-          Array.isArray(data.errors)
-            ? data.errors
+          Array.isArray(response.data.errors)
+            ? response.data.errors
                 .map(
                   (err: any) =>
                     `${err.field}: ${Object.values(err.constraints || {}).join(', ')}`,
                 )
                 .join('\n')
-            : data.message || 'Failed to create user',
+            : response.data.message || 'Failed to create user',
         );
       }
     } catch (error) {
@@ -144,24 +134,8 @@ export const UpdateUserAction = async (
   updatedData: Partial<User>,
 ) => {
   try {
-    const response = await fetch(`${API_URL}/users/${id}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify(updatedData),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      throw new Error(
-        data.message || `Failed to update user with status ${response.status}`,
-      );
-    }
-
-    return data;
+    const response = await api.put(`/users/${id}`, updatedData);
+    return response.data;
   } catch (error) {
     console.error('Error updating user:', error);
     throw error;
@@ -171,51 +145,35 @@ export const UpdateUserAction = async (
 export const toggleUserStatus = async (
   userId: number,
   currentStatus: boolean,
-): Promise<boolean> => {
+) => {
   try {
-    const response = await fetch(`${API_URL}/users/${userId}`, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
-      body: JSON.stringify({ isActive: !currentStatus }),
+    const response = await api.put(`/users/${userId}/status`, {
+      isActive: !currentStatus,
     });
-
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(
-        data.message ||
-          `Failed to toggle user status with status ${response.status}`,
-      );
-    }
-
-    return !currentStatus; // Return the new status
+    return response.data;
   } catch (error) {
     console.error('Error toggling user status:', error);
     throw error;
   }
 };
 
-export const DeleteUserAction = async (userId: number): Promise<boolean> => {
+export const DeleteUserAction = async (userId: number) => {
   try {
-    await fetch(`${API_URL}/users/${userId}`, {
-      method: 'DELETE',
-    });
+    await api.delete(`/users/${userId}`);
     return true;
   } catch (error) {
-    console.error('Failed to delete user:', error);
-    return false;
+    console.error('Error deleting user:', error);
+    throw error;
   }
 };
 
-export const ViewUser = async (id: number) => {
+export const ViewUser = async (userId: number) => {
   try {
-    const response = await fetch(`${API_URL}/users/${id}`);
-    const user = await response.json();
-    console.log('User Details:', user);
+    const response = await api.get(`/users/${userId}`);
+    return response.data;
   } catch (error) {
-    console.error('Error viewing user:', error);
+    console.error('Error fetching user:', error);
+    throw error;
   }
 };
 
@@ -242,15 +200,8 @@ export const FetchUsers = async (
       }
     });
 
-    const url = `${API_URL}/users?${queryParams.toString()}`;
-    console.log('Fetching users with query:', url);
-
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    const data = await response.json();
-    return data;
+    const response = await api.get(`/users?${queryParams.toString()}`);
+    return response.data;
   } catch (error) {
     console.error('Error fetching users:', error);
     throw error;
@@ -259,35 +210,22 @@ export const FetchUsers = async (
 
 export const RegisterFingerprint = async (userId: number) => {
   try {
-    const resp = await fetch(`${API_URL}/webauthn/register-challenge`, {
-      method: 'POST',
-      body: JSON.stringify({ userId }),
-      headers: { 'Content-Type': 'application/json' },
-    });
+    // Step 1: Register challenge
+    const registerResponse = await api.post(
+      `/users/${userId}/fingerprint/register`,
+    );
+    const { challenge } = registerResponse.data;
 
-    const challengeData = await resp.json();
-    console.log('Challenge:', challengeData);
-
-    const credential = await startRegistration(challengeData);
-    console.log('Credential:', credential);
-
-    const verificationResp = await fetch(
-      `${API_URL}/webauthn/verify-registration`,
+    // Step 2: Verify registration
+    const verifyResponse = await api.post(
+      `/users/${userId}/fingerprint/verify`,
       {
-        method: 'POST',
-        body: JSON.stringify({ userId, credential }),
-        headers: { 'Content-Type': 'application/json' },
+        challenge,
       },
     );
-
-    const verificationData = await verificationResp.json();
-
-    if (verificationData.success) {
-      return true;
-    }
-    return false;
+    return verifyResponse.data;
   } catch (error) {
-    console.error('Error:', error);
-    return false;
+    console.error('Error registering fingerprint:', error);
+    throw error;
   }
 };

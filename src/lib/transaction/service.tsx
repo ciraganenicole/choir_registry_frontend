@@ -1,6 +1,4 @@
-import axios from 'axios';
-
-import { API_URL } from '@/config/api';
+import { api } from '@/config/api';
 
 import type {
   CreateTransactionDto,
@@ -38,21 +36,19 @@ export const TransactionService = {
       }
     });
 
-    const { data } = await axios.get(`${API_URL}/transactions`, {
-      params: queryParams,
-    });
+    const { data } = await api.get('/transactions', { params: queryParams });
     return data;
   },
 
   createTransaction: async (
     data: CreateTransactionDto,
   ): Promise<Transaction> => {
-    const response = await axios.post(`${API_URL}/transactions`, data);
+    const response = await api.post('/transactions', data);
     return response.data;
   },
 
   exportTransactions: async (filters: TransactionFilters): Promise<void> => {
-    const response = await axios.get(`${API_URL}/transactions`, {
+    const response = await api.get('/transactions', {
       params: {
         ...filters,
         limit: 1000000, // Get all records
@@ -85,7 +81,7 @@ export const TransactionService = {
       });
     }
 
-    const { data } = await axios.get(`${API_URL}/transactions/stats`, {
+    const { data } = await api.get('/transactions/stats', {
       params: filters,
     });
 
@@ -109,8 +105,8 @@ export const TransactionService = {
     filters: DailyContributionFilters,
     pagination: { page: number; limit: number },
   ) => {
-    const { data } = await axios.get<DailyContributionsResponse>(
-      `${API_URL}/transactions/daily`,
+    const { data } = await api.get<DailyContributionsResponse>(
+      '/transactions/daily',
       {
         params: {
           ...filters,

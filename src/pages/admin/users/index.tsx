@@ -20,7 +20,13 @@ import SearchInput from '@/components/filters/search';
 import Layout from '@/components/layout';
 import Pagination from '@/components/pagination';
 import UserContributionsDetails from '@/components/transactions/UserContributionsDetails';
+import { useAuth } from '@/providers/AuthProvider';
 
+import {
+  canDeleteUsers,
+  canViewAttendance,
+  canViewContributions,
+} from '../../../lib/user/permissions';
 import {
   Commission,
   Commune,
@@ -59,12 +65,10 @@ const translateEducationLevel = (level: string): string => {
 
 const translateProfession = (profession: string): string => {
   const translations: Record<string, string> = {
-    STUDENT: 'Étudiant(e)',
-    EMPLOYEE: 'Employé(e)',
-    TEACHER: 'Enseignant(e)',
-    DOCTOR: 'Médecin',
-    ENGINEER: 'Ingénieur',
-    OTHER: 'Autre',
+    LIBERAL: 'Libéral',
+    FONCTIONNAIRE: 'Fonctionnaire',
+    AGENT_ONG: 'Agent ONG',
+    SANS_EMPLOI: 'Sans Emploi',
   };
   return translations[profession] || profession;
 };
@@ -134,6 +138,7 @@ const getActiveFilterButton = (isActive: boolean | undefined) => {
 };
 
 const UsersManagement: React.FC = () => {
+  const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isPopupViewOpen, setIsPopupViewOpen] = useState(false);
@@ -239,10 +244,10 @@ const UsersManagement: React.FC = () => {
 
   const handleToggleStatus = async (userId: number, currentStatus: boolean) => {
     try {
-      const newStatus = await toggleUserStatus(userId, currentStatus);
+      const response = await toggleUserStatus(userId, currentStatus);
       setUsers((prevUsers) =>
         prevUsers.map((user) =>
-          user.id === userId ? { ...user, isActive: newStatus } : user,
+          user.id === userId ? { ...user, isActive: response.isActive } : user,
         ),
       );
     } catch (err) {
@@ -326,11 +331,11 @@ const UsersManagement: React.FC = () => {
         return [
           index + 1,
           `${user.firstName} ${user.lastName}`,
-          translateGender(user.gender),
+          translateGender(user.gender || Gender.MALE),
           user.phoneNumber || '-',
           user.whatsappNumber || '-',
           (user.commissions || []).map(translateCommission).join('; ') || '-',
-          translateProfession(user.profession),
+          translateProfession(user.profession || Profession.UNEMPLOYED),
           fullAddress,
         ];
       });
@@ -433,27 +438,75 @@ const UsersManagement: React.FC = () => {
     );
   };
 
-  // const getRoleIndicator = (user: User) => {
-  //   if (user.categories.includes(UserCategory.COMMITTEE)) {
-  //     return (
-  //       <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700 ring-1 ring-inset ring-blue-700/10">
-  //         Comité
-  //       </span>
-  //     );
-  //   }
-  //   if (user.commissions.includes(Commission.SINGING_MUSIC)) {
-  //     return (
-  //       <span className="inline-flex items-center rounded-md bg-yellow-50 px-2 py-1 text-xs font-medium text-yellow-700 ring-1 ring-inset ring-yellow-700/10">
-  //         Leader
-  //       </span>
-  //     );
-  //   }
-  //   return (
-  //     <span className="inline-flex items-center rounded-md bg-gray-50 px-2 py-1 text-xs font-medium text-gray-700 ring-1 ring-inset ring-gray-700/10">
-  //       Membre
-  //     </span>
-  //   );
-  // };
+  const renderActionButtons = (viewedUser: User, isMobile = false) => {
+    const buttonClasses = isMobile
+      ? {
+          base: 'hover:bg-opacity-10',
+          view: 'text-green-500 hover:bg-green-50',
+          edit: 'text-blue-500 hover:bg-blue-50',
+          attendance: 'text-purple-500 hover:bg-purple-50',
+          contributions: 'text-yellow-500 hover:bg-yellow-50',
+          delete: 'text-red-500 hover:bg-red-50',
+        }
+      : {
+          base: '',
+          view: 'text-green-500 hover:text-green-700',
+          edit: 'text-blue-500 hover:text-blue-700',
+          attendance: 'text-purple-500 hover:text-purple-700',
+          contributions: 'text-yellow-500 hover:text-yellow-700',
+          delete: 'text-red-500 hover:text-red-700',
+        };
+
+    const iconClasses = isMobile ? 'size-4 md:size-5' : '';
+
+    return (
+      <div
+        className={`flex items-center ${isMobile ? 'justify-end space-x-6' : 'space-x-4 px-4 py-3'}`}
+      >
+        <button
+          onClick={() => handleView(viewedUser)}
+          className={buttonClasses.view}
+          title="View Details"
+        >
+          <FaEye className={iconClasses} />
+        </button>
+        <button
+          onClick={() => handleUpdate(viewedUser)}
+          className={buttonClasses.edit}
+          title="Edit"
+        >
+          <FaEdit className={iconClasses} />
+        </button>
+        {canViewAttendance(currentUser?.role) && (
+          <button
+            onClick={() => handleViewAttendance(viewedUser)}
+            className={buttonClasses.attendance}
+            title="View Attendance"
+          >
+            <FaCalendarAlt className={iconClasses} />
+          </button>
+        )}
+        {canViewContributions(currentUser?.role) && (
+          <button
+            onClick={() => handleViewContributions(viewedUser)}
+            className={buttonClasses.contributions}
+            title="View Contributions"
+          >
+            <FaMoneyBill className={iconClasses} />
+          </button>
+        )}
+        {canDeleteUsers(currentUser?.role) && (
+          <button
+            onClick={() => handleDelete(viewedUser)}
+            className={buttonClasses.delete}
+            title="Delete"
+          >
+            <FaTrash className={iconClasses} />
+          </button>
+        )}
+      </div>
+    );
+  };
 
   // In the render section, replace nested ternaries with the helper function
   const activeFilterButton = getActiveFilterButton(filters.isActive);
@@ -663,42 +716,8 @@ const UsersManagement: React.FC = () => {
                     <td className="px-4 py-3">{user.phoneNumber}</td>
                     <td className="px-4 py-3">{user.address}</td>
                     <td className="px-4 py-3">{getStatusIndicator(user)}</td>
-                    <td className="flex items-center space-x-4 px-4 py-3">
-                      <button
-                        onClick={() => handleView(user)}
-                        className="text-green-500 hover:text-green-700"
-                        title="View Details"
-                      >
-                        <FaEye />
-                      </button>
-                      <button
-                        onClick={() => handleUpdate(user)}
-                        className="text-blue-500 hover:text-blue-700"
-                        title="Edit"
-                      >
-                        <FaEdit />
-                      </button>
-                      <button
-                        onClick={() => handleViewAttendance(user)}
-                        className="text-purple-500 hover:text-purple-700"
-                        title="View Attendance"
-                      >
-                        <FaCalendarAlt />
-                      </button>
-                      <button
-                        onClick={() => handleViewContributions(user)}
-                        className="text-yellow-500 hover:text-yellow-700"
-                        title="View Contributions"
-                      >
-                        <FaMoneyBill />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(user)}
-                        className="text-red-500 hover:text-red-700"
-                        title="Delete"
-                      >
-                        <FaTrash />
-                      </button>
+                    <td className="px-4 py-3">
+                      {renderActionButtons(user, false)}
                     </td>
                   </tr>
                 ))
@@ -769,43 +788,7 @@ const UsersManagement: React.FC = () => {
 
                   <div className="my-2 h-[1px] w-full bg-gray-500" />
 
-                  <div className="flex justify-end space-x-6">
-                    <button
-                      onClick={() => handleView(user)}
-                      className="text-green-500 hover:bg-green-50"
-                      title="View Details"
-                    >
-                      <FaEye className="size-4 md:size-5" />
-                    </button>
-                    <button
-                      onClick={() => handleUpdate(user)}
-                      className="text-blue-500 hover:bg-blue-50"
-                      title="Edit"
-                    >
-                      <FaEdit className="size-4 md:size-5" />
-                    </button>
-                    <button
-                      onClick={() => handleViewAttendance(user)}
-                      className="text-purple-500 hover:bg-purple-50"
-                      title="View Attendance"
-                    >
-                      <FaCalendarAlt className="size-4 md:size-5" />
-                    </button>
-                    <button
-                      onClick={() => handleViewContributions(user)}
-                      className="text-yellow-500 hover:bg-yellow-50"
-                      title="View Contributions"
-                    >
-                      <FaMoneyBill className="size-4 md:size-5" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(user)}
-                      className="text-red-500 hover:bg-red-50"
-                      title="Delete"
-                    >
-                      <FaTrash className="size-4 md:size-5" />
-                    </button>
-                  </div>
+                  {renderActionButtons(user, true)}
                 </div>
               </div>
             ))

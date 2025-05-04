@@ -3,7 +3,7 @@ import { useDispatch } from 'react-redux';
 
 import Pagination from '@/components/pagination';
 import Popup from '@/components/popup';
-import { API_URL } from '@/config/api';
+import { api } from '@/config/api';
 import type {
   AttendanceRecord,
   AttendanceStatus,
@@ -59,15 +59,11 @@ export const UserAttendanceDetails: React.FC<UserAttendanceDetailsProps> = ({
       queryParams.append('page', currentPage.toString());
       queryParams.append('limit', '1000');
 
-      const response = await fetch(
-        `${API_URL}/attendance/user/${user.id}?${queryParams.toString()}`,
+      const response = await api.get(
+        `/attendance/user/${user.id}?${queryParams.toString()}`,
       );
 
-      if (!response.ok) {
-        throw new Error('Failed to fetch attendance data');
-      }
-
-      const responseData = await response.json();
+      const responseData = response.data;
       const records = responseData[0] || [];
 
       const sortedRecords = records.sort(
