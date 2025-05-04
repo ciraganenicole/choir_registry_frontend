@@ -328,7 +328,7 @@ export const CreateTransaction = ({
               }}
             >
               <option value="internal">Interne</option>
-              <option value="external">Externe</option>
+              <option value="external">Autre</option>
             </select>
           </div>
 
@@ -352,14 +352,15 @@ export const CreateTransaction = ({
                 }
                 placeholder="Sélectionner un utilisateur"
                 isClearable
-                // required
               />
             </div>
           ) : (
             <>
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Nom du Contributeur
+                  {formData.type === TransactionType.EXPENSE
+                    ? 'Nom du Bénéficiaire'
+                    : 'Nom du Contributeur'}
                 </label>
                 <input
                   type="text"
@@ -371,12 +372,13 @@ export const CreateTransaction = ({
                       externalContributorName: e.target.value,
                     })
                   }
-                  // required
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Téléphone du Contributeur (Optionnel)
+                  {formData.type === TransactionType.EXPENSE
+                    ? 'Téléphone du Bénéficiaire (Optionnel)'
+                    : 'Téléphone du Contributeur (Optionnel)'}
                 </label>
                 <input
                   type="tel"
