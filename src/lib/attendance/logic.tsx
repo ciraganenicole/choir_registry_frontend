@@ -421,19 +421,19 @@ export const useAttendance = () => {
       const orgNameCell = worksheet.getCell('C1');
       orgNameCell.value =
         'COMMUNAUTE DES EGLISES LIBRES DE PENTECOTE EN AFRIQUE';
-      orgNameCell.font = { name: 'Arial', size: 12, bold: true };
+      orgNameCell.font = { name: 'Arial', size: 10, bold: true };
       orgNameCell.alignment = { horizontal: 'left', vertical: 'middle' };
 
       worksheet.mergeCells('C2:Z2');
       const celpaCell = worksheet.getCell('C2');
       celpaCell.value = '5è CELPA SALEM GOMA';
-      celpaCell.font = { name: 'Arial', size: 12, bold: true };
+      celpaCell.font = { name: 'Arial', size: 10, bold: true };
       celpaCell.alignment = { horizontal: 'left', vertical: 'middle' };
 
       worksheet.mergeCells('C3:Z3');
       const choirCell = worksheet.getCell('C3');
       choirCell.value = 'CHORALE LA NOUVELLE JERUSALEM';
-      choirCell.font = { name: 'Arial', size: 12, bold: true };
+      choirCell.font = { name: 'Arial', size: 10, bold: true };
       choirCell.alignment = { horizontal: 'left', vertical: 'middle' };
 
       worksheet.mergeCells('A4:Z4');
@@ -473,7 +473,7 @@ export const useAttendance = () => {
       worksheet.mergeCells('A6:Z6');
       const freqCell = worksheet.getCell('A6');
       freqCell.value = 'FREQUENTATIONS JOURNALIERES';
-      freqCell.font = { name: 'Arial', size: 12, bold: true };
+      freqCell.font = { name: 'Arial', size: 10, bold: true };
       freqCell.alignment = { horizontal: 'center', vertical: 'middle' };
 
       // Set consistent row heights for header section
