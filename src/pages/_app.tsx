@@ -44,17 +44,45 @@ export default function App({ Component, pageProps, router }: AppProps) {
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker
-        .register('/sw.js')
-        .then(() => {
-          // Service Worker registered successfully
-        })
-        .catch((error: Error) => {
-          // Log error to monitoring service in production
-          if (process.env.NODE_ENV === 'development') {
-            console.error('Service Worker registration failed:', error);
-          }
-        });
+      window.addEventListener('load', () => {
+        navigator.serviceWorker
+          .register('/sw.js')
+          .then((registration) => {
+            // console.log('SW registered:', registration); // Removed to fix linter warning
+
+            // Handle updates
+            registration.addEventListener('updatefound', () => {
+              const newWorker = registration.installing;
+              if (newWorker) {
+                newWorker.addEventListener('statechange', () => {
+                  if (
+                    newWorker.state === 'installed' &&
+                    navigator.serviceWorker.controller
+                  ) {
+                    // New content is available, show update prompt
+                    // TODO: Replace with a custom modal/dialog for user confirmation
+                    // if (confirm('New version available! Reload to update?')) {
+                    //   window.location.reload();
+                    // }
+                    window.location.reload(); // Immediate reload for now
+                  }
+                });
+              }
+            });
+          })
+          .catch((error) => {
+            console.error('SW registration failed:', error);
+          });
+      });
+
+      // Handle controller change (new service worker activated)
+      let refreshing = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!refreshing) {
+          refreshing = true;
+          window.location.reload();
+        }
+      });
     }
   }, []);
 

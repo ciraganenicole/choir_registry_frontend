@@ -348,7 +348,12 @@ const AttendancePage: React.FC = () => {
     return sortedDates;
   };
 
-  const datesWithAttendance = getDatesWithAttendance();
+  let datesWithAttendance = getDatesWithAttendance();
+  if (selectedDate && !datesWithAttendance.includes(selectedDate)) {
+    datesWithAttendance = [selectedDate, ...datesWithAttendance];
+  }
+  // Sort in descending order (most recent first)
+  datesWithAttendance = datesWithAttendance.sort((a, b) => b.localeCompare(a));
 
   // Create a debounced search handler
   const debouncedSearch = useCallback(
