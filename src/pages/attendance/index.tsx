@@ -307,43 +307,35 @@ const AttendancePage: React.FC = () => {
     const currentDate = new Date();
     const currentMonth = currentDate.getMonth();
     const currentYear = currentDate.getFullYear();
-
     Object.values(attendance).forEach((records) => {
       if (Array.isArray(records)) {
         records.forEach((record) => {
           if (record?.date && record.eventType === selectedEventType) {
+            // Defensive date parsing to avoid timezone issues
+            const recordDate = new Date(`${record.date}T00:00:00`);
             if (filters.startDate || filters.endDate) {
-              const recordDate = new Date(record.date);
               const startDate = filters.startDate
-                ? new Date(filters.startDate)
+                ? new Date(`${filters.startDate}T00:00:00`)
                 : null;
               const endDate = filters.endDate
-                ? new Date(filters.endDate)
+                ? new Date(`${filters.endDate}T00:00:00`)
                 : null;
-
               const isInDateRange =
                 (!startDate || recordDate >= startDate) &&
                 (!endDate || recordDate <= endDate);
-
               if (isInDateRange) {
                 dates.add(record.date);
               }
-            } else {
-              // If no filters, show only current month records
-              const recordDate = new Date(record.date);
-              if (
-                recordDate.getMonth() === currentMonth &&
-                recordDate.getFullYear() === currentYear &&
-                recordDate <= currentDate
-              ) {
-                dates.add(record.date);
-              }
+            } else if (
+              recordDate.getMonth() === currentMonth &&
+              recordDate.getFullYear() === currentYear
+            ) {
+              dates.add(record.date);
             }
           }
         });
       }
     });
-
     const sortedDates = Array.from(dates).sort((a, b) => b.localeCompare(a));
     return sortedDates;
   };
@@ -352,7 +344,6 @@ const AttendancePage: React.FC = () => {
   if (selectedDate && !datesWithAttendance.includes(selectedDate)) {
     datesWithAttendance = [selectedDate, ...datesWithAttendance];
   }
-  // Sort in descending order (most recent first)
   datesWithAttendance = datesWithAttendance.sort((a, b) => b.localeCompare(a));
 
   // Create a debounced search handler
