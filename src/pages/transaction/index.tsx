@@ -101,7 +101,14 @@ const getContributorName = (transaction: Transaction): string => {
 };
 
 const Transactions = () => {
-  const [filters, setFilters] = useState<TransactionFilters>({});
+  const [filters, setFilters] = useState<TransactionFilters>({
+    startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+      .toISOString()
+      .split('T')[0],
+    endDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0)
+      .toISOString()
+      .split('T')[0],
+  });
   const [pagination, setPagination] = useState({ page: 1, limit: 8 });
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [createModal, setCreateModal] = useState({
@@ -181,6 +188,14 @@ const Transactions = () => {
         ...prev,
         ...newFilters,
       };
+
+      // Convert date strings to Date objects for the API
+      if (updated.startDate) {
+        updated.startDate = new Date(updated.startDate).toISOString();
+      }
+      if (updated.endDate) {
+        updated.endDate = new Date(updated.endDate).toISOString();
+      }
 
       // Remove undefined values
       Object.keys(updated).forEach((key) => {
@@ -266,7 +281,7 @@ const Transactions = () => {
         </td>
         <td className="whitespace-nowrap px-6 py-4">
           <div className="text-sm text-gray-900">
-            {new Date(transaction.transactionDate).toLocaleDateString('fr-FR')}
+            {transaction.transactionDate}
           </div>
         </td>
       </tr>
@@ -478,9 +493,7 @@ const Transactions = () => {
                               {translateCategoryToFrench(transaction.category)}
                             </div>
                             <div className="text-[10px] text-gray-500">
-                              {new Date(
-                                transaction.transactionDate,
-                              ).toLocaleDateString('fr-FR')}
+                              {transaction.transactionDate}
                             </div>
                           </div>
                           <div

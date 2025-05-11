@@ -63,7 +63,10 @@ export const CreateTransaction = ({
   onSubmit,
   defaultType = TransactionType.INCOME,
 }: CreateTransactionProps) => {
-  const [formData, setFormData] = useState<CreateTransactionDto>({
+  const todayString = new Date().toLocaleDateString('en-CA');
+  const [formData, setFormData] = useState<
+    Omit<CreateTransactionDto, 'transactionDate'> & { transactionDate: string }
+  >({
     amount: 0,
     type: defaultType,
     category: IncomeCategories.DAILY,
@@ -72,7 +75,7 @@ export const CreateTransaction = ({
     contributorId: undefined,
     externalContributorName: undefined,
     externalContributorPhone: undefined,
-    transactionDate: new Date(),
+    transactionDate: todayString,
   });
   const [users, setUsers] = useState<Array<{ value: number; label: string }>>(
     [],
@@ -118,9 +121,13 @@ export const CreateTransaction = ({
         return;
       }
 
-      await onSubmit(formData);
+      // The date is already in YYYY-MM-DD format, no need to convert
+      await onSubmit({
+        ...formData,
+        transactionDate: formData.transactionDate,
+      });
 
-      // Reset form data
+      // Reset form data with a new date
       setFormData({
         ...formData,
         amount: 0,
@@ -131,6 +138,7 @@ export const CreateTransaction = ({
         contributorId: undefined,
         externalContributorName: undefined,
         externalContributorPhone: undefined,
+        transactionDate: todayString,
       });
 
       // Clear errors
@@ -226,15 +234,19 @@ export const CreateTransaction = ({
             <label className="block text-sm font-medium text-gray-700">
               Catégorie
             </label>
-            <Select
-              value={{
-                value: formData.category,
-                label: translateCategoryToFrench(formData.category || ''),
-              }}
+            <Select<{ value: TransactionCategories; label: string }>
+              value={
+                formData.category
+                  ? {
+                      value: formData.category,
+                      label: translateCategoryToFrench(formData.category),
+                    }
+                  : null
+              }
               onChange={(newValue) =>
                 setFormData({
                   ...formData,
-                  category: newValue?.value as TransactionCategories,
+                  category: newValue?.value,
                 })
               }
               options={availableCategories.map((category) => ({
@@ -253,7 +265,7 @@ export const CreateTransaction = ({
               <label className="block text-sm font-medium text-gray-700">
                 Sous-catégorie
               </label>
-              <Select
+              <Select<{ value: string; label: string }>
                 value={
                   formData.subcategory
                     ? {
@@ -290,13 +302,15 @@ export const CreateTransaction = ({
             <input
               type="date"
               className="mt-1 block w-full rounded-md border border-gray-300 p-2"
-              value={
-                new Date(formData.transactionDate).toISOString().split('T')[0]
-              }
+              value={formData.transactionDate || todayString}
               onChange={(e) =>
                 setFormData({
                   ...formData,
-                  transactionDate: new Date(e.target.value),
+                  transactionDate:
+                    typeof e.target.value === 'string' &&
+                    e.target.value.length > 0
+                      ? e.target.value
+                      : todayString,
                 })
               }
               required

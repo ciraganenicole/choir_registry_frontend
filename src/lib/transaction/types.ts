@@ -70,7 +70,7 @@ export interface CreateTransactionDto {
   category?: TransactionCategories;
   subcategory?: string;
   description?: string;
-  transactionDate: Date;
+  transactionDate: string | Date;
   contributorId?: number | null;
   externalContributorName?: string;
   externalContributorPhone?: string;

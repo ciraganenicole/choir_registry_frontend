@@ -13,6 +13,8 @@ import type {
   DailyContributor,
 } from '@/lib/transaction/types';
 import { TransactionType } from '@/lib/transaction/types';
+import type { User } from '@/lib/user/type';
+import { FetchUsers } from '@/lib/user/user_actions';
 import { logger } from '@/utils/logger';
 
 const formatDate = (dateString: string) => {
@@ -37,17 +39,24 @@ const DailyContributions = () => {
     ).toISOString(),
   });
 
-  const { data, isLoading } = useQuery<DailyContributionsResponse>({
-    queryKey: [
-      'daily-contributions',
-      filters,
-      { page: currentPage, limit: 10 },
-    ],
-    queryFn: () =>
-      TransactionService.fetchDailyContributions(filters, {
-        page: currentPage,
-        limit: 10,
-      }),
+  const { data: contributionsData, isLoading: isContributionsLoading } =
+    useQuery<DailyContributionsResponse>({
+      queryKey: [
+        'daily-contributions',
+        filters,
+        { page: currentPage, limit: 10 },
+      ],
+      queryFn: () =>
+        TransactionService.fetchDailyContributions(filters, {
+          page: currentPage,
+          limit: 10,
+        }),
+      staleTime: 1000 * 60,
+    });
+
+  const { data: usersData, isLoading: isUsersLoading } = useQuery({
+    queryKey: ['users', { page: currentPage, limit: 1000 }],
+    queryFn: () => FetchUsers({ page: currentPage, limit: 1000 }),
     staleTime: 1000 * 60,
   });
 
@@ -75,9 +84,9 @@ const DailyContributions = () => {
     }
   };
 
-  const dates = data?.dates || [];
-  const contributors = data?.contributors || [];
-  // const totalPages = Math.ceil((data?.total || 0) / 10);
+  const dates = contributionsData?.dates || [];
+  const contributors = contributionsData?.contributors || [];
+  const users = usersData?.data || [];
 
   // Calculate total amounts correctly by summing individual contributions
   const calculateContributorTotal = (contributor: any) => {
@@ -97,6 +106,8 @@ const DailyContributions = () => {
     },
     0,
   );
+
+  const isLoading = isContributionsLoading || isUsersLoading;
 
   return (
     <Layout>
@@ -169,21 +180,26 @@ const DailyContributions = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
-                    {contributors.map((contributor: any) => {
-                      const contributorTotal =
-                        calculateContributorTotal(contributor);
+                    {users.map((user: User) => {
+                      const contributor = contributors.find(
+                        (c: any) => c.userId === user.id,
+                      );
+                      const contributorTotal = contributor
+                        ? calculateContributorTotal(contributor)
+                        : 0;
                       return (
-                        <tr key={contributor.userId}>
-                          <td className="whitespace-nowrap px-4 py-3 text-sm sm:px-6">
-                            {contributor.firstName}
+                        <tr key={user.id}>
+                          <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 sm:px-6">
+                            {user.firstName}
                           </td>
-                          <td className="whitespace-nowrap px-4 py-3 text-sm sm:px-6">
-                            {contributor.lastName}
+                          <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 sm:px-6">
+                            {user.lastName}
                           </td>
                           {dates.map((date: string) => {
-                            const contribution = contributor.contributions.find(
-                              (c: any) => c.date === date,
-                            );
+                            const contribution =
+                              contributor?.contributions.find(
+                                (c: any) => c.date === date,
+                              );
                             return (
                               <td
                                 key={date}
@@ -199,8 +215,16 @@ const DailyContributions = () => {
                               </td>
                             );
                           })}
-                          <td className="whitespace-nowrap px-4 py-3 text-center text-sm font-semibold sm:px-6">
-                            ${contributorTotal.toFixed(2)}
+                          <td className="whitespace-nowrap px-4 py-3 text-center text-sm font-bold sm:px-6">
+                            <span
+                              className={
+                                contributorTotal > 0
+                                  ? 'text-green-600'
+                                  : 'text-gray-400'
+                              }
+                            >
+                              ${contributorTotal.toFixed(2)}
+                            </span>
                           </td>
                         </tr>
                       );
@@ -231,59 +255,70 @@ const DailyContributions = () => {
                   </span>
                 </div>
               </Card>
-              {contributors.map((contributor: any) => (
-                <Card
-                  key={contributor.userId}
-                  className="overflow-hidden bg-white p-2 shadow-sm"
-                >
-                  <div className="border-b border-gray-200 bg-gray-50/50 p-2">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-base font-medium text-gray-900 sm:text-lg">
-                          {contributor.firstName} {contributor.lastName}
-                        </h3>
-                        <p className="mt-1 text-sm font-semibold text-green-600 sm:text-base">
-                          Total: $
-                          {calculateContributorTotal(contributor).toFixed(2)}
-                        </p>
+              {users.map((user: User) => {
+                const contributor = contributors.find(
+                  (c: any) => c.userId === user.id,
+                );
+                const contributorTotal = contributor
+                  ? calculateContributorTotal(contributor)
+                  : 0;
+                return (
+                  <Card
+                    key={user.id}
+                    className="overflow-hidden bg-white p-2 shadow-sm"
+                  >
+                    <div className="border-b border-gray-200 bg-gray-50/50 p-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <h3 className="text-base font-medium text-gray-900 sm:text-lg">
+                            {user.firstName} {user.lastName}
+                          </h3>
+                          <p className="mt-1 text-sm font-semibold text-green-600 sm:text-base">
+                            Total: ${contributorTotal.toFixed(2)}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="grid grid-cols-1 divide-y divide-gray-200 sm:grid-cols-2 sm:divide-y-0">
-                    {dates.map((date: string, index: number) => {
-                      const contribution = contributor.contributions.find(
-                        (c: any) => c.date === date,
-                      );
-                      return (
-                        <div
-                          key={date}
-                          className={`flex items-center justify-between p-3 sm:p-4 ${
-                            index % 2 === 0 ? 'sm:bg-gray-50/50' : ''
-                          } ${
-                            index % 2 === 1 ? 'border-gray-200 sm:border-l' : ''
-                          }`}
-                        >
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium text-gray-900 sm:text-base">
-                              {formatDate(date)}
-                            </span>
-                          </div>
-                          <span
-                            className={`text-sm font-medium sm:text-base ${
-                              contribution ? 'text-green-600' : 'text-gray-400'
+                    <div className="grid grid-cols-1 divide-y divide-gray-200 sm:grid-cols-2 sm:divide-y-0">
+                      {dates.map((date: string, index: number) => {
+                        const contribution = contributor?.contributions.find(
+                          (c: any) => c.date === date,
+                        );
+                        return (
+                          <div
+                            key={date}
+                            className={`flex items-center justify-between p-3 sm:p-4 ${
+                              index % 2 === 0 ? 'sm:bg-gray-50/50' : ''
+                            } ${
+                              index % 2 === 1
+                                ? 'border-gray-200 sm:border-l'
+                                : ''
                             }`}
                           >
-                            {contribution
-                              ? `$${contribution.amount.toFixed(2)}`
-                              : '—'}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </Card>
-              ))}
+                            <div className="flex flex-col">
+                              <span className="text-sm font-medium text-gray-900 sm:text-base">
+                                {formatDate(date)}
+                              </span>
+                            </div>
+                            <span
+                              className={`text-sm font-medium sm:text-base ${
+                                contribution
+                                  ? 'text-green-600'
+                                  : 'text-gray-400'
+                              }`}
+                            >
+                              {contribution
+                                ? `$${contribution.amount.toFixed(2)}`
+                                : '—'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </Card>
+                );
+              })}
             </>
           )}
         </div>

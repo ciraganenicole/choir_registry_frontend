@@ -591,24 +591,24 @@ export const useTransactionStats = (filters?: TransactionFilters) => {
           params: filters,
         });
 
+        console.log('API /transactions/stats response:', responseData);
+
         const stats: TransactionStats = {
           usd: {
-            totalIncome: Number(responseData.usd?.totalIncome || 0),
-            totalExpense: Number(responseData.usd?.totalExpense || 0),
-            netRevenue: Number(responseData.usd?.netRevenue || 0),
-            currentMonthDailyTotal: Number(
-              responseData.usd?.currentMonthDailyTotal || 0,
-            ),
+            totalIncome: Number(responseData.totals?.usd || 0),
+            totalExpense: 0,
+            netRevenue: 0,
+            currentMonthDailyTotal: 0,
           },
           fc: {
-            totalIncome: Number(responseData.fc?.totalIncome || 0),
-            totalExpense: Number(responseData.fc?.totalExpense || 0),
-            netRevenue: Number(responseData.fc?.netRevenue || 0),
-            currentMonthDailyTotal: Number(
-              responseData.fc?.currentMonthDailyTotal || 0,
-            ),
+            totalIncome: Number(responseData.totals?.fc || 0),
+            totalExpense: 0,
+            netRevenue: 0,
+            currentMonthDailyTotal: 0,
           },
         };
+
+        console.log('Mapped stats object:', stats);
 
         queryClient.invalidateQueries({ queryKey: ['transactions'] });
         return stats;

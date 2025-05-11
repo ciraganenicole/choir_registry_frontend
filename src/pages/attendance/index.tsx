@@ -14,9 +14,9 @@ import {
 } from '@/lib/attendance/logic';
 
 const formatDate = (dateString: string) => {
+  if (!dateString) return '-';
   const date = new Date(dateString);
-  // Add one day to match the database date
-  date.setDate(date.getDate() + 1);
+  date.setDate(date.getDate() + 1); // Adjust for UTC/local mismatch
   return date.toLocaleDateString('fr-FR', {
     day: '2-digit',
     month: '2-digit',
