@@ -1,4 +1,6 @@
 import ExcelJS from 'exceljs';
+import { jsPDF as JsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 import type { DailyContributionSummary } from './types';
 
@@ -75,7 +77,6 @@ export const exportToExcel = async (data: DailyContributionSummary[]) => {
       item.lastName,
       item.totalAmountUSD,
       item.totalAmountFC,
-      new Date(item.lastContribution).toLocaleDateString(),
       item.frequency,
       item.frequency >= 20 ? 'Regular' : 'Irregular',
     ]);
@@ -151,4 +152,144 @@ export const exportToExcel = async (data: DailyContributionSummary[]) => {
   link.download = `Daily_Contributions_${new Date().toISOString().split('T')[0]}.xlsx`;
   link.click();
   window.URL.revokeObjectURL(url);
+};
+
+export const exportToPDF = async (data: DailyContributionSummary[]) => {
+  const pdfDoc = new JsPDF({
+    orientation: 'portrait',
+    unit: 'mm',
+    format: 'a4',
+  });
+  const margin = 15;
+
+  // Add logo
+  try {
+    const response = await fetch('/assets/images/Wlogo.png');
+    const blob = await response.blob();
+    const reader = new FileReader();
+    const base64 = await new Promise<string>((resolve) => {
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.readAsDataURL(blob);
+    });
+    pdfDoc.addImage(base64, 'PNG', margin, margin, 35, 20);
+  } catch (error) {
+    // Remove console.warn
+  }
+
+  // Add title
+  pdfDoc.setFontSize(16);
+  pdfDoc.setFont('helvetica', 'bold');
+  pdfDoc.text('Daily Contributions Report', margin + 40, margin + 10);
+
+  // Add date
+  pdfDoc.setFontSize(10);
+  pdfDoc.setFont('helvetica', 'normal');
+  pdfDoc.text(
+    `Date: ${new Date().toLocaleDateString()}`,
+    margin + 40,
+    margin + 18,
+  );
+
+  // Gather all unique dates from data
+  const allDatesSet = new Set<string>();
+  data.forEach((item) => {
+    item.contributionDates.forEach((date) => allDatesSet.add(date));
+  });
+  const allDates = Array.from(allDatesSet).sort();
+
+  // Calculate grand totals
+  const grandTotalFC = data.reduce(
+    (sum, item) => sum + (item.totalAmountFC || 0),
+    0,
+  );
+  const grandTotalUSD = data.reduce(
+    (sum, item) => sum + (item.totalAmountUSD || 0),
+    0,
+  );
+
+  // Table headers
+  const headers = [
+    'Noms',
+    ...allDates.map((date) => {
+      const d = new Date(date);
+      return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1)
+        .toString()
+        .padStart(2, '0')}`;
+    }),
+    'Total',
+  ];
+
+  // Table body
+  const body = data.map((item) => {
+    // Map each date to the contribution for that date (FC and USD)
+    const dateCells = allDates.map((date) => {
+      // For this export, we don't have per-date currency breakdown, so just show a check if contributed
+      const contributed = item.contributionDates.includes(date);
+      return contributed ? '✔' : '0';
+    });
+    // Total cell: FC up, USD down
+    const totalCell = `${item.totalAmountFC > 0 ? `${item.totalAmountFC.toLocaleString()} FC` : '0 FC'}\n${item.totalAmountUSD > 0 ? `$${item.totalAmountUSD.toFixed(2)}` : '0 $'}`;
+    return [`${item.lastName} ${item.firstName}`, ...dateCells, totalCell];
+  });
+
+  // Add totals row
+  const totalsRow = [
+    'Total général',
+    ...allDates.map(() => ''),
+    `${grandTotalFC > 0 ? `${grandTotalFC.toLocaleString()} FC` : '0 FC'}\n${grandTotalUSD > 0 ? `$${grandTotalUSD.toFixed(2)}` : '0 $'}`,
+  ];
+  body.push(totalsRow);
+
+  autoTable(pdfDoc, {
+    head: [headers],
+    body,
+    startY: margin + 25,
+    margin: { left: margin, right: margin },
+    theme: 'grid',
+    headStyles: {
+      fillColor: [43, 53, 68],
+      textColor: [255, 255, 255],
+      fontStyle: 'bold',
+      halign: 'center',
+      fontSize: 10,
+    },
+    bodyStyles: {
+      fontSize: 9,
+      halign: 'center',
+    },
+    alternateRowStyles: {
+      fillColor: [240, 240, 240],
+    },
+    didParseCell: (hookData) => {
+      const { cell, column, row } = hookData;
+
+      // Set base styles
+      cell.styles.lineWidth = 0.1;
+      cell.styles.lineColor = [0, 0, 0];
+      cell.styles.cellPadding = {
+        top: 0.5,
+        right: 0.5,
+        bottom: 0.5,
+        left: 0.5,
+      };
+
+      if (column.index > 2) {
+        cell.styles.halign = 'center';
+      }
+
+      if (row.index === 0) {
+        cell.styles.fontSize = 10;
+        cell.styles.fontStyle = 'bold';
+      }
+
+      if (row.index > 0 && column.index > 2) {
+        cell.styles.fontSize = 9;
+      }
+    },
+  });
+
+  // Save PDF
+  pdfDoc.save(
+    `Daily_Contributions_${new Date().toISOString().split('T')[0]}.pdf`,
+  );
 };

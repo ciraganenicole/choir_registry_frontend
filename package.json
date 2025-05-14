@@ -25,6 +25,7 @@
     "chart.js": "^4.4.8",
     "classnames": "^2.5.1",
     "cloudinary": "^2.6.0",
+    "date-fns": "^4.1.0",
     "exceljs": "^4.4.0",
     "framer-motion": "^12.4.3",
     "jspdf": "^3.0.1",

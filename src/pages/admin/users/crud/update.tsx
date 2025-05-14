@@ -69,7 +69,6 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
 
     if (userData) {
       try {
-        // Exclude read-only and non-updatable fields
         const updatePayload = {
           firstName: userData.firstName,
           lastName: userData.lastName,
@@ -86,10 +85,12 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
           quarter: userData.quarter,
           reference: userData.reference,
           address: userData.address,
-          commissions: userData.commissions,
-          categories: userData.categories,
+          commissions: userData.commissions || [],
+          categories: userData.categories || [],
           isActive: userData.isActive,
         };
+
+        console.log('Update payload:', updatePayload);
 
         const updatedUser = await UpdateUserAction(userData.id, updatePayload);
         if (updatedUser) {
@@ -390,7 +391,9 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
               label: commission,
             }))}
             onChange={(selectedOptions) => {
-              const values = selectedOptions.map((option) => option.value);
+              const values = selectedOptions
+                ? selectedOptions.map((option) => option.value)
+                : [];
               setUserData((prev) =>
                 prev ? { ...prev, commissions: values } : null,
               );
@@ -414,7 +417,9 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
               label: category,
             }))}
             onChange={(selectedOptions) => {
-              const values = selectedOptions.map((option) => option.value);
+              const values = selectedOptions
+                ? selectedOptions.map((option) => option.value)
+                : [];
               setUserData((prev) =>
                 prev ? { ...prev, categories: values } : null,
               );

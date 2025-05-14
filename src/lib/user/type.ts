@@ -46,6 +46,7 @@ export enum Commission {
 export enum UserCategory {
   WORSHIPPER = 'WORSHIPPER',
   COMMITTEE = 'COMMITTEE',
+  NEWCOMER = 'NEWCOMER',
 }
 
 export enum UserRole {

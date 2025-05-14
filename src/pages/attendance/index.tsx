@@ -1,10 +1,12 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
+import { format, parseISO } from 'date-fns';
 import debounce from 'lodash/debounce';
 import { useCallback, useState } from 'react';
 
 import SearchInput from '@/components/filters/search';
 import Layout from '@/components/layout';
 import Pagination from '@/components/pagination';
+import { api } from '@/config/api';
 import { EventTypeSelector } from '@/lib/attendance/EventTypeSelector';
 import {
   AttendanceEventType,
@@ -12,16 +14,11 @@ import {
   JustificationReason,
   useAttendance,
 } from '@/lib/attendance/logic';
+import { JustificationReasonLabels } from '@/lib/attendance/types';
 
 const formatDate = (dateString: string) => {
   if (!dateString) return '-';
-  const date = new Date(dateString);
-  date.setDate(date.getDate() + 1); // Adjust for UTC/local mismatch
-  return date.toLocaleDateString('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  });
+  return format(parseISO(dateString), 'dd/MM/yyyy');
 };
 
 interface JustificationPopupProps {
@@ -56,7 +53,20 @@ const JustificationPopup = ({
     }
   };
 
+  const handleReasonChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    console.log('Selected justification reason:', e.target.value);
+    setReason(e.target.value as JustificationReason);
+  };
+
   const handleSave = () => {
+    console.log(
+      'Saving justification. isJustified:',
+      isJustified,
+      'reason:',
+      reason,
+      'isNotJustified:',
+      isNotJustified,
+    );
     if (isJustified && reason) {
       onSave(true, reason as JustificationReason);
     } else if (isNotJustified) {
@@ -70,9 +80,7 @@ const JustificationPopup = ({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="w-[80%] rounded-lg bg-white p-6 md:w-96">
         <h3 className="mb-4 text-lg font-semibold">
-          {status === AttendanceStatus.LATE
-            ? 'Late Attendance'
-            : 'Absent Attendance'}
+          {status === AttendanceStatus.LATE ? 'Retard' : 'Absence'}
         </h3>
         <div className="mb-4 space-y-4">
           <label className="flex items-center">
@@ -82,25 +90,23 @@ const JustificationPopup = ({
               onChange={(e) => handleJustifiedChange(e.target.checked)}
               className="mr-2"
             />
-            Justified
+            Justifie(é)
           </label>
           {isJustified && (
             <div className="ml-1 md:ml-6">
               <select
                 value={reason}
-                onChange={(e) =>
-                  setReason(e.target.value as JustificationReason)
-                }
+                onChange={handleReasonChange}
                 className="mt-2 w-full rounded-md border p-2"
               >
-                <option value="">Select a reason</option>
+                <option value="">Raison</option>
                 {Object.values(JustificationReason).map((r) => (
                   <option
                     key={r}
                     value={r}
                     className="text-[12px] md:text-[16px]"
                   >
-                    {r.replace(/_/g, ' ')}
+                    {JustificationReasonLabels[r as JustificationReason]}
                   </option>
                 ))}
               </select>
@@ -113,7 +119,7 @@ const JustificationPopup = ({
               onChange={(e) => handleNotJustifiedChange(e.target.checked)}
               className="mr-2"
             />
-            Not Justified
+            Non Justifie(é)
           </label>
         </div>
         <div className="flex justify-end gap-2">
@@ -121,14 +127,14 @@ const JustificationPopup = ({
             onClick={onClose}
             className="rounded-md bg-gray-200 px-4 py-2 hover:bg-gray-300"
           >
-            Cancel
+            Annuler
           </button>
           <button
             onClick={handleSave}
             disabled={(!isJustified || !reason) && !isNotJustified}
             className="rounded-md bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 disabled:bg-gray-400"
           >
-            Save
+            Enregistrer
           </button>
         </div>
       </div>
@@ -148,7 +154,7 @@ const AttendancePage: React.FC = () => {
     selectedEventType,
     changeEventType,
     filteredUsers,
-    fetchUsersAndAttendance,
+    setAttendance,
   } = useAttendance();
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -176,16 +182,53 @@ const AttendancePage: React.FC = () => {
     status: null,
   });
 
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleDateChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputDate = e.target.value || getTodayDate();
     setSelectedDate(inputDate);
-  };
 
-  // const adjustDateForTimezone = (dateStr: string): string => {
-  //   const date = new Date(dateStr);
-  //   date.setDate(date.getDate() + 1);
-  //   return date.toISOString().substring(0, 10);
-  // };
+    // Check if we have any records for this date
+    const hasRecordsForDate = Object.values(attendance).some(
+      (records) =>
+        Array.isArray(records) &&
+        records.some(
+          (r) => r.date === inputDate && r.eventType === selectedEventType,
+        ),
+    );
+
+    // If no records exist for this date, initialize all users as absent
+    if (!hasRecordsForDate) {
+      try {
+        // Call backend to initialize all users as absent
+        await api.post('/attendance/initialize', {
+          date: inputDate,
+          eventType: selectedEventType,
+          status: AttendanceStatus.ABSENT,
+        });
+
+        // Update local state to reflect all users as absent
+        const updatedAttendance = { ...attendance };
+        filteredUsers.forEach((user) => {
+          updatedAttendance[user.id] = [
+            ...(updatedAttendance[user.id] || []),
+            {
+              userId: user.id,
+              date: inputDate,
+              status: AttendanceStatus.ABSENT,
+              eventType: selectedEventType,
+              timeIn: new Date().toLocaleTimeString('fr-FR', {
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit',
+              }),
+            },
+          ];
+        });
+        setAttendance(updatedAttendance);
+      } catch (error) {
+        console.error('Error initializing attendance:', error);
+      }
+    }
+  };
 
   const handleStatusChange = async (
     userId: number,
@@ -206,7 +249,7 @@ const AttendancePage: React.FC = () => {
       });
     } else {
       try {
-        await markAttendance(userId, {
+        const updatedRecord = await markAttendance(userId, {
           date: dateToUse,
           status: newStatus,
           eventType: selectedEventType,
@@ -216,7 +259,18 @@ const AttendancePage: React.FC = () => {
             minute: '2-digit',
           }),
         });
-        await fetchUsersAndAttendance();
+        // Update only the affected user's attendance in state
+        setAttendance((prev) => ({
+          ...prev,
+          [userId]: [
+            // Remove any record for the same date/eventType, then add the new one
+            ...(prev[userId] || []).filter(
+              (r) =>
+                !(r.date === dateToUse && r.eventType === selectedEventType),
+            ),
+            updatedRecord,
+          ],
+        }));
       } catch (error) {
         console.error('Error marking attendance:', error);
       }
@@ -227,6 +281,7 @@ const AttendancePage: React.FC = () => {
     _justified: boolean,
     reason?: JustificationReason,
   ) => {
+    console.log('handleJustificationSave called with reason:', reason);
     if (!popupState.userId || !popupState.date || !popupState.status) return;
 
     // Normalize the date to YYYY-MM-DD format
@@ -243,10 +298,28 @@ const AttendancePage: React.FC = () => {
       }),
       justification: reason,
     };
+    console.log('Sending attendanceData to backend:', attendanceData);
 
     try {
-      await markAttendance(popupState.userId, attendanceData);
-      await fetchUsersAndAttendance();
+      const updatedRecord = await markAttendance(
+        popupState.userId,
+        attendanceData,
+      );
+      // Update only the affected user's attendance in state
+      setAttendance((prev) => ({
+        ...prev,
+        [popupState.userId!]: [
+          // Remove any record for the same date/eventType, then add the new one
+          ...(prev[popupState.userId!] || []).filter(
+            (r) =>
+              !(
+                r.date === attendanceData.date &&
+                r.eventType === attendanceData.eventType
+              ),
+          ),
+          updatedRecord,
+        ],
+      }));
     } catch (error) {
       console.error('Error saving attendance:', error);
     }
@@ -267,7 +340,7 @@ const AttendancePage: React.FC = () => {
   const getUserAttendanceForDate = (
     userId: number,
     date: string,
-  ): { status: string; hasJustification: boolean } => {
+  ): { status: string | null; hasJustification: boolean } => {
     const userAttendance = attendance[userId] || [];
     // Normalize both dates to YYYY-MM-DD format for comparison
     const normalizedSearchDate = new Date(date).toISOString().split('T')[0];
@@ -279,14 +352,19 @@ const AttendancePage: React.FC = () => {
       );
     });
     return {
-      status: attendanceRecord ? attendanceRecord.status : '',
+      status: attendanceRecord ? attendanceRecord.status : null,
       hasJustification: !!attendanceRecord?.justification,
     };
   };
 
-  const getStatusEmoji = (status: string, hasJustification: boolean) => {
+  const getStatusEmoji = (
+    status: string | null,
+    hasJustification: boolean,
+    isActive: boolean,
+  ) => {
+    if (!isActive) return '—'; // Inactive user
     let emoji = '';
-    switch (status.toUpperCase()) {
+    switch ((status || '').toUpperCase()) {
       case 'PRESENT':
         emoji = '✅';
         break;
@@ -296,8 +374,10 @@ const AttendancePage: React.FC = () => {
       case 'LATE':
         emoji = '🟡';
         break;
+      case '':
+      case null:
       default:
-        emoji = '—';
+        emoji = '❌'; // Default for active user with no record
     }
     return hasJustification ? `${emoji}J` : emoji;
   };
@@ -341,6 +421,18 @@ const AttendancePage: React.FC = () => {
   };
 
   let datesWithAttendance = getDatesWithAttendance();
+
+  // Only include dates that have at least one attendance record for the selected event type
+  datesWithAttendance = datesWithAttendance.filter((date) =>
+    Object.values(attendance).some(
+      (records) =>
+        Array.isArray(records) &&
+        records.some(
+          (r) => r.date === date && r.eventType === selectedEventType,
+        ),
+    ),
+  );
+
   if (selectedDate && !datesWithAttendance.includes(selectedDate)) {
     datesWithAttendance = [selectedDate, ...datesWithAttendance];
   }
@@ -499,7 +591,7 @@ const AttendancePage: React.FC = () => {
                 >
                   <div className="p-2">
                     <h2 className="mb-4 text-[18px] font-semibold text-gray-900">
-                      {user.firstName} {user.lastName}
+                      {user.lastName} {user.firstName}
                     </h2>
                     <div className="grid grid-cols-2">
                       {datesWithAttendance.map((date) => {
@@ -517,6 +609,7 @@ const AttendancePage: React.FC = () => {
                                 {getStatusEmoji(
                                   attendanceRecord.status,
                                   attendanceRecord.hasJustification,
+                                  true,
                                 )}
                               </span>
                             </div>
@@ -527,30 +620,64 @@ const AttendancePage: React.FC = () => {
                   </div>
                   <div className="h-[1px] w-full bg-gray-900/40" />
                   <div className="flex flex-row items-center gap-4 p-2">
-                    <button
-                      onClick={() =>
-                        handleStatusChange(user.id, AttendanceStatus.PRESENT)
-                      }
-                      className="rounded-[5px] bg-green-500 px-3 py-1 text-[12px] text-white hover:bg-green-600"
-                    >
-                      Present
-                    </button>
-                    <button
-                      onClick={() =>
-                        handleStatusChange(user.id, AttendanceStatus.LATE)
-                      }
-                      className="rounded bg-yellow-500 px-3 py-1 text-[12px] text-white hover:bg-yellow-600"
-                    >
-                      Retard
-                    </button>
-                    <button
-                      onClick={() =>
-                        handleStatusChange(user.id, AttendanceStatus.ABSENT)
-                      }
-                      className="rounded bg-red-500 px-3 py-1 text-[12px] text-white hover:bg-red-600"
-                    >
-                      Absent
-                    </button>
+                    {(() => {
+                      const attendanceRecord = getUserAttendanceForDate(
+                        user.id,
+                        selectedDate,
+                      );
+                      const statusSet = !!attendanceRecord.status;
+                      return (
+                        <>
+                          <button
+                            onClick={() =>
+                              handleStatusChange(
+                                user.id,
+                                AttendanceStatus.PRESENT,
+                              )
+                            }
+                            className={`rounded-[5px] bg-green-500 px-3 py-1 text-[12px] text-white hover:bg-green-600${
+                              statusSet &&
+                              attendanceRecord.status !==
+                                AttendanceStatus.PRESENT
+                                ? ' opacity-50'
+                                : ''
+                            }`}
+                          >
+                            Present
+                          </button>
+                          <button
+                            onClick={() =>
+                              handleStatusChange(user.id, AttendanceStatus.LATE)
+                            }
+                            className={`rounded bg-yellow-500 px-3 py-1 text-[12px] text-white hover:bg-yellow-600${
+                              statusSet &&
+                              attendanceRecord.status !== AttendanceStatus.LATE
+                                ? ' opacity-50'
+                                : ''
+                            }`}
+                          >
+                            Retard
+                          </button>
+                          <button
+                            onClick={() =>
+                              handleStatusChange(
+                                user.id,
+                                AttendanceStatus.ABSENT,
+                              )
+                            }
+                            className={`rounded bg-red-500 px-3 py-1 text-[12px] text-white hover:bg-red-600${
+                              statusSet &&
+                              attendanceRecord.status !==
+                                AttendanceStatus.ABSENT
+                                ? ' opacity-50'
+                                : ''
+                            }`}
+                          >
+                            Absent
+                          </button>
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               ))}
@@ -580,7 +707,7 @@ const AttendancePage: React.FC = () => {
                     <tr key={user.id}>
                       <td className="whitespace-nowrap px-6 py-2">
                         <div className="text-sm font-medium text-gray-900">
-                          {user.firstName} {user.lastName}
+                          {user.lastName} {user.firstName}
                         </div>
                         <div className="text-xs text-gray-500">
                           {user.commissions
@@ -600,36 +727,68 @@ const AttendancePage: React.FC = () => {
                       </td>
                       <td className="whitespace-nowrap bg-blue-50 p-2">
                         <div className="flex gap-2">
-                          <button
-                            onClick={() =>
-                              handleStatusChange(
-                                user.id,
-                                AttendanceStatus.PRESENT,
-                              )
-                            }
-                            className="rounded-[5px] bg-green-500 px-[4px] py-[1px] text-[10px] text-white hover:bg-green-600"
-                          >
-                            Present
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleStatusChange(user.id, AttendanceStatus.LATE)
-                            }
-                            className="rounded bg-yellow-500 px-[4px] py-[1px] text-[10px] text-white hover:bg-yellow-600"
-                          >
-                            Retard
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleStatusChange(
-                                user.id,
-                                AttendanceStatus.ABSENT,
-                              )
-                            }
-                            className="rounded bg-red-500 px-[4px] py-[1px] text-[10px] text-white hover:bg-red-600"
-                          >
-                            Absent
-                          </button>
+                          {(() => {
+                            const attendanceRecord = getUserAttendanceForDate(
+                              user.id,
+                              selectedDate,
+                            );
+                            const statusSet = !!attendanceRecord.status;
+                            return (
+                              <>
+                                <button
+                                  onClick={() =>
+                                    handleStatusChange(
+                                      user.id,
+                                      AttendanceStatus.PRESENT,
+                                    )
+                                  }
+                                  className={`rounded-[5px] bg-green-500 px-[4px] py-[1px] text-[10px] text-white hover:bg-green-600${
+                                    statusSet &&
+                                    attendanceRecord.status !==
+                                      AttendanceStatus.PRESENT
+                                      ? ' opacity-50'
+                                      : ''
+                                  }`}
+                                >
+                                  Present
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    handleStatusChange(
+                                      user.id,
+                                      AttendanceStatus.LATE,
+                                    )
+                                  }
+                                  className={`rounded bg-yellow-500 px-[4px] py-[1px] text-[10px] text-white hover:bg-yellow-600${
+                                    statusSet &&
+                                    attendanceRecord.status !==
+                                      AttendanceStatus.LATE
+                                      ? ' opacity-50'
+                                      : ''
+                                  }`}
+                                >
+                                  Retard
+                                </button>
+                                <button
+                                  onClick={() =>
+                                    handleStatusChange(
+                                      user.id,
+                                      AttendanceStatus.ABSENT,
+                                    )
+                                  }
+                                  className={`rounded bg-red-500 px-[4px] py-[1px] text-[10px] text-white hover:bg-red-600${
+                                    statusSet &&
+                                    attendanceRecord.status !==
+                                      AttendanceStatus.ABSENT
+                                      ? ' opacity-50'
+                                      : ''
+                                  }`}
+                                >
+                                  Absent
+                                </button>
+                              </>
+                            );
+                          })()}
                         </div>
                       </td>
                       {datesWithAttendance.map((date) => {
@@ -643,6 +802,7 @@ const AttendancePage: React.FC = () => {
                               {getStatusEmoji(
                                 attendanceRecord.status,
                                 attendanceRecord.hasJustification,
+                                true,
                               )}
                             </div>
                           </td>

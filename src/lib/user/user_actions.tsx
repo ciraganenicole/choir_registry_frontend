@@ -11,9 +11,9 @@ import type {
   MaritalStatus,
   Profession,
   User,
-  UserCategory,
   UserFilters,
 } from './type';
+import { UserCategory } from './type';
 
 interface DefaultFormData {
   firstName: string;
@@ -68,6 +68,11 @@ export const CreateUser = <T extends DefaultFormData>(
 
     try {
       // Prepare the data for submission
+      const categoriesWithNewcomer = formData.categories?.includes(
+        UserCategory.NEWCOMER,
+      )
+        ? formData.categories
+        : [...formData.categories, UserCategory.NEWCOMER];
       const dataToSubmit = {
         firstName: formData.firstName.trim(),
         lastName: formData.lastName.trim(),
@@ -88,13 +93,13 @@ export const CreateUser = <T extends DefaultFormData>(
         email: formData.email?.trim() || '',
         // For arrays, keep as empty arrays
         commissions: formData.commissions || [],
-        categories: formData.categories || [],
+        categories: categoriesWithNewcomer,
         // For optional fields that can be null
         profilePicture: formData.profilePicture || null,
         joinDate: null,
         fingerprintData: null,
         voiceCategory: null,
-        isActive: true,
+        isActive: false,
       };
 
       const response = await api.post('/users', dataToSubmit);

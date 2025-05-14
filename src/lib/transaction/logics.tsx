@@ -1,5 +1,7 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { format, parseISO } from 'date-fns';
+import { fr } from 'date-fns/locale/fr';
 import { jsPDF as JSPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -196,28 +198,9 @@ export const useExportTransactions = () => {
 
         let frenchDateHeader = '';
         if (params.exportAll) {
-          frenchDateHeader = `Toutes les Transactions - ${new Date().toLocaleDateString(
-            'fr-FR',
-            {
-              year: 'numeric',
-              month: 'long',
-            },
-          )}`;
+          frenchDateHeader = `${format(parseISO(new Date().toISOString()), 'MMMM, yyyy', { locale: fr })}`;
         } else if (params.filters.startDate && params.filters.endDate) {
-          frenchDateHeader = `Transactions du ${new Date(
-            params.filters.startDate,
-          ).toLocaleDateString('fr-FR', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-          })} au ${new Date(params.filters.endDate).toLocaleDateString(
-            'fr-FR',
-            {
-              day: 'numeric',
-              month: 'long',
-              year: 'numeric',
-            },
-          )}`;
+          frenchDateHeader = `Transactions du ${format(parseISO(params.filters.startDate), 'MMMM, yyyy', { locale: fr })} au ${format(parseISO(params.filters.endDate), 'MMMM, yyyy', { locale: fr })}`;
         }
 
         doc.setFontSize(10);
@@ -364,8 +347,8 @@ export const useExportTransactions = () => {
         });
 
         const filename = params.exportAll
-          ? `transactions_${new Date().toLocaleDateString('fr-FR').replace(/\//g, '-')}.pdf`
-          : `transactions_${params.filters.startDate || ''}_${params.filters.endDate || ''}.pdf`;
+          ? `transactions_${format(parseISO(new Date().toISOString()), 'MMMM-d-yyyy').replace(/\//g, '-')}.pdf`
+          : `transactions_${format(parseISO(params.filters.startDate ?? new Date().toISOString()), 'MMMM-d-yyyy')}_${format(parseISO(params.filters.endDate ?? new Date().toISOString()), 'MMMM-d-yyyy')}.pdf`;
 
         doc.save(filename);
       } catch (error) {
@@ -443,17 +426,7 @@ export const useExportDailyContributions = () => {
 
         let frenchDateHeader = '';
         if (filters.startDate && filters.endDate) {
-          frenchDateHeader = `Contributions du ${new Date(
-            filters.startDate,
-          ).toLocaleDateString('fr-FR', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-          })} au ${new Date(filters.endDate).toLocaleDateString('fr-FR', {
-            day: 'numeric',
-            month: 'long',
-            year: 'numeric',
-          })}`;
+          frenchDateHeader = `Contributions du ${format(parseISO(filters.startDate), 'MMMM d, yyyy')} au ${format(parseISO(filters.endDate), 'MMMM d, yyyy')}`;
         }
 
         doc.setFontSize(10);
@@ -462,12 +435,7 @@ export const useExportDailyContributions = () => {
         // Prepare table headers
         const headers = ['Prénom', 'Nom'];
         dates.forEach((date: string) => {
-          headers.push(
-            new Date(date).toLocaleDateString('fr-FR', {
-              month: 'short',
-              day: 'numeric',
-            }),
-          );
+          headers.push(format(parseISO(date), 'MMM d, yyyy'));
         });
         headers.push('Total');
 
@@ -569,7 +537,7 @@ export const useExportDailyContributions = () => {
           margin: { top: margin, right: margin, bottom: margin, left: margin },
         });
 
-        const filename = `contributions_quotidiennes_${new Date().toLocaleDateString('fr-FR').replace(/\//g, '-')}.pdf`;
+        const filename = `contributions_quotidiennes_${format(parseISO(new Date().toISOString()), 'MMMM-d-yyyy').replace(/\//g, '-')}.pdf`;
         doc.save(filename);
       } catch (error) {
         logError(error);
@@ -598,13 +566,17 @@ export const useTransactionStats = (filters?: TransactionFilters) => {
             totalIncome: Number(responseData.totals?.usd || 0),
             totalExpense: 0,
             netRevenue: 0,
-            currentMonthDailyTotal: 0,
+            currentMonthDailyTotal: Number(
+              responseData.currentMonthDailyTotalUSD ?? 0,
+            ),
           },
           fc: {
             totalIncome: Number(responseData.totals?.fc || 0),
             totalExpense: 0,
             netRevenue: 0,
-            currentMonthDailyTotal: 0,
+            currentMonthDailyTotal: Number(
+              responseData.currentMonthDailyTotalFC ?? 0,
+            ),
           },
         };
 
@@ -676,32 +648,15 @@ export const useExportTransactionsPDF = () => {
           }
 
           if (params.filters.startDate && params.filters.endDate) {
-            const start = new Date(params.filters.startDate).toLocaleDateString(
-              'en-US',
-              {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-              },
+            const start = format(
+              parseISO(params.filters.startDate),
+              'MMM d, yyyy',
             );
-            const end = new Date(params.filters.endDate).toLocaleDateString(
-              'en-US',
-              {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-              },
-            );
+            const end = format(parseISO(params.filters.endDate), 'MMM d, yyyy');
             return `${start}_to_${end}`;
           }
           if (params.filters.startDate) {
-            return new Date(params.filters.startDate).toLocaleDateString(
-              'en-US',
-              {
-                year: 'numeric',
-                month: 'long',
-              },
-            );
+            return format(parseISO(params.filters.startDate), 'MMM d, yyyy');
           }
           return 'all';
         };

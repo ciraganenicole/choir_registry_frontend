@@ -3,7 +3,7 @@ import Select from 'react-select';
 
 import Input from '@/components/input';
 import Popup from '@/components/popup';
-import { API_URL } from '@/config/api';
+import { api } from '@/config/api';
 
 import type {
   Commune,
@@ -60,6 +60,9 @@ const UserRegistration: React.FC<CreateUserProps> = ({
     }
 
     try {
+      const categoriesWithNewcomer = categories.includes(UserCategory.NEWCOMER)
+        ? categories
+        : [...categories, UserCategory.NEWCOMER];
       const userData = {
         firstName: firstName.trim(),
         lastName: lastName.trim(),
@@ -77,23 +80,16 @@ const UserRegistration: React.FC<CreateUserProps> = ({
         reference: reference.trim() || undefined,
         address: address.trim() || undefined,
         commissions: commissions.length > 0 ? commissions : undefined,
-        categories: categories.length > 0 ? categories : undefined,
-        isActive: true,
+        categories: categoriesWithNewcomer,
+        isActive: false,
       };
 
-      const response = await fetch(`${API_URL}/users`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(userData),
-      });
-
-      if (response.status === 201) {
+      const response = await api.post('/users', userData);
+      if (response.status === 201 || response.status === 200) {
         onClose();
         onUserCreated();
       } else {
-        const data = await response.json();
+        const { data } = response;
         const errorResponse = Array.isArray(data.errors)
           ? data.errors
               .map((err: any) => {
@@ -107,7 +103,6 @@ const UserRegistration: React.FC<CreateUserProps> = ({
               })
               .join('\n')
           : data.message || 'Failed to create user';
-
         throw new Error(errorResponse);
       }
     } catch (submitError) {

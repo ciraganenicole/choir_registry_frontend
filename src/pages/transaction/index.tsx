@@ -1,3 +1,4 @@
+import { format, parseISO } from 'date-fns';
 import Link from 'next/link';
 import { useState } from 'react';
 import { FaPlus } from 'react-icons/fa';
@@ -141,7 +142,7 @@ const Transactions = () => {
   };
 
   const handleExport = async (
-    format: 'csv' | 'pdf',
+    exportFormat: 'csv' | 'pdf',
     exportAll: boolean = false,
   ) => {
     try {
@@ -153,7 +154,7 @@ const Transactions = () => {
         delete exportFilters.type;
       }
 
-      if (format === 'csv') {
+      if (exportFormat === 'csv') {
         await exportTransactions.mutateAsync({
           filters: exportFilters,
           exportAll,
@@ -281,7 +282,7 @@ const Transactions = () => {
         </td>
         <td className="whitespace-nowrap px-6 py-4">
           <div className="text-sm text-gray-900">
-            {transaction.transactionDate}
+            {format(parseISO(transaction.transactionDate), 'dd/MM/yyyy')}
           </div>
         </td>
       </tr>
@@ -493,7 +494,10 @@ const Transactions = () => {
                               {translateCategoryToFrench(transaction.category)}
                             </div>
                             <div className="text-[10px] text-gray-500">
-                              {transaction.transactionDate}
+                              {format(
+                                parseISO(transaction.transactionDate),
+                                'dd/MM/yyyy',
+                              )}
                             </div>
                           </div>
                           <div

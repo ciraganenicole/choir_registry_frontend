@@ -19,14 +19,33 @@ export enum AttendanceEventType {
   COMMITTEE = 'COMMITTEE',
 }
 
+export const AttendanceEventTypeLabels: Record<AttendanceEventType, string> = {
+  [AttendanceEventType.REHEARSAL]: 'Répétition',
+  [AttendanceEventType.SUNDAY_SERVICE]: 'Culte du dimanche',
+  [AttendanceEventType.LOUADO]: 'Louado',
+  [AttendanceEventType.MUSIC]: 'Musique',
+  [AttendanceEventType.COMMITTEE]: 'Comité',
+};
+
 export enum JustificationReason {
   ILLNESS = 'ILLNESS',
+  BIRTH = 'BIRTH',
   WORK = 'WORK',
   TRAVEL = 'TRAVEL',
   FAMILY_EMERGENCY = 'FAMILY_EMERGENCY',
   SCHOOL = 'SCHOOL',
   OTHER = 'OTHER',
 }
+
+export const JustificationReasonLabels: Record<JustificationReason, string> = {
+  [JustificationReason.ILLNESS]: 'Maladie',
+  [JustificationReason.BIRTH]: 'Naissance',
+  [JustificationReason.WORK]: 'Travail',
+  [JustificationReason.TRAVEL]: 'Voyage',
+  [JustificationReason.FAMILY_EMERGENCY]: 'Urgence familiale',
+  [JustificationReason.SCHOOL]: 'École',
+  [JustificationReason.OTHER]: 'Autre',
+};
 
 export interface AttendanceRecord {
   id?: number;

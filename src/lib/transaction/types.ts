@@ -129,7 +129,6 @@ export interface DailyContributionSummary {
   totalAmountUSD: number;
   totalAmountFC: number;
   contributionDates: string[];
-  lastContribution: Date;
   frequency: number;
 }
 

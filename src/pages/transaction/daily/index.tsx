@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { format, parseISO } from 'date-fns';
 import { Download } from 'lucide-react';
 import { useState } from 'react';
 
@@ -6,22 +7,19 @@ import { Card } from '@/components/card';
 import SearchInput from '@/components/filters/search';
 import Layout from '@/components/layout';
 import DailyFilters from '@/lib/transaction/components/filters';
+import { exportToPDF } from '@/lib/transaction/excel';
 import { TransactionService } from '@/lib/transaction/service';
 import type {
   DailyContributionFilters,
   DailyContributionsResponse,
   DailyContributor,
 } from '@/lib/transaction/types';
-import { TransactionType } from '@/lib/transaction/types';
 import type { User } from '@/lib/user/type';
 import { FetchUsers } from '@/lib/user/user_actions';
 import { logger } from '@/utils/logger';
 
 const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('fr-FR', {
-    month: 'short',
-    day: 'numeric',
-  });
+  return format(parseISO(dateString), 'dd/MM/yyyy');
 };
 
 const DailyContributions = () => {
@@ -72,15 +70,31 @@ const DailyContributions = () => {
     setCurrentPage(1);
   };
 
-  const handleExport = async (format: 'csv') => {
+  const handleExport = async () => {
     try {
-      await TransactionService.exportTransactions({
-        ...filters,
-        type: TransactionType.INCOME,
-        category: 'DAILY',
+      const summaries = (usersData?.data || []).map((user) => {
+        const c = (contributionsData?.contributors || []).find(
+          (contributor) => contributor.userId === user.id,
+        );
+        const allUSD = c
+          ? c.contributions.filter((con) => con.currency === 'USD')
+          : [];
+        const allFC = c
+          ? c.contributions.filter((con) => con.currency === 'FC')
+          : [];
+        return {
+          userId: user.id,
+          firstName: user.firstName,
+          lastName: user.lastName,
+          totalAmountUSD: allUSD.reduce((sum, con) => sum + con.amount, 0),
+          totalAmountFC: allFC.reduce((sum, con) => sum + con.amount, 0),
+          contributionDates: c ? c.contributions.map((con) => con.date) : [],
+          frequency: c ? c.contributions.length : 0,
+        };
       });
+      await exportToPDF(summaries);
     } catch (error) {
-      logger.error(`Error exporting daily contributions as ${format}:`, error);
+      logger.error('Error exporting daily contributions as PDF:', error);
     }
   };
 
@@ -113,7 +127,7 @@ const DailyContributions = () => {
     <Layout>
       <div className="p-2 sm:p-4 lg:px-8">
         {/* Header Section */}
-        <div className="flex flex-col gap-4 py-1 sm:py-4">
+        <div className="mt-8 flex flex-col gap-4 py-1 sm:py-4 md:mt-0">
           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-col gap-1 md:flex-row md:items-center md:gap-2">
               <h2 className="text-lg font-semibold sm:text-xl md:text-2xl">
@@ -121,16 +135,13 @@ const DailyContributions = () => {
               </h2>
               <p className="text-xs text-gray-500 sm:text-sm">
                 {filters.startDate &&
-                  new Date(filters.startDate).toLocaleDateString('fr-FR', {
-                    month: 'long',
-                    year: 'numeric',
-                  })}
+                  format(parseISO(filters.startDate), 'dd/MM/yyyy')}
               </p>
             </div>
             <div className="flex flex-row items-center justify-between gap-2 sm:gap-4">
               <SearchInput onSearch={handleSearch} />
               <button
-                onClick={() => handleExport('csv')}
+                onClick={handleExport}
                 className="flex items-center rounded-md border-[1px] border-gray-900/50 px-3 py-1.5 text-sm text-gray-900 shadow-sm hover:bg-gray-50 sm:px-4 sm:py-2"
               >
                 <Download className="size-4 md:mr-2" />

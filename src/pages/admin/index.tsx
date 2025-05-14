@@ -297,7 +297,9 @@ const AdminDashboard: React.FC = () => {
   return (
     <Layout>
       <div className="flex w-full flex-col gap-2 p-6 md:gap-6">
-        <h2 className="text-xl font-semibold text-gray-900">Tableau de bord</h2>
+        <h2 className="mt-8 text-xl font-semibold text-gray-900 md:mt-0">
+          Tableau de bord
+        </h2>
 
         <div className="grid grid-cols-2 gap-2 md:gap-4 lg:grid-cols-4">
           <div className="flex items-center justify-between rounded-lg bg-white p-2 shadow-sm md:p-6">

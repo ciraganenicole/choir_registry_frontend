@@ -1,7 +1,8 @@
 /* eslint-disable new-cap */
 /* eslint-disable import/no-extraneous-dependencies */
 import axios from 'axios';
-import ExcelJS from 'exceljs';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale/fr';
 import { jsPDF } from 'jspdf';
 import type { CellHookData, RowInput } from 'jspdf-autotable';
 import autoTable from 'jspdf-autotable';
@@ -17,9 +18,12 @@ import { Commission, UserCategory } from '../user/type';
 // Simple logging utility that can be disabled in production
 const log = (message: string, data?: any) => {
   if (process.env.NODE_ENV !== 'production') {
+    // eslint-disable-next-line no-console
     if (data) {
+      // eslint-disable-next-line no-console
       console.log(message, data);
     } else {
+      // eslint-disable-next-line no-console
       console.log(message);
     }
   }
@@ -28,8 +32,10 @@ const log = (message: string, data?: any) => {
 // Error logging utility
 const logError = (message: string, error: any) => {
   if (process.env.NODE_ENV !== 'production') {
+    // eslint-disable-next-line no-console
     console.error(message, error);
     if (axios.isAxiosError(error)) {
+      // eslint-disable-next-line no-console
       console.error('Axios error details:', {
         status: error.response?.status,
         data: error.response?.data,
@@ -60,6 +66,7 @@ export enum AttendanceEventType {
 
 export enum JustificationReason {
   ILLNESS = 'ILLNESS',
+  BIRTH = 'BIRTH',
   WORK = 'WORK',
   TRAVEL = 'TRAVEL',
   FAMILY_EMERGENCY = 'FAMILY_EMERGENCY',
@@ -275,18 +282,22 @@ export const useAttendance = () => {
     }
   };
 
+  // Fetch on first mount only
   useEffect(() => {
-    // Initial data fetch or when important filters change
-    if (
-      !users.length || // Add this condition for initial fetch
-      filters.startDate ||
-      filters.endDate ||
-      filters.status ||
-      filters.eventType
-    ) {
+    if (!users.length) {
+      log('Fetching data on first mount');
+      fetchUsersAndAttendance();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Fetch when filters change, but only if users are already loaded
+  useEffect(() => {
+    if (users.length) {
       log('Fetching data with filters:', filters);
       fetchUsersAndAttendance();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.startDate, filters.endDate, filters.status, filters.eventType]);
 
   const markAttendance = async (
@@ -346,349 +357,6 @@ export const useAttendance = () => {
     return message;
   };
 
-  const exportAttendance = async (
-    exportFilters: AttendanceFilterDto,
-    exportMonth?: number,
-    exportYear?: number,
-  ) => {
-    try {
-      // If no month/year provided, use current month/year
-      const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
-
-      // Use provided month/year or defaults
-      const monthToUse =
-        typeof exportMonth === 'number' ? exportMonth : currentMonth;
-      const yearToUse =
-        typeof exportYear === 'number' ? exportYear : currentYear;
-
-      // Create date safely
-      const currentDate = new Date(yearToUse, monthToUse);
-      if (Number.isNaN(currentDate.getTime())) {
-        throw new Error('Invalid date created from month and year');
-      }
-
-      // Get month name safely
-      let monthName;
-      try {
-        monthName = currentDate.toLocaleString('fr-FR', { month: 'long' });
-      } catch (e) {
-        monthName = String(monthToUse + 1).padStart(2, '0');
-      }
-
-      // Create Excel workbook
-      const workbook = new ExcelJS.Workbook();
-      if (!workbook) {
-        throw new Error('Failed to create Excel workbook');
-      }
-
-      const worksheet = workbook.addWorksheet('Attendance');
-
-      // Set default row height and column widths
-      worksheet.properties.defaultRowHeight = 20;
-      worksheet.getColumn('A').width = 4;
-      worksheet.getColumn('B').width = 15;
-      worksheet.getColumn('C').width = 15;
-
-      // Add logo
-      try {
-        const response = await fetch('/assets/images/logo.jpeg');
-        const blob = await response.blob();
-        const reader = new FileReader();
-
-        const base64 = await new Promise<string>((resolve) => {
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.readAsDataURL(blob);
-        });
-
-        const logoId = workbook.addImage({
-          base64: base64.split(',')[1],
-          extension: 'jpeg',
-        });
-
-        // Position logo to match the image exactly
-        worksheet.addImage(logoId, {
-          tl: { col: 0, row: 0 },
-          ext: { width: 100, height: 100 }, // Increased size
-        });
-      } catch (error) {
-        console.warn('Failed to add logo to worksheet:', error);
-      }
-
-      // Add organization headers with proper spacing
-      worksheet.mergeCells('C1:Z1');
-      const orgNameCell = worksheet.getCell('C1');
-      orgNameCell.value =
-        'COMMUNAUTE DES EGLISES LIBRES DE PENTECOTE EN AFRIQUE';
-      orgNameCell.font = { name: 'Arial', size: 10, bold: true };
-      orgNameCell.alignment = { horizontal: 'left', vertical: 'middle' };
-
-      worksheet.mergeCells('C2:Z2');
-      const celpaCell = worksheet.getCell('C2');
-      celpaCell.value = '5è CELPA SALEM GOMA';
-      celpaCell.font = { name: 'Arial', size: 10, bold: true };
-      celpaCell.alignment = { horizontal: 'left', vertical: 'middle' };
-
-      worksheet.mergeCells('C3:Z3');
-      const choirCell = worksheet.getCell('C3');
-      choirCell.value = 'CHORALE LA NOUVELLE JERUSALEM';
-      choirCell.font = { name: 'Arial', size: 10, bold: true };
-      choirCell.alignment = { horizontal: 'left', vertical: 'middle' };
-
-      worksheet.mergeCells('A4:Z4');
-      const registreCell = worksheet.getCell('A4');
-      registreCell.value = 'REGISTRE DES PRESENCES';
-      registreCell.font = { name: 'Arial', size: 14, bold: true };
-      registreCell.alignment = { horizontal: 'left', vertical: 'middle' };
-
-      // Add month text with proper spacing
-      worksheet.mergeCells('A5:C5');
-      const monthCell = worksheet.getCell('A5');
-      const monthText = (() => {
-        if (exportFilters.startDate) {
-          // Use the filtered date's month if available
-          const filterDate = new Date(exportFilters.startDate);
-          const filterMonth = filterDate.toLocaleString('fr-FR', {
-            month: 'long',
-          });
-          const filterYear = filterDate.getFullYear();
-          return `Mois de : ${filterMonth.toUpperCase()}-${filterYear}`;
-        }
-        // Otherwise use the provided export month or current month
-        return `Mois de : ${monthName.toUpperCase()}-${yearToUse}`;
-      })();
-      monthCell.value = monthText;
-      monthCell.font = { name: 'Arial', size: 11, bold: true };
-      monthCell.alignment = { horizontal: 'left', vertical: 'middle' };
-
-      // Set row heights for proper spacing
-      worksheet.getRow(1).height = 25;
-      worksheet.getRow(2).height = 25;
-      worksheet.getRow(3).height = 25;
-      worksheet.getRow(4).height = 30;
-      worksheet.getRow(5).height = 25;
-
-      // Add "FREQUENTATIONS JOURNALIERES" header
-      worksheet.mergeCells('A6:Z6');
-      const freqCell = worksheet.getCell('A6');
-      freqCell.value = 'FREQUENTATIONS JOURNALIERES';
-      freqCell.font = { name: 'Arial', size: 10, bold: true };
-      freqCell.alignment = { horizontal: 'center', vertical: 'middle' };
-
-      // Set consistent row heights for header section
-      worksheet.getRow(1).height = 20;
-      worksheet.getRow(2).height = 20;
-      worksheet.getRow(3).height = 20;
-      worksheet.getRow(4).height = 20;
-      worksheet.getRow(5).height = 20;
-      worksheet.getRow(6).height = 25;
-
-      // Set up the main table headers
-      worksheet.getCell('A7').value = '#';
-      worksheet.getCell('B7').value = 'Prenom';
-      worksheet.getCell('C7').value = 'Nom';
-
-      // Get all dates in the month or use all unique dates from attendance records
-      let datesInMonth: Date[] = [];
-      if (exportMonth !== undefined && exportYear !== undefined) {
-        const lastDay = new Date(yearToUse, monthToUse + 1, 0).getDate();
-        for (let day = 1; day <= lastDay; day += 1) {
-          const monthDate = new Date(yearToUse, monthToUse, day);
-          datesInMonth.push(monthDate);
-        }
-      } else {
-        // Get all unique dates from attendance records
-        const uniqueDates = new Set<string>();
-        Object.values(attendance).forEach((userRecords) => {
-          userRecords.forEach((record) => {
-            uniqueDates.add(record.date);
-          });
-        });
-        datesInMonth = Array.from(uniqueDates)
-          .map((dateStr) => new Date(dateStr))
-          .sort((a, b) => a.getTime() - b.getTime());
-      }
-
-      // Add date columns
-      let colIndex = 4; // Starting from column D
-      datesInMonth.forEach((monthDate: Date) => {
-        const col = worksheet.getColumn(colIndex);
-        col.width = 4;
-        worksheet.getCell(7, colIndex).value = monthDate.getDate();
-        colIndex += 1;
-      });
-
-      // Add summary columns
-      const summaryHeaders = ['Présences', 'Absences', 'Retards'];
-      summaryHeaders.forEach((header) => {
-        worksheet.getCell(7, colIndex).value = header;
-        worksheet.getColumn(colIndex).width = 12;
-        colIndex += 1;
-      });
-
-      // Style all header cells
-      worksheet.getRow(7).eachCell((cell) => {
-        const headerCell = cell;
-        headerCell.font = { name: 'Arial', size: 10, bold: true };
-        headerCell.alignment = { horizontal: 'center', vertical: 'middle' };
-        headerCell.border = {
-          top: { style: 'thin' },
-          left: { style: 'thin' },
-          bottom: { style: 'thin' },
-          right: { style: 'thin' },
-        };
-        headerCell.fill = {
-          type: 'pattern',
-          pattern: 'solid',
-          fgColor: { argb: 'E2E8F0' },
-        };
-      });
-
-      // Add data rows
-      let rowIndex = 8;
-      let memberIndex = 1;
-
-      // Sort users by firstName
-      const sortedUsers = [...users].sort((a, b) =>
-        a.firstName.localeCompare(b.firstName),
-      );
-
-      sortedUsers.forEach((user) => {
-        const userAttendance = attendance[user.id] || [];
-        const row = worksheet.getRow(rowIndex);
-
-        // Add user info
-        row.getCell(1).value = memberIndex;
-        row.getCell(2).value = user.firstName;
-        row.getCell(3).value = user.lastName;
-
-        // Initialize counters
-        let presences = 0;
-        let absences = 0;
-        let retards = 0;
-
-        // Fill attendance for each date
-        colIndex = 4; // Reset to column D
-        datesInMonth.forEach((date: Date) => {
-          const dateStr = date.toISOString().split('T')[0];
-          const record = userAttendance.find((r) => r.date === dateStr);
-
-          let value = '*';
-          if (record) {
-            switch (record.status) {
-              case AttendanceStatus.PRESENT:
-                value = 'P';
-                presences += 1;
-                break;
-              case AttendanceStatus.ABSENT:
-                value = 'A';
-                absences += 1;
-                break;
-              case AttendanceStatus.LATE:
-                value = 'R';
-                retards += 1;
-                break;
-              default:
-                value = '*';
-                break;
-            }
-          }
-
-          const cell = row.getCell(colIndex);
-          cell.value = value;
-          cell.alignment = { horizontal: 'center', vertical: 'middle' };
-          cell.font = { name: 'Arial', size: 10 };
-
-          // Color coding
-          if (value === 'P') {
-            cell.fill = {
-              type: 'pattern',
-              pattern: 'solid',
-              fgColor: { argb: 'C6E0B4' }, // Light green for present
-            };
-          } else if (value === 'A') {
-            cell.fill = {
-              type: 'pattern',
-              pattern: 'solid',
-              fgColor: { argb: 'FFB6C1' }, // Light red for absent
-            };
-          } else if (value === 'R') {
-            cell.fill = {
-              type: 'pattern',
-              pattern: 'solid',
-              fgColor: { argb: 'FFC000' }, // Orange for late
-            };
-          }
-
-          colIndex += 1;
-        });
-
-        // Add summary counts
-        row.getCell(colIndex).value = presences;
-        row.getCell(colIndex + 1).value = absences;
-        row.getCell(colIndex + 2).value = retards;
-
-        // Style the entire row
-        row.eachCell((cell) => {
-          const dataCell = cell;
-          dataCell.border = {
-            top: { style: 'thin' },
-            left: { style: 'thin' },
-            bottom: { style: 'thin' },
-            right: { style: 'thin' },
-          };
-        });
-
-        rowIndex += 1;
-        memberIndex += 1;
-      });
-
-      // Generate and download file
-      const buffer = await workbook.xlsx.writeBuffer();
-      if (!buffer) {
-        throw new Error('Failed to generate Excel file');
-      }
-
-      const blob = new Blob([buffer], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      });
-
-      if (!blob) {
-        throw new Error('Failed to create file blob');
-      }
-
-      const url = window.URL.createObjectURL(blob);
-      if (!url) {
-        throw new Error('Failed to create object URL');
-      }
-
-      const link = document.createElement('a');
-      if (!link) {
-        throw new Error('Failed to create download link');
-      }
-
-      // Generate filename based on whether we're exporting a specific month or all dates
-      const filename =
-        exportMonth !== undefined && exportYear !== undefined
-          ? `registre_presences_${monthName}_${yearToUse}.xlsx`
-          : `registre_presences_toutes_dates.xlsx`;
-
-      link.href = url;
-      link.setAttribute('download', filename);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      const exportError = handleExportError(
-        error,
-        'export attendance to Excel',
-      );
-      throw new Error(exportError);
-    }
-  };
-
   const exportAttendanceToPDF = async (
     exportFilters: AttendanceFilterDto,
     exportMonth?: number,
@@ -712,12 +380,15 @@ export const useAttendance = () => {
         throw new Error('Invalid date created from month and year');
       }
 
-      // Get month name safely
+      // Get month name safely using date-fns
+      const monthIndex = (exportMonth ?? monthToUse) - 1;
       let monthName;
       try {
-        monthName = currentDate.toLocaleString('fr-FR', { month: 'long' });
+        monthName = format(new Date(yearToUse, monthIndex, 1), 'MMMM', {
+          locale: fr,
+        });
       } catch (e) {
-        monthName = String(monthToUse + 1).padStart(2, '0');
+        monthName = String(exportMonth ?? monthToUse).padStart(2, '0');
       }
 
       // Create PDF document with consistent margins
@@ -726,7 +397,7 @@ export const useAttendance = () => {
         unit: 'mm',
         format: 'a4',
       });
-      const margin = 15; // Set consistent 15mm margin for all sides
+      const margin = 10; // Reduced margin from 15 to 10
 
       // Add logo
       try {
@@ -739,9 +410,9 @@ export const useAttendance = () => {
           reader.readAsDataURL(blob);
         });
 
-        Doc.addImage(base64, 'PNG', 15, 15, 35, 20); // Adjusted size and position
+        Doc.addImage(base64, 'PNG', 10, 10, 35, 20); // Adjusted y position from 15 to 10
       } catch (error) {
-        console.warn('Failed to add logo to PDF:', error);
+        // Remove console.warn
       }
 
       // Add header text with exact positioning
@@ -750,60 +421,85 @@ export const useAttendance = () => {
       Doc.text(
         'COMMUNAUTE DES EGLISES LIBRES DE PENTECOTE EN AFRIQUE',
         margin + 30,
-        20,
+        15, // Adjusted from 20
       );
-      Doc.text('5è CELPA SALEM GOMA', margin + 30, 25);
-      Doc.text('CHORALE LA NOUVELLE JERUSALEM', margin + 30, 30);
+      Doc.text('5è CELPA SALEM GOMA', margin + 30, 20); // Adjusted from 25
+      Doc.text('CHORALE LA NOUVELLE JERUSALEM', margin + 30, 25); // Adjusted from 30
 
       Doc.setFontSize(12);
-      Doc.text('REGISTRE DES PRESENCES', margin, 45);
+      Doc.text('REGISTRE DES PRESENCES', margin, 35); // Adjusted from 45
 
       Doc.setFontSize(10);
-      Doc.text('Mois de :', margin, 52);
-
-      // Get the month text based on filters or current date
-      const monthText = (() => {
-        if (exportFilters.startDate) {
-          // Use the filtered date's month if available
-          const filterDate = new Date(exportFilters.startDate);
-          const filterMonth = filterDate.toLocaleString('fr-FR', {
-            month: 'long',
-          });
-          const filterYear = filterDate.getFullYear();
-          return `Mois de : ${filterMonth.toUpperCase()}-${filterYear}`;
-        }
-        // Otherwise use the provided export month or current month
-        return `Mois de : ${monthName.toUpperCase()}-${yearToUse}`;
-      })();
-
-      Doc.text(monthText, margin + 20, 52);
-
-      // Add "FREQUENTATIONS JOURNALIERES" header
-      Doc.setFontSize(11);
-      Doc.text('FREQUENTATIONS JOURNALIERES', margin, 60);
-
-      // Add "Statistiques" text aligned to the right
-      Doc.text('Statistiques', 250, 60);
+      Doc.text('Mois de :', margin, 42); // Adjusted from 52
 
       // Get all dates in the month or use all unique dates from attendance records
       let datesInMonth: Date[] = [];
       if (exportMonth !== undefined && exportYear !== undefined) {
-        const lastDay = new Date(yearToUse, monthToUse + 1, 0).getDate();
+        const lastDay = new Date(yearToUse, monthIndex + 1, 0).getDate();
         for (let day = 1; day <= lastDay; day += 1) {
-          const monthDate = new Date(yearToUse, monthToUse, day);
+          const monthDate = new Date(yearToUse, monthIndex, day);
           datesInMonth.push(monthDate);
         }
       } else {
-        // Get all unique dates from attendance records
+        // Get all unique dates from attendance records filtered by exportFilters
         const uniqueDates = new Set<string>();
         Object.values(attendance).forEach((userRecords) => {
           userRecords.forEach((record) => {
-            uniqueDates.add(record.date);
+            // Apply exportFilters to filter dates
+            if (
+              (!exportFilters.startDate ||
+                record.date >= exportFilters.startDate) &&
+              (!exportFilters.endDate ||
+                record.date <= exportFilters.endDate) &&
+              (!exportFilters.eventType ||
+                record.eventType === exportFilters.eventType) &&
+              (!exportFilters.status || record.status === exportFilters.status)
+            ) {
+              uniqueDates.add(record.date);
+            }
           });
         });
         datesInMonth = Array.from(uniqueDates)
           .map((dateStr) => new Date(dateStr))
           .sort((a, b) => a.getTime() - b.getTime());
+      }
+
+      // Get the month text based on the first date in the data
+      let monthText = '';
+      if (datesInMonth.length > 0 && datesInMonth[0]) {
+        const firstDate = datesInMonth[0];
+        const month = format(firstDate, 'MMMM', { locale: fr });
+        const year = firstDate.getFullYear();
+        monthText = `${month.toUpperCase()}-${year}`;
+      } else {
+        monthText = `${monthName.toUpperCase()}-${yearToUse}`;
+      }
+
+      Doc.text(monthText, margin + 20, 42);
+
+      // Add "FREQUENTATIONS JOURNALIERES" header
+      Doc.setFontSize(11);
+      Doc.text('FREQUENTATIONS JOURNALIERES', margin, 50);
+
+      // Add "Statistiques" text aligned to the right
+      Doc.text('Statistiques', 250, 50);
+
+      // Set the month name and year for the header based on the first date in the table
+      let monthNameForHeader = '';
+      let yearForHeader = yearToUse;
+      if (
+        datesInMonth.length > 0 &&
+        datesInMonth[0] instanceof Date &&
+        !Number.isNaN(datesInMonth[0].getTime())
+      ) {
+        monthNameForHeader = format(datesInMonth[0], 'MMMM', { locale: fr });
+        yearForHeader = datesInMonth[0].getFullYear();
+      } else {
+        monthNameForHeader = format(
+          new Date(yearToUse, monthIndex, 1),
+          'MMMM',
+          { locale: fr },
+        );
       }
 
       // Keep the original formatFullDate function
@@ -836,7 +532,7 @@ export const useAttendance = () => {
         headers.push(formatFullDate(date));
       });
 
-      headers.push('Presences', 'Absences', 'Retards');
+      headers.push('P', 'A', 'R');
       tableData.push(headers);
 
       // Add user data
@@ -885,11 +581,11 @@ export const useAttendance = () => {
       autoTable(Doc, {
         head: [headers],
         body: tableData.slice(1) as RowInput[],
-        startY: 65,
+        startY: 55,
         margin: { top: margin, right: margin, bottom: margin, left: margin },
         theme: 'grid',
         styles: {
-          fontSize: 6,
+          fontSize: 8,
           cellPadding: { top: 0.5, right: 0.5, bottom: 0.5, left: 0.5 },
           lineColor: [0, 0, 0],
           lineWidth: 0.1,
@@ -899,15 +595,15 @@ export const useAttendance = () => {
           fillColor: [255, 255, 255],
           textColor: [0, 0, 0],
           fontStyle: 'bold',
-          halign: 'center',
+          halign: 'left',
           cellPadding: { top: 0.5, right: 0.5, bottom: 0.5, left: 0.5 },
           lineWidth: 0.1,
-          fontSize: 6,
+          fontSize: 10,
         },
         columnStyles: {
-          0: { cellWidth: 5, halign: 'center' }, // # column
-          1: { cellWidth: 18 }, // Prenom
-          2: { cellWidth: 18 }, // Nom
+          0: { cellWidth: 8, halign: 'left' }, // # column, increased from 5
+          1: { cellWidth: 24 }, // Prenom, increased from 18
+          2: { cellWidth: 24 }, // Nom, increased from 18
           // Date columns - increased width for horizontal date display
           ...Array.from({ length: datesInMonth.length }, (_, i) => ({
             [i + 3]: {
@@ -915,18 +611,27 @@ export const useAttendance = () => {
             },
           })).reduce((acc, curr) => ({ ...acc, ...curr }), {}),
           // Summary columns
-          [headers.length - 3]: { cellWidth: 18 }, // Presences
-          [headers.length - 2]: { cellWidth: 18 }, // Absences
-          [headers.length - 1]: { cellWidth: 18 }, // Retards
+          [headers.length - 3]: { cellWidth: 8 }, // Presence
+          [headers.length - 2]: { cellWidth: 8 }, // Absence
+          [headers.length - 1]: { cellWidth: 8 }, // Retard
         },
         didParseCell: (hookData: CellHookData) => {
           const styles = { ...hookData.cell.styles };
 
           styles.lineWidth = 0.1;
           styles.lineColor = [0, 0, 0];
+          styles.cellPadding = { top: 0.5, right: 0.5, bottom: 0.5, left: 0.5 };
 
           if (hookData.column.index > 2) {
             styles.halign = 'center';
+          }
+
+          // Reduce font size for the last three header columns
+          if (
+            hookData.section === 'head' &&
+            hookData.column.index >= headers.length - 3
+          ) {
+            styles.fontSize = 5;
           }
 
           if (
@@ -991,7 +696,7 @@ export const useAttendance = () => {
       // Generate filename
       const filename =
         exportMonth !== undefined && exportYear !== undefined
-          ? `registre_presences_${monthName}_${yearToUse}.pdf`
+          ? `registre_presences_${monthNameForHeader}_${yearForHeader}.pdf`
           : `registre_presences_toutes_dates.pdf`;
 
       // Save PDF
@@ -1046,11 +751,11 @@ export const useAttendance = () => {
     filters,
     setFilters,
     getFilteredAttendance,
-    exportAttendance,
     exportAttendanceToPDF,
     selectedEventType,
     changeEventType,
     filteredUsers,
     fetchUsersAndAttendance,
+    setAttendance,
   };
 };

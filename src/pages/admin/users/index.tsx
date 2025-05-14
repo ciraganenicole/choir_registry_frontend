@@ -295,7 +295,7 @@ const UsersManagement: React.FC = () => {
       doc.text('CHORALE LA NOUVELLE JERUSALEM', margin + 40, 30);
 
       doc.setFontSize(12);
-      doc.text('REGISTRE DES CHORISTES', margin, 45);
+      doc.text('REGISTRE DE CHORISTES', margin, 45);
 
       // Add current date
       const currentDate = new Date().toLocaleDateString('fr-FR', {
@@ -515,7 +515,7 @@ const UsersManagement: React.FC = () => {
     <Layout>
       <div className="container mx-auto px-4 py-8">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-2xl font-bold">Liste des choristes</h1>
+          <h1 className="text-2xl font-bold">Liste de choristes</h1>
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             <SearchInput onSearch={handleSearch} />
             <button

@@ -32,14 +32,14 @@ function createOfflineResponse(
   return new Response(
     JSON.stringify({
       error: message,
-      offline: true,
+      offline: false,
       status: 503,
     }),
     {
       status: 503,
       headers: {
         'Content-Type': 'application/json',
-        'X-Is-Offline': 'true',
+        'X-Is-Offline': 'false',
       },
     },
   );
