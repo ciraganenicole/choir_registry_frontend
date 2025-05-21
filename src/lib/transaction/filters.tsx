@@ -1,4 +1,5 @@
 /* eslint-disable import/no-extraneous-dependencies */
+import { format, parseISO, startOfDay } from 'date-fns';
 import { Download, RefreshCw } from 'lucide-react';
 
 import type { TransactionFilters } from './types';
@@ -115,6 +116,35 @@ const Filters = ({
     });
   };
 
+  const formatDateForInput = (dateString: string | undefined) => {
+    if (!dateString) return '';
+    try {
+      // Use startOfDay to ensure we're working with the local date
+      const date = startOfDay(parseISO(dateString));
+      return format(date, 'yyyy-MM-dd');
+    } catch (error) {
+      return '';
+    }
+  };
+
+  const handleDateChange = (date: string | undefined, isStartDate: boolean) => {
+    if (!date) {
+      onFilterChange({
+        [isStartDate ? 'startDate' : 'endDate']: undefined,
+      });
+      return;
+    }
+
+    // Create a date object in local timezone
+    const localDate = new Date(date);
+    // Format it to ensure we keep the local date
+    const formattedDate = format(localDate, 'yyyy-MM-dd');
+
+    onFilterChange({
+      [isStartDate ? 'startDate' : 'endDate']: formattedDate,
+    });
+  };
+
   return (
     <div className="my-8 flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0">
       <div className="flex flex-row items-center space-x-2 md:space-x-4">
@@ -200,24 +230,16 @@ const Filters = ({
               type="date"
               placeholder="Date de début"
               className="rounded-md border-[1px] border-gray-900/50 p-1 text-[12px] text-gray-900 shadow-sm md:px-4 md:py-1 md:text-[16px]"
-              value={currentFilters.startDate || ''}
-              onChange={(e) =>
-                onFilterChange({
-                  startDate: e.target.value || undefined,
-                })
-              }
+              value={formatDateForInput(currentFilters.startDate)}
+              onChange={(e) => handleDateChange(e.target.value, true)}
             />
             <span className="text-gray-500">à</span>
             <input
               type="date"
               placeholder="Date de fin"
               className="rounded-md border-[1px] border-gray-900/50 p-1 text-[12px] text-gray-900 shadow-sm md:px-4 md:py-1 md:text-[16px]"
-              value={currentFilters.endDate || ''}
-              onChange={(e) =>
-                onFilterChange({
-                  endDate: e.target.value || undefined,
-                })
-              }
+              value={formatDateForInput(currentFilters.endDate)}
+              onChange={(e) => handleDateChange(e.target.value, false)}
             />
           </div>
 

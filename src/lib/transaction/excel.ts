@@ -1,160 +1,17 @@
-import ExcelJS from 'exceljs';
 import { jsPDF as JsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 import type { DailyContributionSummary } from './types';
 
-export const exportToExcel = async (data: DailyContributionSummary[]) => {
-  const workbook = new ExcelJS.Workbook();
-  const worksheet = workbook.addWorksheet('Daily Contributions');
-
-  // Add logo
-  const logoId = workbook.addImage({
-    base64: '/path/to/your/logo.png',
-    extension: 'png',
-  });
-  worksheet.addImage(logoId, {
-    tl: { col: 0, row: 0 },
-    ext: { width: 100, height: 50 },
-  });
-
-  // Add title and date range
-  worksheet.mergeCells('A1:G1');
-  const titleCell = worksheet.getCell('A1');
-  titleCell.value = 'Daily Contributions Report';
-  titleCell.font = {
-    name: 'Arial',
-    size: 16,
-    bold: true,
-    color: { argb: '000000' },
-  };
-  titleCell.alignment = {
-    horizontal: 'center',
-    vertical: 'middle',
-  };
-
-  // Add headers with styling
-  const headers = [
-    'First Name',
-    'Last Name',
-    'Total USD',
-    'Total FC',
-    'Last Contribution',
-    'Frequency',
-    'Status',
-  ];
-
-  worksheet.addRow([]);
-  worksheet.addRow([]);
-  const headerRow = worksheet.addRow(headers);
-
-  // Style header row
-  headerRow.eachCell((cell) => {
-    // eslint-disable-next-line no-param-reassign
-    cell.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: '2B3544' }, // Dark blue background
-    };
-    // eslint-disable-next-line no-param-reassign
-    cell.font = {
-      bold: true,
-      color: { argb: 'FFFFFF' }, // White text
-      name: 'Arial',
-      size: 12,
-    };
-    // eslint-disable-next-line no-param-reassign
-    cell.alignment = {
-      horizontal: 'center',
-      vertical: 'middle',
-    };
-  });
-
-  // Add data with alternating row colors
-  data.forEach((item, index) => {
-    const row = worksheet.addRow([
-      item.firstName,
-      item.lastName,
-      item.totalAmountUSD,
-      item.totalAmountFC,
-      item.frequency,
-      item.frequency >= 20 ? 'Regular' : 'Irregular',
-    ]);
-
-    // Alternate row colors
-    row.eachCell((cell) => {
-      // eslint-disable-next-line no-param-reassign
-      cell.fill = {
-        type: 'pattern',
-        pattern: 'solid',
-        fgColor: { argb: index % 2 === 0 ? 'F3F4F6' : 'FFFFFF' },
-      };
-      // eslint-disable-next-line no-param-reassign
-      cell.alignment = { horizontal: 'center' };
-
-      // Add currency formatting
-      if (Number(cell.col) === 3 || Number(cell.col) === 4) {
-        // eslint-disable-next-line no-param-reassign
-        cell.numFmt = '"$"#,##0.00';
-      }
-    });
-  });
-
-  // Add totals row
-  const totalRow = worksheet.addRow([
-    'Total',
-    '',
-    `=SUM(C5:C${data.length + 4})`,
-    `=SUM(D5:D${data.length + 4})`,
-    '',
-    `=AVERAGE(F5:F${data.length + 4})`,
-    '',
-  ]);
-
-  totalRow.eachCell((cell) => {
-    // eslint-disable-next-line no-param-reassign
-    cell.font = { bold: true };
-    // eslint-disable-next-line no-param-reassign
-    cell.fill = {
-      type: 'pattern',
-      pattern: 'solid',
-      fgColor: { argb: 'E5E7EB' },
-    };
-  });
-
-  // Auto-fit columns
-  worksheet.columns.forEach((column) => {
-    // eslint-disable-next-line no-param-reassign
-    column.width = 15;
-  });
-
-  // Add borders
-  worksheet.eachRow((row) => {
-    row.eachCell((cell) => {
-      // eslint-disable-next-line no-param-reassign
-      cell.border = {
-        top: { style: 'thin' },
-        left: { style: 'thin' },
-        bottom: { style: 'thin' },
-        right: { style: 'thin' },
-      };
-    });
-  });
-
-  // Generate and download file
-  const buffer = await workbook.xlsx.writeBuffer();
-  const blob = new Blob([buffer], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  });
-  const url = window.URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `Daily_Contributions_${new Date().toISOString().split('T')[0]}.xlsx`;
-  link.click();
-  window.URL.revokeObjectURL(url);
-};
-
-export const exportToPDF = async (data: DailyContributionSummary[]) => {
+export const exportToPDF = async (
+  data: (DailyContributionSummary & {
+    dailyContributions?: {
+      date: string;
+      amountFC: number;
+      amountUSD: number;
+    }[];
+  })[],
+) => {
   const pdfDoc = new JsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -179,21 +36,29 @@ export const exportToPDF = async (data: DailyContributionSummary[]) => {
   // Add title
   pdfDoc.setFontSize(16);
   pdfDoc.setFont('helvetica', 'bold');
-  pdfDoc.text('Daily Contributions Report', margin + 40, margin + 10);
+  pdfDoc.text(
+    'Rapport de Contributions Quotidiennes',
+    margin + 36,
+    margin + 10,
+  );
 
   // Add date
-  pdfDoc.setFontSize(10);
+  pdfDoc.setFontSize(12);
   pdfDoc.setFont('helvetica', 'normal');
   pdfDoc.text(
     `Date: ${new Date().toLocaleDateString()}`,
-    margin + 40,
+    margin + 36,
     margin + 18,
   );
 
   // Gather all unique dates from data
   const allDatesSet = new Set<string>();
   data.forEach((item) => {
-    item.contributionDates.forEach((date) => allDatesSet.add(date));
+    if (item.dailyContributions) {
+      item.dailyContributions.forEach((c: any) => allDatesSet.add(c.date));
+    } else if (item.contributionDates) {
+      item.contributionDates.forEach((date: string) => allDatesSet.add(date));
+    }
   });
   const allDates = Array.from(allDatesSet).sort();
 
@@ -221,11 +86,12 @@ export const exportToPDF = async (data: DailyContributionSummary[]) => {
 
   // Table body
   const body = data.map((item) => {
-    // Map each date to the contribution for that date (FC and USD)
+    // Map each date to the contribution for that date (FC)
     const dateCells = allDates.map((date) => {
-      // For this export, we don't have per-date currency breakdown, so just show a check if contributed
-      const contributed = item.contributionDates.includes(date);
-      return contributed ? '✔' : '0';
+      const contrib = item.dailyContributions?.find(
+        (c: any) => c.date === date,
+      );
+      return contrib ? contrib.amountFC : 0;
     });
     // Total cell: FC up, USD down
     const totalCell = `${item.totalAmountFC > 0 ? `${item.totalAmountFC.toLocaleString()} FC` : '0 FC'}\n${item.totalAmountUSD > 0 ? `$${item.totalAmountUSD.toFixed(2)}` : '0 $'}`;
@@ -250,19 +116,28 @@ export const exportToPDF = async (data: DailyContributionSummary[]) => {
       fillColor: [43, 53, 68],
       textColor: [255, 255, 255],
       fontStyle: 'bold',
-      halign: 'center',
-      fontSize: 10,
+      halign: 'left',
+      fontSize: 12,
+      cellPadding: 2,
     },
     bodyStyles: {
-      fontSize: 9,
-      halign: 'center',
+      fontSize: 12,
+      halign: 'left',
+      cellPadding: 2,
     },
     alternateRowStyles: {
       fillColor: [240, 240, 240],
     },
     didParseCell: (hookData) => {
       const { cell, column, row } = hookData;
-
+      const isTotalsRow =
+        Array.isArray(row.raw) && row.raw[0] === 'Total général';
+      if (isTotalsRow) {
+        cell.styles.fillColor = [230, 230, 230];
+        if (column.index === 0) {
+          cell.styles.fontStyle = 'bold';
+        }
+      }
       // Set base styles
       cell.styles.lineWidth = 0.1;
       cell.styles.lineColor = [0, 0, 0];
@@ -274,16 +149,45 @@ export const exportToPDF = async (data: DailyContributionSummary[]) => {
       };
 
       if (column.index > 2) {
-        cell.styles.halign = 'center';
-      }
-
-      if (row.index === 0) {
-        cell.styles.fontSize = 10;
-        cell.styles.fontStyle = 'bold';
+        cell.styles.halign = 'left';
       }
 
       if (row.index > 0 && column.index > 2) {
-        cell.styles.fontSize = 9;
+        cell.styles.fontSize = 12;
+      }
+    },
+    didDrawCell: (cellData) => {
+      const isTotalsRow =
+        Array.isArray(cellData.row.raw) &&
+        cellData.row.raw[0] === 'Total général';
+      const isTotalCell =
+        cellData.column.index === cellData.table.columns.length - 1;
+      if (isTotalsRow && isTotalCell) {
+        const cellText = cellData.cell.text[0] || '';
+        const lines = cellText.split('\n');
+        const { x, y } = cellData.cell;
+        let textY = y + 6;
+        lines.forEach((line) => {
+          const match = line.match(/^([\\d.,]+)\\s*(\\w+|\\$)$/);
+          if (match) {
+            const number = match[1];
+            const currency = match[2];
+            const textX = x + 2;
+            cellData.doc.setFont('helvetica', 'bold');
+            cellData.doc.setFontSize(12);
+            cellData.doc.setTextColor(0, 0, 0);
+            cellData.doc.text(number, textX, textY, { baseline: 'top' });
+            const numberWidth = cellData.doc.getTextWidth(number);
+            cellData.doc.setFont('helvetica', 'normal');
+            cellData.doc.setFontSize(12);
+            cellData.doc.setTextColor(0, 0, 0);
+            cellData.doc.text(` ${currency}`, textX + numberWidth, textY, {
+              baseline: 'top',
+            });
+          }
+          textY += 7;
+        });
+        Object.assign(cellData.cell, { text: [''] });
       }
     },
   });

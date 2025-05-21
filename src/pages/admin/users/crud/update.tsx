@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { FaToggleOff, FaToggleOn } from 'react-icons/fa';
 import Select from 'react-select';
 
 import Input from '@/components/input';
@@ -16,6 +17,16 @@ import {
 } from '../../../../lib/user/type';
 import { UpdateUserAction } from '../../../../lib/user/user_actions';
 
+// Add translation function for categories
+const translateCategory = (category: string): string => {
+  const translations: Record<string, string> = {
+    NEWCOMER: 'Nouveau',
+    WORSHIPPER: 'Louado',
+    COMMITTEE: 'Comité',
+  };
+  return translations[category] || category;
+};
+
 interface UpdateProps {
   onClose: () => void;
   onUpdate: (updatedUser: User) => void;
@@ -32,7 +43,7 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
 
   const handleChange = (
     field: keyof User,
-    value: string | string[] | null | undefined,
+    value: string | string[] | boolean | null | undefined,
   ) => {
     setUserData((prevData) => {
       if (!prevData) return null;
@@ -113,9 +124,10 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
     label: value,
   }));
 
+  // Update the category options to use translations
   const categoryOptions = Object.entries(UserCategory).map(([_, value]) => ({
     value,
-    label: value,
+    label: translateCategory(value),
   }));
 
   if (!userData) return null;
@@ -194,6 +206,32 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
             </div>
           )}
         </div> */}
+        <div className="col-span-2 md:col-span-3">
+          <label className="block text-sm font-medium text-gray-700">
+            Statut
+          </label>
+          <button
+            type="button"
+            onClick={() => handleChange('isActive', !userData.isActive)}
+            className={`mt-1 flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+              userData.isActive
+                ? 'bg-green-100 text-green-800 hover:bg-green-200'
+                : 'bg-red-100 text-red-800 hover:bg-red-200'
+            }`}
+          >
+            {userData.isActive ? (
+              <>
+                <FaToggleOn className="size-5" />
+                <span>Actif</span>
+              </>
+            ) : (
+              <>
+                <FaToggleOff className="size-5" />
+                <span>Inactif</span>
+              </>
+            )}
+          </button>
+        </div>
         <Input
           name="firstName"
           label="Nom"
@@ -414,7 +452,7 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
             name="categories"
             value={categories?.map((category) => ({
               value: category,
-              label: category,
+              label: translateCategory(category),
             }))}
             onChange={(selectedOptions) => {
               const values = selectedOptions

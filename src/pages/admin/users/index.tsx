@@ -23,7 +23,9 @@ import UserContributionsDetails from '@/components/transactions/UserContribution
 import { useAuth } from '@/providers/AuthProvider';
 
 import {
+  canCreateUsers,
   canDeleteUsers,
+  canUpdateUsers,
   canViewAttendance,
   canViewContributions,
 } from '../../../lib/user/permissions';
@@ -37,7 +39,7 @@ import {
   UserCategory,
   type UserFilters,
 } from '../../../lib/user/type';
-import { FetchUsers, toggleUserStatus } from '../../../lib/user/user_actions';
+import { FetchUsers } from '../../../lib/user/user_actions';
 import UserRegistration from './crud/create';
 import DeleteUser from './crud/delete';
 import UpdateUser from './crud/update';
@@ -151,7 +153,7 @@ const UsersManagement: React.FC = () => {
   const [filters, setFilters] = useState<UserFilters>({
     page: 1,
     limit: 8,
-    sortBy: 'firstName',
+    sortBy: 'lastName',
     order: 'ASC',
   });
   const [isAttendancePopupOpen, setIsAttendancePopupOpen] = useState(false);
@@ -240,19 +242,6 @@ const UsersManagement: React.FC = () => {
   const handleViewContributions = (user: User) => {
     setSelectedUser(user);
     setIsContributionsPopupOpen(true);
-  };
-
-  const handleToggleStatus = async (userId: number, currentStatus: boolean) => {
-    try {
-      const response = await toggleUserStatus(userId, currentStatus);
-      setUsers((prevUsers) =>
-        prevUsers.map((user) =>
-          user.id === userId ? { ...user, isActive: response.isActive } : user,
-        ),
-      );
-    } catch (err) {
-      handleError(err, setErrorMessage);
-    }
   };
 
   const exportUsers = async () => {
@@ -414,27 +403,23 @@ const UsersManagement: React.FC = () => {
 
   const getStatusIndicator = (user: User) => {
     return (
-      <button
-        onClick={() => handleToggleStatus(user.id, user.isActive)}
-        className={`flex items-center gap-2 rounded-full px-3 py-1 text-sm font-medium transition-colors ${
+      <div
+        className={`rounded-full px-3 py-1 text-center text-sm font-medium ${
           user.isActive
-            ? 'bg-green-100 text-green-800 hover:bg-green-200'
-            : 'bg-red-100 text-red-800 hover:bg-red-200'
+            ? 'bg-green-100 text-green-800'
+            : 'bg-red-100 text-red-800'
         }`}
-        title={user.isActive ? 'Désactiver' : 'Activer'}
       >
         {user.isActive ? (
           <>
-            <FaToggleOn className="size-4" />
             <span>Actif</span>
           </>
         ) : (
           <>
-            <FaToggleOff className="size-4" />
             <span>Inactif</span>
           </>
         )}
-      </button>
+      </div>
     );
   };
 
@@ -470,13 +455,15 @@ const UsersManagement: React.FC = () => {
         >
           <FaEye className={iconClasses} />
         </button>
-        <button
-          onClick={() => handleUpdate(viewedUser)}
-          className={buttonClasses.edit}
-          title="Edit"
-        >
-          <FaEdit className={iconClasses} />
-        </button>
+        {canUpdateUsers(currentUser?.role) && (
+          <button
+            onClick={() => handleUpdate(viewedUser)}
+            className={buttonClasses.edit}
+            title="Edit"
+          >
+            <FaEdit className={iconClasses} />
+          </button>
+        )}
         {canViewAttendance(currentUser?.role) && (
           <button
             onClick={() => handleViewAttendance(viewedUser)}
@@ -496,13 +483,15 @@ const UsersManagement: React.FC = () => {
           </button>
         )}
         {canDeleteUsers(currentUser?.role) && (
-          <button
-            onClick={() => handleDelete(viewedUser)}
-            className={buttonClasses.delete}
-            title="Delete"
-          >
-            <FaTrash className={iconClasses} />
-          </button>
+          <>
+            <button
+              onClick={() => handleDelete(viewedUser)}
+              className={buttonClasses.delete}
+              title="Delete"
+            >
+              <FaTrash className={iconClasses} />
+            </button>
+          </>
         )}
       </div>
     );
@@ -515,7 +504,7 @@ const UsersManagement: React.FC = () => {
     <Layout>
       <div className="container mx-auto px-4 py-8">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="text-2xl font-bold">Liste de choristes</h1>
+          <h1 className="text-2xl font-bold">Liste de membres</h1>
           <div className="flex flex-wrap items-center gap-2 sm:gap-4">
             <SearchInput onSearch={handleSearch} />
             <button
@@ -533,20 +522,24 @@ const UsersManagement: React.FC = () => {
               {activeFilterButton.icon}
               <span>{activeFilterButton.text}</span>
             </button>
-            <button
-              onClick={exportUsers}
-              className="flex flex-1 items-center justify-center gap-2 rounded-md bg-green-700 p-1 text-[12px] font-semibold text-white hover:bg-green-600 sm:flex-none sm:px-4 md:px-3 md:py-2 md:text-sm"
-            >
-              <HiDownload className="size-3 md:size-4" />
-              <span>Export</span>
-            </button>
-            <button
-              onClick={() => setIsPopupOpen(true)}
-              className="flex flex-1 items-center justify-center gap-2 rounded-md bg-blue-700 p-1 text-[12px] font-semibold text-white hover:bg-blue-600 sm:flex-none sm:px-4 md:px-3 md:py-2 md:text-sm"
-            >
-              <FaPlus className="size-3 md:size-4" />
-              <span>Ajouter</span>
-            </button>
+            {canCreateUsers(currentUser?.role) && (
+              <>
+                <button
+                  onClick={exportUsers}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-md bg-green-700 p-1 text-[12px] font-semibold text-white hover:bg-green-600 sm:flex-none sm:px-4 md:px-3 md:py-2 md:text-sm"
+                >
+                  <HiDownload className="size-3 md:size-4" />
+                  <span>Export</span>
+                </button>
+                <button
+                  onClick={() => setIsPopupOpen(true)}
+                  className="flex flex-1 items-center justify-center gap-2 rounded-md bg-blue-700 p-1 text-[12px] font-semibold text-white hover:bg-blue-600 sm:flex-none sm:px-4 md:px-3 md:py-2 md:text-sm"
+                >
+                  <FaPlus className="size-3 md:size-4" />
+                  <span>Ajouter</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
 
@@ -670,7 +663,7 @@ const UsersManagement: React.FC = () => {
                   #
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">
-                  Name
+                  Noms
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">
                   Genre
@@ -682,13 +675,13 @@ const UsersManagement: React.FC = () => {
                   Commission
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">
-                  Phone
+                  Téléphone
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">
-                  Address
+                  Adresse
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">
-                  Status
+                  Statut
                 </th>
                 <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">
                   Actions
@@ -708,7 +701,7 @@ const UsersManagement: React.FC = () => {
                         alt="Profile"
                         className="size-6 rounded-full object-cover"
                       /> */}
-                      {user.firstName} {user.lastName}
+                      {user.lastName} {user.firstName}
                     </td>
                     <td className="px-4 py-3">{user.gender}</td>
                     <td className="px-4 py-3">{user.matricule}</td>
@@ -767,7 +760,7 @@ const UsersManagement: React.FC = () => {
 
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Phone:</span>
+                      <span className="text-gray-500">Téléphone:</span>
                       <span>{user.phoneNumber}</span>
                     </div>
                     <div className="flex justify-between">
@@ -779,7 +772,7 @@ const UsersManagement: React.FC = () => {
                       <span className="truncate">{user.email}</span>
                     </div>
                     <div className="flex items-center justify-between">
-                      <span className="text-gray-500">Status:</span>
+                      <span className="text-gray-500">Statut:</span>
                       <div className="flex items-center">
                         {getStatusIndicator(user)}
                       </div>

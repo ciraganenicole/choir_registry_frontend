@@ -35,6 +35,7 @@ const AdminDashboard: React.FC = () => {
   const [totalUsers, setTotalUsers] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const { attendance, loading: attendanceLoading } = useAttendance();
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [metrics, setMetrics] = useState<AttendanceMetrics>({
     totalPresent: 0,
     totalLate: 0,
@@ -50,6 +51,15 @@ const AdminDashboard: React.FC = () => {
     totalLate: 0,
     totalAbsent: 0,
   });
+
+  // Generate array of years (from 2020 to current year + 5)
+  const years = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    return Array.from(
+      { length: currentYear - 2023 + 1 },
+      (_, i) => currentYear - i,
+    );
+  }, []);
 
   useEffect(() => {
     const getUsers = async () => {
@@ -86,8 +96,6 @@ const AdminDashboard: React.FC = () => {
       total: 0,
     }));
 
-    const currentYear = new Date().getFullYear();
-
     // First pass: Count total records per month and yearly totals
     Object.entries(attendance).forEach(([_userId, records]) => {
       if (!Array.isArray(records)) return;
@@ -107,9 +115,9 @@ const AdminDashboard: React.FC = () => {
         const recordYear = recordDate.getFullYear();
         const recordMonth = recordDate.getMonth();
 
-        // Ensure month is valid before accessing monthlyStats
+        // Only process records for the selected year
         if (
-          recordYear === currentYear &&
+          recordYear === selectedYear &&
           recordMonth >= 0 &&
           recordMonth < 12
         ) {
@@ -200,7 +208,7 @@ const AdminDashboard: React.FC = () => {
       totalLate: yearlyStats.totalLate,
       totalAbsent: yearlyStats.totalAbsent,
     });
-  }, [attendance]);
+  }, [attendance, selectedYear]);
 
   const attendanceChartData = useMemo(
     () => ({
@@ -297,9 +305,22 @@ const AdminDashboard: React.FC = () => {
   return (
     <Layout>
       <div className="flex w-full flex-col gap-2 p-6 md:gap-6">
-        <h2 className="mt-8 text-xl font-semibold text-gray-900 md:mt-0">
-          Tableau de bord
-        </h2>
+        <div className="flex items-center justify-between">
+          <h2 className="mt-8 text-xl font-semibold text-gray-900 md:mt-0">
+            Tableau de bord
+          </h2>
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(Number(e.target.value))}
+            className="rounded-md border border-gray-300 px-3 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+          >
+            {years.map((year) => (
+              <option key={year} value={year}>
+                {year}
+              </option>
+            ))}
+          </select>
+        </div>
 
         <div className="grid grid-cols-2 gap-2 md:gap-4 lg:grid-cols-4">
           <div className="flex items-center justify-between rounded-lg bg-white p-2 shadow-sm md:p-6">
@@ -365,8 +386,8 @@ const AdminDashboard: React.FC = () => {
               <h3 className="text-sm font-medium text-gray-900 md:text-lg">
                 État des présences
               </h3>
-              <p className="text-xs text-gray-500 md:text-sm">
-                {new Date().getFullYear()}
+              <p className="text-[16px] font-semibold text-gray-800 md:text-[20px]">
+                {selectedYear}
               </p>
             </div>
             <div className="h-[35vh] md:h-[60vh]">
@@ -385,7 +406,7 @@ const AdminDashboard: React.FC = () => {
                 </p>
               </div>
               <p className="text-[16px] font-semibold text-gray-800 md:text-[20px]">
-                {new Date().getFullYear()}
+                {selectedYear}
               </p>
             </div>
             <div className="h-[40vh] md:h-[60vh]">

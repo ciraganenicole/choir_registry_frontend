@@ -1,5 +1,11 @@
 import type { UserRole } from '@/lib/user/type';
 
+export const canCreateUsers = (userRole: UserRole): boolean => {
+  return userRole === 'SUPER_ADMIN';
+};
+export const canUpdateUsers = (userRole: UserRole): boolean => {
+  return userRole === 'SUPER_ADMIN';
+};
 export const canDeleteUsers = (userRole: UserRole): boolean => {
   return userRole === 'SUPER_ADMIN';
 };

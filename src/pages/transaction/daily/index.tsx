@@ -72,10 +72,29 @@ const DailyContributions = () => {
 
   const handleExport = async () => {
     try {
+      const dates = contributionsData?.dates || [];
+      const contributors = contributionsData?.contributors || [];
       const summaries = (usersData?.data || []).map((user) => {
-        const c = (contributionsData?.contributors || []).find(
+        const c = contributors.find(
           (contributor) => contributor.userId === user.id,
         );
+        // Build dailyContributions array for this user
+        const dailyContributions = dates.map((date) => {
+          const contribution = c?.contributions.find(
+            (con) => con.date === date,
+          );
+          return {
+            date,
+            amountFC:
+              contribution && contribution.currency === 'FC'
+                ? contribution.amount
+                : 0,
+            amountUSD:
+              contribution && contribution.currency === 'USD'
+                ? contribution.amount
+                : 0,
+          };
+        });
         const allUSD = c
           ? c.contributions.filter((con) => con.currency === 'USD')
           : [];
@@ -90,6 +109,7 @@ const DailyContributions = () => {
           totalAmountFC: allFC.reduce((sum, con) => sum + con.amount, 0),
           contributionDates: c ? c.contributions.map((con) => con.date) : [],
           frequency: c ? c.contributions.length : 0,
+          dailyContributions,
         };
       });
       await exportToPDF(summaries);
@@ -104,21 +124,33 @@ const DailyContributions = () => {
 
   // Calculate total amounts correctly by summing individual contributions
   const calculateContributorTotal = (contributor: any) => {
-    return contributor.contributions.reduce(
-      (sum: number, contribution: any) => {
-        return Number((sum + (contribution?.amount || 0)).toFixed(2));
+    const totals = contributor.contributions.reduce(
+      (acc: { usd: number; fc: number }, contribution: any) => {
+        if (contribution.currency === 'USD') {
+          acc.usd += contribution.amount;
+        } else if (contribution.currency === 'FC') {
+          acc.fc += contribution.amount;
+        }
+        return acc;
       },
-      0,
+      { usd: 0, fc: 0 },
     );
+    return {
+      usd: Number(totals.usd.toFixed(2)),
+      fc: Number(totals.fc.toFixed(2)),
+    };
   };
 
-  // Calculate the grand total correctly
-  const totalUSD = contributors.reduce(
-    (sum: number, contributor: DailyContributor) => {
+  // Calculate the grand totals correctly
+  const totals = contributors.reduce(
+    (acc: { usd: number; fc: number }, contributor: DailyContributor) => {
       const contributorTotal = calculateContributorTotal(contributor);
-      return Number((sum + contributorTotal).toFixed(2));
+      return {
+        usd: Number((acc.usd + contributorTotal.usd).toFixed(2)),
+        fc: Number((acc.fc + contributorTotal.fc).toFixed(2)),
+      };
     },
-    0,
+    { usd: 0, fc: 0 },
   );
 
   const isLoading = isContributionsLoading || isUsersLoading;
@@ -197,7 +229,7 @@ const DailyContributions = () => {
                       );
                       const contributorTotal = contributor
                         ? calculateContributorTotal(contributor)
-                        : 0;
+                        : { usd: 0, fc: 0 };
                       return (
                         <tr key={user.id}>
                           <td className="whitespace-nowrap px-4 py-3 text-sm font-medium text-gray-900 sm:px-6">
@@ -218,7 +250,12 @@ const DailyContributions = () => {
                               >
                                 {contribution ? (
                                   <span className="text-green-600">
-                                    ${contribution.amount.toFixed(2)}
+                                    {contribution.amount.toFixed(0)}
+                                    <span className="ml-1">
+                                      {contribution.currency === 'USD'
+                                        ? '$'
+                                        : 'fc '}
+                                    </span>
                                   </span>
                                 ) : (
                                   <span className="text-gray-400">—</span>
@@ -227,15 +264,22 @@ const DailyContributions = () => {
                             );
                           })}
                           <td className="whitespace-nowrap px-4 py-3 text-center text-sm font-bold sm:px-6">
-                            <span
-                              className={
-                                contributorTotal > 0
-                                  ? 'text-green-600'
-                                  : 'text-gray-400'
-                              }
-                            >
-                              ${contributorTotal.toFixed(2)}
-                            </span>
+                            <div className="flex flex-col gap-1">
+                              {contributorTotal.usd > 0 && (
+                                <span className="text-green-600">
+                                  {contributorTotal.usd.toFixed(2)} $
+                                </span>
+                              )}
+                              {contributorTotal.fc > 0 && (
+                                <span className="text-green-600">
+                                  {contributorTotal.fc.toFixed(2)} fc
+                                </span>
+                              )}
+                              {contributorTotal.usd === 0 &&
+                                contributorTotal.fc === 0 && (
+                                  <span className="text-gray-700">0</span>
+                                )}
+                            </div>
                           </td>
                         </tr>
                       );
@@ -262,7 +306,7 @@ const DailyContributions = () => {
                     Total Général
                   </span>
                   <span className="text-base font-bold text-green-400 sm:text-lg">
-                    ${totalUSD.toFixed(2)}
+                    ${totals.usd.toFixed(2)}
                   </span>
                 </div>
               </Card>
@@ -272,7 +316,7 @@ const DailyContributions = () => {
                 );
                 const contributorTotal = contributor
                   ? calculateContributorTotal(contributor)
-                  : 0;
+                  : { usd: 0, fc: 0 };
                 return (
                   <Card
                     key={user.id}
@@ -285,7 +329,18 @@ const DailyContributions = () => {
                             {user.firstName} {user.lastName}
                           </h3>
                           <p className="mt-1 text-sm font-semibold text-green-600 sm:text-base">
-                            Total: ${contributorTotal.toFixed(2)}
+                            {contributorTotal.usd > 0 && (
+                              <span>
+                                USD: ${contributorTotal.usd.toFixed(2)}
+                              </span>
+                            )}
+                            {contributorTotal.usd > 0 &&
+                              contributorTotal.fc > 0 && <br />}
+                            {contributorTotal.fc > 0 && (
+                              <span>FC: {contributorTotal.fc.toFixed(2)}</span>
+                            )}
+                            {contributorTotal.usd === 0 &&
+                              contributorTotal.fc === 0 && <span>—</span>}
                           </p>
                         </div>
                       </div>

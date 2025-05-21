@@ -14,6 +14,16 @@ import type {
 } from '../../../../lib/user/type';
 import { Commission, UserCategory } from '../../../../lib/user/type';
 
+// Add translation function for categories
+const translateCategory = (category: string): string => {
+  const translations: Record<string, string> = {
+    NEWCOMER: 'Nouveau',
+    WORSHIPPER: 'Louado',
+    COMMITTEE: 'Comité',
+  };
+  return translations[category] || category;
+};
+
 interface CreateUserProps {
   onClose: () => void;
   _onUserCreated: () => void;
@@ -42,6 +52,12 @@ const UserRegistration: React.FC<CreateUserProps> = ({
   const [commissions, setCommissions] = useState<Commission[]>([]);
   const [categories, setCategories] = useState<UserCategory[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  // Update the category options to use translations
+  const categoryOptions = Object.entries(UserCategory).map(([_, value]) => ({
+    value,
+    label: translateCategory(value),
+  }));
 
   const validateForm = () => {
     if (!firstName.trim()) return 'Le nom est requis';
@@ -379,7 +395,7 @@ const UserRegistration: React.FC<CreateUserProps> = ({
             name="categories"
             value={categories.map((category) => ({
               value: category,
-              label: category,
+              label: translateCategory(category),
             }))}
             onChange={(selectedOptions) => {
               setCategories(
@@ -388,10 +404,7 @@ const UserRegistration: React.FC<CreateUserProps> = ({
                 ) || [],
               );
             }}
-            options={Object.values(UserCategory).map((category) => ({
-              value: category,
-              label: category,
-            }))}
+            options={categoryOptions}
             className="mt-1 text-[10px]"
             classNamePrefix="react-select"
             placeholder="Sélectionner les catégories"

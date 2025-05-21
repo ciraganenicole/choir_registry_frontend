@@ -6,6 +6,16 @@ import { logger } from '@/utils/logger';
 import type { User } from '../../../../lib/user/type';
 import { RegisterFingerprint } from '../../../../lib/user/user_actions';
 
+// Add translation function for categories
+const translateCategory = (category: string): string => {
+  const translations: Record<string, string> = {
+    NEWCOMER: 'Nouveau',
+    WORSHIPPER: 'Louado',
+    COMMITTEE: 'Comité',
+  };
+  return translations[category] || category;
+};
+
 interface ViewUserProps {
   user: User | null;
   transactions: Array<{ id: string; description: string; amount: number }>;
@@ -223,7 +233,7 @@ const ViewUser: React.FC<ViewUserProps> = ({ user, transactions, onClose }) => {
                         key={category}
                         className="rounded-full bg-purple-100 px-3 py-1 text-sm text-purple-800"
                       >
-                        {category}
+                        {translateCategory(category)}
                       </span>
                     ))
                   ) : (

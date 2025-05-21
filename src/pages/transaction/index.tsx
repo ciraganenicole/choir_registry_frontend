@@ -1,4 +1,4 @@
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, startOfDay } from 'date-fns';
 import Link from 'next/link';
 import { useState } from 'react';
 import { FaPlus } from 'react-icons/fa';
@@ -103,12 +103,16 @@ const getContributorName = (transaction: Transaction): string => {
 
 const Transactions = () => {
   const [filters, setFilters] = useState<TransactionFilters>({
-    startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-      .toISOString()
-      .split('T')[0],
-    endDate: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0)
-      .toISOString()
-      .split('T')[0],
+    startDate: format(
+      startOfDay(new Date(new Date().getFullYear(), new Date().getMonth(), 1)),
+      'yyyy-MM-dd',
+    ),
+    endDate: format(
+      startOfDay(
+        new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0),
+      ),
+      'yyyy-MM-dd',
+    ),
   });
   const [pagination, setPagination] = useState({ page: 1, limit: 8 });
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -367,9 +371,9 @@ const Transactions = () => {
                 <h3 className="font-regular text-[12px] text-orange-500 md:text-[14px]">
                   Revenu Quotidien
                 </h3>
-                <p className="md:text-md text-[10px] font-semibold text-gray-800">
+                {/* <p className="md:text-md text-[10px] font-semibold text-gray-800">
                   {new Date().toLocaleString('fr-FR', { month: 'long' })}
-                </p>
+                </p> */}
               </div>
               <div className="flex flex-row items-center justify-between">
                 <span className="text-2xl font-bold">
