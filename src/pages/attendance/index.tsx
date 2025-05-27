@@ -15,6 +15,7 @@ import {
   useAttendance,
 } from '@/lib/attendance/logic';
 import { JustificationReasonLabels } from '@/lib/attendance/types';
+import { UserCategory } from '@/lib/user/type';
 
 const formatDate = (dateString: string) => {
   if (!dateString) return '-';
@@ -584,103 +585,135 @@ const AttendancePage: React.FC = () => {
         ) : (
           <div>
             <div className="mb-4 flex flex-col gap-4 md:hidden">
-              {currentUsers.map((user) => (
-                <div
-                  key={user.id}
-                  className="flex flex-col rounded-[10px] border-[1px] border-gray-500 shadow-md"
-                >
-                  <div className="p-2">
-                    <h2 className="mb-4 text-[18px] font-semibold text-gray-900">
-                      {user.lastName} {user.firstName}
-                    </h2>
-                    <div className="grid grid-cols-2">
-                      {datesWithAttendance.map((date) => {
+              {currentUsers.map((user) => {
+                // Add logic to allow marking attendance for active users and inactive newcomers only
+                const isInactiveNewcomer =
+                  !user.isActive &&
+                  user.categories.includes(UserCategory.NEWCOMER);
+                const canMarkAttendance = user.isActive || isInactiveNewcomer;
+                return (
+                  <div
+                    key={user.id}
+                    className="flex flex-col rounded-[10px] border-[1px] border-gray-500 shadow-md"
+                  >
+                    <div className="p-2">
+                      <h2 className="mb-4 text-[18px] font-semibold text-gray-900">
+                        {user.lastName} {user.firstName}
+                      </h2>
+                      <div className="grid grid-cols-2">
+                        {datesWithAttendance.map((date) => {
+                          const attendanceRecord = getUserAttendanceForDate(
+                            user.id,
+                            date,
+                          );
+                          return (
+                            <div key={date}>
+                              <div className="flex flex-row items-center gap-2">
+                                <span className="text-[12px] font-semibold text-gray-900/80">
+                                  {formatDate(date)} :
+                                </span>
+                                <span>
+                                  {getStatusEmoji(
+                                    attendanceRecord.status,
+                                    attendanceRecord.hasJustification,
+                                    true,
+                                  )}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div className="h-[1px] w-full bg-gray-900/40" />
+                    <div className="flex flex-row items-center gap-4 p-2">
+                      {(() => {
                         const attendanceRecord = getUserAttendanceForDate(
                           user.id,
-                          date,
+                          selectedDate,
                         );
+                        const statusSet = !!attendanceRecord.status;
                         return (
-                          <div key={date}>
-                            <div className="flex flex-row items-center gap-2">
-                              <span className="text-[12px] font-semibold text-gray-900/80">
-                                {formatDate(date)} :
-                              </span>
-                              <span>
-                                {getStatusEmoji(
-                                  attendanceRecord.status,
-                                  attendanceRecord.hasJustification,
-                                  true,
-                                )}
-                              </span>
-                            </div>
-                          </div>
+                          <>
+                            <button
+                              onClick={() =>
+                                canMarkAttendance &&
+                                handleStatusChange(
+                                  user.id,
+                                  AttendanceStatus.PRESENT,
+                                )
+                              }
+                              disabled={!canMarkAttendance}
+                              className={`rounded-[5px] bg-green-500 px-3 py-1 text-[12px] text-white hover:bg-green-600${
+                                statusSet &&
+                                attendanceRecord.status !==
+                                  AttendanceStatus.PRESENT
+                                  ? ' opacity-50'
+                                  : ''
+                              }${!canMarkAttendance ? ' cursor-not-allowed opacity-50' : ''}`}
+                              title={
+                                !canMarkAttendance
+                                  ? 'Cannot mark attendance for inactive non-newcomers.'
+                                  : ''
+                              }
+                            >
+                              Present
+                            </button>
+                            <button
+                              onClick={() =>
+                                canMarkAttendance &&
+                                handleStatusChange(
+                                  user.id,
+                                  AttendanceStatus.LATE,
+                                )
+                              }
+                              disabled={!canMarkAttendance}
+                              className={`rounded bg-yellow-500 px-3 py-1 text-[12px] text-white hover:bg-yellow-600${
+                                statusSet &&
+                                attendanceRecord.status !==
+                                  AttendanceStatus.LATE
+                                  ? ' opacity-50'
+                                  : ''
+                              }${!canMarkAttendance ? ' cursor-not-allowed opacity-50' : ''}`}
+                              title={
+                                !canMarkAttendance
+                                  ? 'Cannot mark attendance for inactive non-newcomers.'
+                                  : ''
+                              }
+                            >
+                              Retard
+                            </button>
+                            <button
+                              onClick={() =>
+                                canMarkAttendance &&
+                                handleStatusChange(
+                                  user.id,
+                                  AttendanceStatus.ABSENT,
+                                )
+                              }
+                              disabled={!canMarkAttendance}
+                              className={`rounded bg-red-500 px-3 py-1 text-[12px] text-white hover:bg-red-600${
+                                statusSet &&
+                                attendanceRecord.status !==
+                                  AttendanceStatus.ABSENT
+                                  ? ' opacity-50'
+                                  : ''
+                              }${!canMarkAttendance ? ' cursor-not-allowed opacity-50' : ''}`}
+                              title={
+                                !canMarkAttendance
+                                  ? 'Cannot mark attendance for inactive non-newcomers.'
+                                  : ''
+                              }
+                            >
+                              Absent
+                            </button>
+                          </>
                         );
-                      })}
+                      })()}
                     </div>
                   </div>
-                  <div className="h-[1px] w-full bg-gray-900/40" />
-                  <div className="flex flex-row items-center gap-4 p-2">
-                    {(() => {
-                      const attendanceRecord = getUserAttendanceForDate(
-                        user.id,
-                        selectedDate,
-                      );
-                      const statusSet = !!attendanceRecord.status;
-                      return (
-                        <>
-                          <button
-                            onClick={() =>
-                              handleStatusChange(
-                                user.id,
-                                AttendanceStatus.PRESENT,
-                              )
-                            }
-                            className={`rounded-[5px] bg-green-500 px-3 py-1 text-[12px] text-white hover:bg-green-600${
-                              statusSet &&
-                              attendanceRecord.status !==
-                                AttendanceStatus.PRESENT
-                                ? ' opacity-50'
-                                : ''
-                            }`}
-                          >
-                            Present
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleStatusChange(user.id, AttendanceStatus.LATE)
-                            }
-                            className={`rounded bg-yellow-500 px-3 py-1 text-[12px] text-white hover:bg-yellow-600${
-                              statusSet &&
-                              attendanceRecord.status !== AttendanceStatus.LATE
-                                ? ' opacity-50'
-                                : ''
-                            }`}
-                          >
-                            Retard
-                          </button>
-                          <button
-                            onClick={() =>
-                              handleStatusChange(
-                                user.id,
-                                AttendanceStatus.ABSENT,
-                              )
-                            }
-                            className={`rounded bg-red-500 px-3 py-1 text-[12px] text-white hover:bg-red-600${
-                              statusSet &&
-                              attendanceRecord.status !==
-                                AttendanceStatus.ABSENT
-                                ? ' opacity-50'
-                                : ''
-                            }`}
-                          >
-                            Absent
-                          </button>
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
             <div className="mb-4 hidden overflow-x-auto md:block">
               <table className="min-w-full divide-y divide-gray-200">
@@ -703,113 +736,142 @@ const AttendancePage: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
-                  {currentUsers.map((user) => (
-                    <tr key={user.id}>
-                      <td className="whitespace-nowrap px-6 py-2">
-                        <div className="text-sm font-medium text-gray-900">
-                          {user.lastName} {user.firstName}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {user.commissions
-                            .map((commission) =>
-                              commission
-                                .toLowerCase()
-                                .split('_')
-                                .map(
-                                  (word) =>
-                                    word.charAt(0).toUpperCase() +
-                                    word.slice(1),
-                                )
-                                .join(' '),
-                            )
-                            .join(', ')}
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap bg-blue-50 p-2">
-                        <div className="flex gap-2">
-                          {(() => {
-                            const attendanceRecord = getUserAttendanceForDate(
-                              user.id,
-                              selectedDate,
-                            );
-                            const statusSet = !!attendanceRecord.status;
-                            return (
-                              <>
-                                <button
-                                  onClick={() =>
-                                    handleStatusChange(
-                                      user.id,
-                                      AttendanceStatus.PRESENT,
-                                    )
-                                  }
-                                  className={`rounded-[5px] bg-green-500 px-[4px] py-[1px] text-[10px] text-white hover:bg-green-600${
-                                    statusSet &&
-                                    attendanceRecord.status !==
-                                      AttendanceStatus.PRESENT
-                                      ? ' opacity-50'
-                                      : ''
-                                  }`}
-                                >
-                                  Present
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    handleStatusChange(
-                                      user.id,
-                                      AttendanceStatus.LATE,
-                                    )
-                                  }
-                                  className={`rounded bg-yellow-500 px-[4px] py-[1px] text-[10px] text-white hover:bg-yellow-600${
-                                    statusSet &&
-                                    attendanceRecord.status !==
-                                      AttendanceStatus.LATE
-                                      ? ' opacity-50'
-                                      : ''
-                                  }`}
-                                >
-                                  Retard
-                                </button>
-                                <button
-                                  onClick={() =>
-                                    handleStatusChange(
-                                      user.id,
-                                      AttendanceStatus.ABSENT,
-                                    )
-                                  }
-                                  className={`rounded bg-red-500 px-[4px] py-[1px] text-[10px] text-white hover:bg-red-600${
-                                    statusSet &&
-                                    attendanceRecord.status !==
-                                      AttendanceStatus.ABSENT
-                                      ? ' opacity-50'
-                                      : ''
-                                  }`}
-                                >
-                                  Absent
-                                </button>
-                              </>
-                            );
-                          })()}
-                        </div>
-                      </td>
-                      {datesWithAttendance.map((date) => {
-                        const attendanceRecord = getUserAttendanceForDate(
-                          user.id,
-                          date,
-                        );
-                        return (
-                          <td key={date}>
-                            <div className="ml-2 text-left text-sm">
-                              {getStatusEmoji(
-                                attendanceRecord.status,
-                                attendanceRecord.hasJustification,
-                                true,
-                              )}
-                            </div>
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
+                  {currentUsers.map((user) => {
+                    // Add logic to allow marking attendance for active users and inactive newcomers only
+                    const isInactiveNewcomer =
+                      !user.isActive &&
+                      user.categories.includes(UserCategory.NEWCOMER);
+                    const canMarkAttendance =
+                      user.isActive || isInactiveNewcomer;
+                    return (
+                      <tr key={user.id}>
+                        <td className="whitespace-nowrap px-6 py-2">
+                          <div className="text-sm font-medium text-gray-900">
+                            {user.lastName} {user.firstName}
+                          </div>
+                          <div className="text-xs text-gray-500">
+                            {user.commissions
+                              .map((commission) =>
+                                commission
+                                  .toLowerCase()
+                                  .split('_')
+                                  .map(
+                                    (word) =>
+                                      word.charAt(0).toUpperCase() +
+                                      word.slice(1),
+                                  )
+                                  .join(' '),
+                              )
+                              .join(', ')}
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap bg-blue-50 p-2">
+                          <div className="flex gap-2">
+                            {(() => {
+                              const attendanceRecord = getUserAttendanceForDate(
+                                user.id,
+                                selectedDate,
+                              );
+                              const statusSet = !!attendanceRecord.status;
+                              return (
+                                <>
+                                  <button
+                                    onClick={() =>
+                                      canMarkAttendance &&
+                                      handleStatusChange(
+                                        user.id,
+                                        AttendanceStatus.PRESENT,
+                                      )
+                                    }
+                                    disabled={!canMarkAttendance}
+                                    className={`rounded-[5px] bg-green-500 px-[4px] py-[1px] text-[10px] text-white hover:bg-green-600${
+                                      statusSet &&
+                                      attendanceRecord.status !==
+                                        AttendanceStatus.PRESENT
+                                        ? ' opacity-50'
+                                        : ''
+                                    }${!canMarkAttendance ? ' cursor-not-allowed opacity-50' : ''}`}
+                                    title={
+                                      !canMarkAttendance
+                                        ? 'Cannot mark attendance for inactive non-newcomers.'
+                                        : ''
+                                    }
+                                  >
+                                    Present
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      canMarkAttendance &&
+                                      handleStatusChange(
+                                        user.id,
+                                        AttendanceStatus.LATE,
+                                      )
+                                    }
+                                    disabled={!canMarkAttendance}
+                                    className={`rounded bg-yellow-500 px-[4px] py-[1px] text-[10px] text-white hover:bg-yellow-600${
+                                      statusSet &&
+                                      attendanceRecord.status !==
+                                        AttendanceStatus.LATE
+                                        ? ' opacity-50'
+                                        : ''
+                                    }${!canMarkAttendance ? ' cursor-not-allowed opacity-50' : ''}`}
+                                    title={
+                                      !canMarkAttendance
+                                        ? 'Cannot mark attendance for inactive non-newcomers.'
+                                        : ''
+                                    }
+                                  >
+                                    Retard
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      canMarkAttendance &&
+                                      handleStatusChange(
+                                        user.id,
+                                        AttendanceStatus.ABSENT,
+                                      )
+                                    }
+                                    disabled={!canMarkAttendance}
+                                    className={`rounded bg-red-500 px-[4px] py-[1px] text-[10px] text-white hover:bg-red-600${
+                                      statusSet &&
+                                      attendanceRecord.status !==
+                                        AttendanceStatus.ABSENT
+                                        ? ' opacity-50'
+                                        : ''
+                                    }${!canMarkAttendance ? ' cursor-not-allowed opacity-50' : ''}`}
+                                    title={
+                                      !canMarkAttendance
+                                        ? 'Cannot mark attendance for inactive non-newcomers.'
+                                        : ''
+                                    }
+                                  >
+                                    Absent
+                                  </button>
+                                </>
+                              );
+                            })()}
+                          </div>
+                        </td>
+                        {datesWithAttendance.map((date) => {
+                          const attendanceRecord = getUserAttendanceForDate(
+                            user.id,
+                            date,
+                          );
+                          return (
+                            <td key={date}>
+                              <div className="ml-2 text-left text-sm">
+                                {getStatusEmoji(
+                                  attendanceRecord.status,
+                                  attendanceRecord.hasJustification,
+                                  true,
+                                )}
+                              </div>
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

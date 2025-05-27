@@ -724,6 +724,12 @@ export const useAttendance = () => {
       }
     }
 
+    // NEW: Only include active users or inactive newcomers
+    const isInactiveNewcomer =
+      !user.isActive && user.categories.includes(UserCategory.NEWCOMER);
+    const { isActive } = user;
+    if (!(isActive || isInactiveNewcomer)) return false;
+
     const userAttendance = attendance[user.id] || [];
 
     const matchesStatus =

@@ -303,6 +303,12 @@ const Transactions = () => {
           <SearchInput onSearch={handleSearch} />
         </div>
 
+        <Filters
+          onFilterChange={handleFilterChange}
+          onExport={handleExport}
+          currentFilters={filters}
+        />
+
         <div className="grid grid-cols-2 gap-2 md:grid-cols-2 md:gap-4 lg:grid-cols-4">
           <Card>
             <CardContent>
@@ -378,8 +384,8 @@ const Transactions = () => {
               <div className="flex flex-row items-center justify-between">
                 <span className="text-2xl font-bold">
                   {formatCurrencyStats({
-                    USD: stats?.usd?.currentMonthDailyTotal || 0,
-                    FC: stats?.fc?.currentMonthDailyTotal || 0,
+                    USD: stats?.dailyTotalUSD || 0,
+                    FC: stats?.dailyTotalFC || 0,
                   })}
                 </span>
                 <Link
@@ -393,15 +399,9 @@ const Transactions = () => {
           </Card>
         </div>
 
-        <Filters
-          onFilterChange={handleFilterChange}
-          onExport={handleExport}
-          currentFilters={filters}
-        />
-
         {/* Desktop Table */}
         <div className="hidden md:block">
-          <div className="mt-4 overflow-hidden rounded-lg border border-gray-200 bg-white shadow">
+          <div className="mt-4 overflow-hidden rounded-lg border border-gray-300 bg-white shadow">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
