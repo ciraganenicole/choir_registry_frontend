@@ -521,7 +521,7 @@ export const useAttendance = () => {
       // Prepare table data with proper typing
       const tableData: (string | number)[][] = [];
       const sortedUsers = [...users].sort((a, b) =>
-        a.firstName.localeCompare(b.firstName),
+        a.lastName.localeCompare(b.lastName),
       );
 
       // Add headers
@@ -539,7 +539,7 @@ export const useAttendance = () => {
       let memberIndex = 1;
       sortedUsers.forEach((user) => {
         const userAttendance = attendance[user.id] || [];
-        const row = [memberIndex, user.firstName, user.lastName];
+        const row = [memberIndex, user.lastName, user.firstName];
 
         let presences = 0;
         let absences = 0;
@@ -718,7 +718,7 @@ export const useAttendance = () => {
     // Then filter by search term if it exists
     if (filters.search) {
       const searchTerm = filters.search.toLowerCase();
-      const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
+      const fullName = `${user.lastName} ${user.firstName}`.toLowerCase();
       if (!fullName.includes(searchTerm)) {
         return false;
       }

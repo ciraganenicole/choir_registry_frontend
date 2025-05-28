@@ -7,11 +7,12 @@ import type { User } from '../../../../lib/user/type';
 import { RegisterFingerprint } from '../../../../lib/user/user_actions';
 
 // Add translation function for categories
-const translateCategory = (category: string): string => {
+export const translateCategory = (category: string): string => {
   const translations: Record<string, string> = {
-    NEWCOMER: 'Nouveau',
-    WORSHIPPER: 'Louado',
-    COMMITTEE: 'Comité',
+    NEWCOMER: 'ADHERANT',
+    WORSHIPPER: 'LOUADO',
+    COMMITTEE: 'COMITE',
+    NORMAL: 'NORMAL',
   };
   return translations[category] || category;
 };
@@ -237,9 +238,7 @@ const ViewUser: React.FC<ViewUserProps> = ({ user, transactions, onClose }) => {
                       </span>
                     ))
                   ) : (
-                    <span className="text-sm text-gray-500">
-                      Aucune catégorie
-                    </span>
+                    <span className="text-sm text-gray-500">Normal</span>
                   )}
                 </div>
               </div>

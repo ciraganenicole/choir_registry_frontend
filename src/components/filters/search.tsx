@@ -21,7 +21,7 @@ const SearchInput: React.FC<SearchInputProps> = ({ onSearch }) => {
         type="text"
         value={query}
         onChange={handleSearchChange}
-        placeholder="Search"
+        placeholder="Rechercher ..."
         className="w-full border-none bg-white/0 text-gray-900 outline-none focus:border-b-[1px] focus:border-gray-600"
       />
     </div>

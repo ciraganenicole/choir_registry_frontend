@@ -458,9 +458,7 @@ const AttendancePage: React.FC = () => {
     <Layout>
       <div className="container mx-auto p-4 pt-8">
         <div className="mb-4 flex items-center justify-between">
-          <h1 className="text-[16px] font-bold md:text-2xl">
-            Attendance Records
-          </h1>
+          <h1 className="text-[16px] font-bold md:text-2xl">Présences</h1>
           <button
             onClick={(e) => {
               e.preventDefault();
@@ -541,11 +539,11 @@ const AttendancePage: React.FC = () => {
             <div className="w-[50%] md:w-auto">
               <h2 className="text-[14px] font-semibold text-gray-800 md:text-[24px]">
                 {selectedEventType === AttendanceEventType.REHEARSAL &&
-                  'Liste des Choristes'}
+                  'Liste des Membres'}
                 {selectedEventType === AttendanceEventType.SUNDAY_SERVICE &&
-                  'Liste des Choristes - Culte Dominical'}
+                  'Liste des Membres - Culte Dominical'}
                 {selectedEventType === AttendanceEventType.LOUADO &&
-                  'Liste des Choristes - Louado'}
+                  'Liste des Membres - Louado'}
                 {selectedEventType === AttendanceEventType.MUSIC &&
                   'Liste des Musiciens'}
                 {selectedEventType === AttendanceEventType.COMMITTEE &&

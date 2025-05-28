@@ -20,7 +20,7 @@ import { UpdateUserAction } from '../../../../lib/user/user_actions';
 // Add translation function for categories
 const translateCategory = (category: string): string => {
   const translations: Record<string, string> = {
-    NEWCOMER: 'Nouveau',
+    NEWCOMER: 'Adhérant',
     WORSHIPPER: 'Louado',
     COMMITTEE: 'Comité',
   };
@@ -234,14 +234,14 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
         </div>
         <Input
           name="firstName"
-          label="Nom"
+          label="Prénom"
           value={firstName || ''}
           onChange={(value: string) => handleChange('firstName', value)}
           placeholder="Nom"
         />
         <Input
           name="lastName"
-          label="Prénom"
+          label="Nom"
           value={lastName || ''}
           onChange={(value: string) => handleChange('lastName', value)}
           placeholder="Prénom"

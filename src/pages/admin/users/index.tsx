@@ -43,7 +43,7 @@ import { FetchUsers } from '../../../lib/user/user_actions';
 import UserRegistration from './crud/create';
 import DeleteUser from './crud/delete';
 import UpdateUser from './crud/update';
-import ViewUser from './crud/view';
+import ViewUser, { translateCategory } from './crud/view';
 
 // Translation functions
 const translateGender = (gender: string): string => {
@@ -695,13 +695,28 @@ const UsersManagement: React.FC = () => {
                     <td className="px-4 py-3">
                       {(currentPage - 1) * filters.limit! + index + 1}
                     </td>
-                    <td className="flex flex-row items-center gap-2 px-4 py-3 font-semibold">
+                    <td className="flex flex-col gap-1 px-4 py-3 font-semibold">
                       {/* <img
                         src="https://res.cloudinary.com/dmkqwd4hm/image/upload/v1741798773/Choir/sample_odjx73.jpg"
                         alt="Profile"
                         className="size-6 rounded-full object-cover"
                       /> */}
-                      {user.lastName} {user.firstName}
+                      {user.lastName} {user.firstName} <br />
+                      <span className="text-xs text-gray-700">
+                        {' '}
+                        {user.categories && user.categories.length > 0 ? (
+                          user.categories.map((category) => (
+                            <span
+                              key={category}
+                              className="rounded-full bg-purple-100 px-3 py-1 text-sm text-purple-800"
+                            >
+                              {translateCategory(category)}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-sm text-gray-500">Normal</span>
+                        )}
+                      </span>
                     </td>
                     <td className="px-4 py-3">{user.gender}</td>
                     <td className="px-4 py-3">{user.matricule}</td>
@@ -749,11 +764,22 @@ const UsersManagement: React.FC = () => {
                     /> */}
                     <div className="">
                       <h3 className="text-lg font-medium">
-                        {user.firstName} {user.lastName}
+                        {user.lastName} {user.firstName}
                       </h3>
-
-                      <span className="truncate text-sm text-gray-600">
-                        {user.email}
+                      <span className="text-xs text-gray-700">
+                        {' '}
+                        {user.categories && user.categories.length > 0 ? (
+                          user.categories.map((category) => (
+                            <span
+                              key={category}
+                              className="rounded-full bg-purple-100 px-3 py-1 text-sm text-purple-800"
+                            >
+                              {translateCategory(category)}
+                            </span>
+                          ))
+                        ) : (
+                          <span className="text-sm text-gray-500">Normal</span>
+                        )}
                       </span>
                     </div>
                   </div>

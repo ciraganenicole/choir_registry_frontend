@@ -17,7 +17,7 @@ import { Commission, UserCategory } from '../../../../lib/user/type';
 // Add translation function for categories
 const translateCategory = (category: string): string => {
   const translations: Record<string, string> = {
-    NEWCOMER: 'Nouveau',
+    NEWCOMER: 'Adhérant',
     WORSHIPPER: 'Louado',
     COMMITTEE: 'Comité',
   };
@@ -174,7 +174,7 @@ const UserRegistration: React.FC<CreateUserProps> = ({
 
         <Input
           name="firstName"
-          label="Nom *"
+          label="Prénom *"
           value={firstName}
           onChange={setFirstName}
           placeholder="Nom"
@@ -182,7 +182,7 @@ const UserRegistration: React.FC<CreateUserProps> = ({
         />
         <Input
           name="lastName"
-          label="Prénom *"
+          label="Nom *"
           value={lastName}
           onChange={setLastName}
           placeholder="Prénom"
@@ -217,7 +217,7 @@ const UserRegistration: React.FC<CreateUserProps> = ({
 
         <div>
           <label className="block text-sm font-medium text-gray-700">
-            Status Marital
+            Statut Marital
           </label>
           <select
             name="maritalStatus"
@@ -229,7 +229,7 @@ const UserRegistration: React.FC<CreateUserProps> = ({
             }
             className="mt-1 block w-full rounded-md border border-gray-500 px-4 py-1"
           >
-            <option value="">Sélectionner un status</option>
+            <option value="">Sélectionner un statut</option>
             <option value="CELIBATAIRE">Célibataire</option>
             <option value="MARIE(E)">Marié(e)</option>
             <option value="VEUF(VE)">Veuf(ve)</option>
