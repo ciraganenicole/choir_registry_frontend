@@ -83,14 +83,20 @@ export interface TransactionStats {
     totalIncome: number;
     totalExpense: number;
     netRevenue: number;
-    currentMonthDailyTotal: number;
   };
   fc: {
     totalIncome: number;
     totalExpense: number;
     netRevenue: number;
-    currentMonthDailyTotal: number;
   };
+  /**
+   * Sum of daily revenues for the filtered period (USD)
+   */
+  dailyTotalUSD: number;
+  /**
+   * Sum of daily revenues for the filtered period (FC)
+   */
+  dailyTotalFC: number;
 }
 
 // Daily contribution specific types

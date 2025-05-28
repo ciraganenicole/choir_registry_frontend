@@ -566,18 +566,14 @@ export const useTransactionStats = (filters?: TransactionFilters) => {
             totalIncome: Number(responseData.totals?.usd || 0),
             totalExpense: 0,
             netRevenue: 0,
-            currentMonthDailyTotal: Number(
-              responseData.currentMonthDailyTotalUSD ?? 0,
-            ),
           },
           fc: {
             totalIncome: Number(responseData.totals?.fc || 0),
             totalExpense: 0,
             netRevenue: 0,
-            currentMonthDailyTotal: Number(
-              responseData.currentMonthDailyTotalFC ?? 0,
-            ),
           },
+          dailyTotalUSD: Number(responseData.dailyTotalUSD || 0),
+          dailyTotalFC: Number(responseData.dailyTotalFC || 0),
         };
 
         console.log('Mapped stats object:', stats);

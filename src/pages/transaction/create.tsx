@@ -112,12 +112,25 @@ export const CreateTransaction = ({
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    setErrors({});
 
     try {
       if (!formData.amount || formData.amount <= 0) {
         setErrors({
           amount: { message: 'Le montant doit être supérieur à 0' },
         });
+        return;
+      }
+
+      if (
+        formData.externalContributorPhone &&
+        !/^0\d{9}$/.test(formData.externalContributorPhone.trim())
+      ) {
+        setErrors((prev) => ({
+          ...prev,
+          externalContributorPhone:
+            'Le numéro doit comporter exactement 10 chiffres et commencer par 0',
+        }));
         return;
       }
 

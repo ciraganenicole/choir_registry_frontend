@@ -78,6 +78,18 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
     e.preventDefault();
     setError(null);
 
+    // Phone number validation: must be 10 digits and start with 0
+    if (
+      userData &&
+      userData.phoneNumber &&
+      !/^0\d{9}$/.test(userData.phoneNumber.trim())
+    ) {
+      setError(
+        'Le numéro de téléphone doit comporter exactement 10 chiffres et commencer par 0',
+      );
+      return;
+    }
+
     if (userData) {
       try {
         const updatePayload = {
