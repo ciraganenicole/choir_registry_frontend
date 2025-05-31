@@ -177,21 +177,23 @@ const UserRegistration: React.FC<CreateUserProps> = ({
         </div> */}
 
         <Input
-          name="firstName"
-          label="Prénom *"
-          value={firstName}
-          onChange={setFirstName}
-          placeholder="Nom"
-          required
-        />
-        <Input
           name="lastName"
-          label="Nom *"
+          label="Prénom *"
           value={lastName}
           onChange={setLastName}
           placeholder="Prénom"
           required
         />
+
+        <Input
+          name="firstName"
+          label="Nom *"
+          value={firstName}
+          onChange={setFirstName}
+          placeholder="Nom"
+          required
+        />
+
         <Input
           name="email"
           type="email"

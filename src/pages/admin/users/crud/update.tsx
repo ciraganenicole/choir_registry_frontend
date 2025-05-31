@@ -245,18 +245,18 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
           </button>
         </div>
         <Input
-          name="firstName"
-          label="Prénom"
-          value={firstName || ''}
-          onChange={(value: string) => handleChange('firstName', value)}
-          placeholder="Nom"
-        />
-        <Input
           name="lastName"
-          label="Nom"
+          label="Prénom"
           value={lastName || ''}
           onChange={(value: string) => handleChange('lastName', value)}
           placeholder="Prénom"
+        />
+        <Input
+          name="firstName"
+          label="Nom"
+          value={firstName || ''}
+          onChange={(value: string) => handleChange('firstName', value)}
+          placeholder="Nom"
         />
         <div>
           <label className="block text-sm font-medium text-gray-700">

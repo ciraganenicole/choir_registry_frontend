@@ -212,7 +212,7 @@ export const useExportTransactions = () => {
             if (transaction.contributor) {
               const firstName = transaction.contributor.firstName || '';
               const lastName = transaction.contributor.lastName || '';
-              contributorName = `${firstName} ${lastName}`.trim() || 'Anonyme';
+              contributorName = `${lastName} ${firstName}`.trim() || 'Anonyme';
             } else if (transaction.externalContributorName) {
               contributorName =
                 transaction.externalContributorName.trim() || 'Anonyme';
@@ -441,7 +441,7 @@ export const useExportDailyContributions = () => {
 
         // Prepare table data
         const tableData = contributors.map((contributor: any) => {
-          const rowData = [contributor.firstName, contributor.lastName];
+          const rowData = [contributor.lastName, contributor.firstName];
           let contributorTotal = 0;
 
           dates.forEach((date: string) => {

@@ -96,11 +96,11 @@ export const CreateTransaction = ({
   useEffect(() => {
     const loadUsers = async () => {
       try {
-        const response = await FetchUsers({ page: 1, limit: 100 });
+        const response = await FetchUsers({ page: 1, limit: 200 });
         // Show all users in the dropdown
         const formattedUsers = response.data.map((user) => ({
           value: user.id,
-          label: `${user.firstName} ${user.lastName}`,
+          label: `${user.lastName} ${user.firstName}`,
         }));
         setUsers(formattedUsers);
       } catch (error) {

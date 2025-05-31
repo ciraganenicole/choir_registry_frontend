@@ -56,11 +56,16 @@ const translateGender = (gender: string): string => {
 
 const translateEducationLevel = (level: string): string => {
   const translations: Record<string, string> = {
-    PRIMARY: 'Primaire',
-    SECONDARY: 'Secondaire',
-    UNIVERSITY: 'Universitaire',
-    GRADUATE: 'Gradué',
-    PHD: 'Doctorat',
+    'N/A': 'N/A',
+    CERTIFICAT: 'Certificat',
+    A3: 'A3',
+    A2: 'A2',
+    HUMANITE_INCOMPLETE: 'Humanités Incomplètes',
+    DIPLOME_ETAT: "Diplôme d'État",
+    GRADUE: 'Gradué',
+    LICENCIE: 'Licencié',
+    MASTER: 'Master',
+    DOCTEUR: 'Docteur',
   };
   return translations[level] || level;
 };
@@ -250,7 +255,7 @@ const UsersManagement: React.FC = () => {
 
       // Create PDF document with consistent margins
       const doc = new JSPDF({
-        orientation: 'portrait',
+        orientation: 'landscape',
         unit: 'mm',
         format: 'a4',
       });
@@ -300,10 +305,14 @@ const UsersManagement: React.FC = () => {
         'N°',
         'Nom Complet',
         'Genre',
+        'Matricule',
         'Téléphone',
         'WhatsApp',
         'Commissions',
+        'Catégories',
         'Profession',
+        "Niveau d'études",
+        'Statut',
         'Adresse',
       ];
 
@@ -319,12 +328,16 @@ const UsersManagement: React.FC = () => {
 
         return [
           index + 1,
-          `${user.firstName} ${user.lastName}`,
+          `${user.lastName} ${user.firstName}`,
           translateGender(user.gender || Gender.MALE),
+          user.matricule || '-',
           user.phoneNumber || '-',
           user.whatsappNumber || '-',
           (user.commissions || []).map(translateCommission).join('; ') || '-',
+          (user.categories || []).map(translateCategory).join('; ') || '-',
           translateProfession(user.profession || Profession.UNEMPLOYED),
+          translateEducationLevel(user.educationLevel || EducationLevel.NONE),
+          user.isActive ? 'Actif' : 'Inactif',
           fullAddress,
         ];
       });
@@ -337,7 +350,7 @@ const UsersManagement: React.FC = () => {
         margin: { top: margin, right: margin, bottom: margin, left: margin },
         theme: 'grid',
         styles: {
-          fontSize: 8,
+          fontSize: 7,
           cellPadding: { top: 2, right: 2, bottom: 2, left: 2 },
           lineColor: [0, 0, 0],
           lineWidth: 0.1,
@@ -348,17 +361,22 @@ const UsersManagement: React.FC = () => {
           textColor: [255, 255, 255],
           fontStyle: 'bold',
           halign: 'center',
-          fontSize: 9,
+          fontSize: 8,
         },
         columnStyles: {
           0: { cellWidth: 8, halign: 'center' }, // N°
-          1: { cellWidth: 35 }, // Nom Complet
+          1: { cellWidth: 30 }, // Nom Complet
           2: { cellWidth: 15, halign: 'center' }, // Genre
-          3: { cellWidth: 22 }, // Téléphone
-          4: { cellWidth: 22 }, // WhatsApp
-          5: { cellWidth: 30 }, // Commissions
-          6: { cellWidth: 20 }, // Profession
-          7: { cellWidth: 30 }, // Adresse (combined)
+          3: { cellWidth: 20, halign: 'center' }, // Matricule
+          4: { cellWidth: 25 }, // Téléphone
+          5: { cellWidth: 25 }, // WhatsApp
+          6: { cellWidth: 25 }, // Email
+          7: { cellWidth: 25 }, // Commissions
+          8: { cellWidth: 20 }, // Catégories
+          9: { cellWidth: 20 }, // Profession
+          10: { cellWidth: 20 }, // Niveau d'études
+          12: { cellWidth: 15, halign: 'center' }, // Statut
+          11: { cellWidth: 40 }, // Adresse
         },
         didParseCell: (hookData: CellHookData) => {
           const styles = { ...hookData.cell.styles };
@@ -708,13 +726,13 @@ const UsersManagement: React.FC = () => {
                           user.categories.map((category) => (
                             <span
                               key={category}
-                              className="rounded-full bg-purple-100 px-3 py-1 text-sm text-purple-800"
+                              className="rounded-full bg-purple-100 px-3 py-1 text-xs text-purple-800"
                             >
                               {translateCategory(category)}
                             </span>
                           ))
                         ) : (
-                          <span className="text-sm text-gray-500">Normal</span>
+                          <span className="text-xs text-gray-500">Normal</span>
                         )}
                       </span>
                     </td>

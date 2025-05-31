@@ -1,7 +1,7 @@
 import { format, parseISO, startOfDay } from 'date-fns';
 import Link from 'next/link';
 import { useState } from 'react';
-import { FaPlus } from 'react-icons/fa';
+import { FaEdit, FaPlus } from 'react-icons/fa';
 
 import { Card, CardContent } from '@/components/card';
 import SearchInput from '@/components/filters/search';
@@ -23,6 +23,7 @@ import { Currency, TransactionType } from '@/lib/transaction/types';
 
 import Filters from '../../lib/transaction/filters';
 import { CreateTransaction } from './create';
+import UpdateTransaction from './update';
 
 interface TransactionResponse {
   data: Transaction[];
@@ -90,7 +91,7 @@ const getContributorName = (transaction: Transaction): string => {
   if (transaction.contributor) {
     const firstName = transaction.contributor.firstName || '';
     const lastName = transaction.contributor.lastName || '';
-    const fullName = `${firstName} ${lastName}`.trim();
+    const fullName = `${lastName} ${firstName}`.trim();
     return fullName || 'Anonyme';
   }
 
@@ -116,14 +117,18 @@ const Transactions = () => {
   });
   const [pagination, setPagination] = useState({ page: 1, limit: 8 });
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] =
+    useState<Transaction | null>(null);
   const [createModal, setCreateModal] = useState({
     type: TransactionType.INCOME,
   });
 
   // Queries and Mutations
-  const { data, isLoading } = useTransactions(filters, pagination) as {
+  const { data, isLoading, refetch } = useTransactions(filters, pagination) as {
     data?: TransactionResponse;
     isLoading: boolean;
+    refetch: () => void;
   };
   const createTransaction = useCreateTransaction();
   const exportTransactions = useExportTransactions();
@@ -213,6 +218,19 @@ const Transactions = () => {
     });
   };
 
+  const handleUpdate = (transaction: Transaction) => {
+    setSelectedTransaction(transaction);
+    setShowUpdateModal(true);
+  };
+
+  const handleUpdateComplete = () => {
+    setShowUpdateModal(false);
+    setSelectedTransaction(null);
+    // Refetch data and stats
+    refetch();
+    refetchStats();
+  };
+
   const renderTableContent = () => {
     if (isLoading) {
       return (
@@ -289,6 +307,15 @@ const Transactions = () => {
             {format(parseISO(transaction.transactionDate), 'dd/MM/yyyy')}
           </div>
         </td>
+        <td className="whitespace-nowrap px-6 py-4">
+          <button
+            onClick={() => handleUpdate(transaction)}
+            className="rounded-full bg-blue-500 p-2 text-white hover:bg-blue-600"
+            title="Modifier"
+          >
+            <FaEdit className="size-3" />
+          </button>
+        </td>
       </tr>
     ));
   };
@@ -364,8 +391,12 @@ const Transactions = () => {
               </h3>
               <span className="text-2xl font-bold">
                 {formatCurrencyStats({
-                  USD: stats?.usd?.netRevenue || 0,
-                  FC: stats?.fc?.netRevenue || 0,
+                  USD:
+                    (stats?.usd?.totalIncome || 0) -
+                    (stats?.usd?.totalExpense || 0),
+                  FC:
+                    (stats?.fc?.totalIncome || 0) -
+                    (stats?.fc?.totalExpense || 0),
                 })}
               </span>
             </CardContent>
@@ -425,6 +456,9 @@ const Transactions = () => {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                     Date
+                  </th>
+                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">
+                    Action
                   </th>
                 </tr>
               </thead>
@@ -537,6 +571,17 @@ const Transactions = () => {
             onClose={() => setShowCreateModal(false)}
             onSubmit={handleCreateTransaction}
             defaultType={createModal.type}
+          />
+        )}
+
+        {showUpdateModal && selectedTransaction && (
+          <UpdateTransaction
+            transaction={selectedTransaction}
+            onClose={() => {
+              setShowUpdateModal(false);
+              setSelectedTransaction(null);
+            }}
+            onUpdate={handleUpdateComplete}
           />
         )}
       </div>
