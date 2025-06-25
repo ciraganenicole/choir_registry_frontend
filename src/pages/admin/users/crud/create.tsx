@@ -62,10 +62,7 @@ const UserRegistration: React.FC<CreateUserProps> = ({
   const validateForm = () => {
     if (!firstName.trim()) return 'Le nom est requis';
     if (!lastName.trim()) return 'Le prénom est requis';
-    if (!/^0\d{9}$/.test(phoneNumber.trim()))
-      return 'Le numéro de téléphone doit comporter exactement 10 chiffres et commencer par 0';
-    if (whatsappNumber && !/^0\d{9}$/.test(whatsappNumber.trim()))
-      return 'Le numéro WhatsApp doit comporter exactement 10 chiffres et commencer par 0';
+
     return null;
   };
 

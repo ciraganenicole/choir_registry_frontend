@@ -1,6 +1,7 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import { format, parseISO, startOfDay } from 'date-fns';
 import { Download, RefreshCw } from 'lucide-react';
+import { useState } from 'react';
 
 import type { TransactionFilters } from './types';
 import {
@@ -40,7 +41,11 @@ const translateCategoryToFrench = (category: string): string => {
 
 interface FiltersProps {
   onFilterChange: (filters: Partial<TransactionFilters>) => void;
-  onExport: (format: 'csv' | 'pdf', exportAll?: boolean) => void;
+  onExport: (
+    format: 'csv' | 'pdf',
+    exportAll?: boolean,
+    conversionRate?: number,
+  ) => void;
   currentFilters: TransactionFilters;
 }
 
@@ -49,6 +54,8 @@ const Filters = ({
   onExport,
   currentFilters,
 }: FiltersProps) => {
+  const [conversionRate, setConversionRate] = useState<number>(2800);
+
   const getCategories = () => {
     if (currentFilters.type === TransactionType.INCOME) {
       return Object.values(IncomeCategories);
@@ -146,90 +153,94 @@ const Filters = ({
   };
 
   return (
-    <div className="my-8 flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0">
-      <div className="flex flex-row items-center space-x-2 md:space-x-4">
-        {/* Income/Expense Toggle */}
-        <div className="flex flex-row items-center rounded-md border-[1px] border-gray-500">
+    <div className="my-3 flex flex-col space-y-2 md:flex-row md:items-center md:justify-between md:space-y-0">
+      <div className="flex flex-row flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-row items-center space-x-2 md:space-x-4">
+          {/* Income/Expense Toggle */}
+          <div className="flex flex-row items-center rounded-md border-[1px] border-gray-500">
+            <button
+              onClick={() => handleTypeChange(undefined)}
+              className={`px-3 py-1 text-[10px] md:px-6 md:text-[16px] ${
+                currentFilters.type === undefined
+                  ? 'bg-gray-500/40 text-gray-900'
+                  : 'text-gray-500'
+              }`}
+            >
+              Tous
+            </button>
+            <button
+              onClick={() => handleTypeChange(TransactionType.INCOME)}
+              className={`px-2 py-1 text-[10px] md:px-6 md:text-[16px] ${
+                currentFilters.type === TransactionType.INCOME
+                  ? 'bg-gray-500/40 text-gray-900'
+                  : 'text-gray-500'
+              }`}
+            >
+              Revenu
+            </button>
+            <button
+              onClick={() => handleTypeChange(TransactionType.EXPENSE)}
+              className={`px-2 py-1 text-[10px] md:px-6 md:text-[16px] ${
+                currentFilters.type === TransactionType.EXPENSE
+                  ? 'bg-gray-500/40 text-gray-900'
+                  : 'text-gray-500'
+              }`}
+            >
+              Dépense
+            </button>
+          </div>
+
+          {/* Reset Filters Button */}
           <button
-            onClick={() => handleTypeChange(undefined)}
-            className={`px-3 py-1 text-[14px] md:px-6 md:text-[16px] ${
-              currentFilters.type === undefined
-                ? 'bg-gray-500/40 text-gray-900'
-                : 'text-gray-500'
-            }`}
+            onClick={handleResetFilters}
+            className="flex items-center space-x-1 rounded-md border-[1px] border-gray-500 p-1 text-gray-700 hover:bg-gray-100 md:p-2"
           >
-            Tous
-          </button>
-          <button
-            onClick={() => handleTypeChange(TransactionType.INCOME)}
-            className={`px-3 py-1 text-[14px] md:px-6 md:text-[16px] ${
-              currentFilters.type === TransactionType.INCOME
-                ? 'bg-gray-500/40 text-gray-900'
-                : 'text-gray-500'
-            }`}
-          >
-            Revenu
-          </button>
-          <button
-            onClick={() => handleTypeChange(TransactionType.EXPENSE)}
-            className={`px-3 py-1 text-[14px] md:px-6 md:text-[16px] ${
-              currentFilters.type === TransactionType.EXPENSE
-                ? 'bg-gray-500/40 text-gray-900'
-                : 'text-gray-500'
-            }`}
-          >
-            Dépense
+            <RefreshCw size={12} />
           </button>
         </div>
 
-        {/* Reset Filters Button */}
-        <button
-          onClick={handleResetFilters}
-          className="flex items-center space-x-1 rounded-md border-[1px] border-gray-500 px-3 py-2 text-gray-700 hover:bg-gray-100"
-        >
-          <RefreshCw size={16} />
-        </button>
+        <div className="flex flex-row gap-1">
+          {/* Category Filter */}
+          <select
+            value={currentFilters.category || ''}
+            onChange={(e) => handleCategoryChange(e.target.value)}
+            className="flex w-20 items-center rounded-md border-[1px] border-gray-900/50 p-1 text-[10px] text-gray-900 shadow-sm md:w-32 md:px-4 md:py-1 md:text-[16px]"
+          >
+            <option value="">Catégories</option>
+            {categories.map((category) => (
+              <option key={category} value={category}>
+                {translateCategoryToFrench(category)}
+              </option>
+            ))}
+          </select>
+
+          {/* Subcategory Filter */}
+          {subcategories.length > 0 && (
+            <select
+              value={currentFilters.subcategory || ''}
+              onChange={(e) => handleSubcategoryChange(e.target.value)}
+              className="flex w-20 items-center rounded-md border-[1px] border-gray-900/50 p-1 text-[10px] text-gray-900 shadow-sm md:w-32 md:px-4 md:py-1 md:text-[16px]"
+            >
+              <option value="">Sous-catégories</option>
+              {subcategories.map((subcategory) => (
+                <option key={subcategory} value={subcategory}>
+                  {translateCategoryToFrench(subcategory)}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
       </div>
 
       {/* Right side filters */}
       <div className="flex flex-row flex-wrap items-center justify-between gap-1 md:space-x-4">
-        {/* Category Filter */}
-        <select
-          value={currentFilters.category || ''}
-          onChange={(e) => handleCategoryChange(e.target.value)}
-          className="flex items-center rounded-md border-[1px] border-gray-900/50 p-1 text-[12px] text-gray-900 shadow-sm md:px-4 md:py-1 md:text-[16px]"
-        >
-          <option value="">Toutes Catégories</option>
-          {categories.map((category) => (
-            <option key={category} value={category}>
-              {translateCategoryToFrench(category)}
-            </option>
-          ))}
-        </select>
-
-        {/* Subcategory Filter */}
-        {subcategories.length > 0 && (
-          <select
-            value={currentFilters.subcategory || ''}
-            onChange={(e) => handleSubcategoryChange(e.target.value)}
-            className="flex items-center rounded-md border-[1px] border-gray-900/50 p-1 text-[12px] text-gray-900 shadow-sm md:px-4 md:py-1 md:text-[16px]"
-          >
-            <option value="">Toutes Sous-catégories</option>
-            {subcategories.map((subcategory) => (
-              <option key={subcategory} value={subcategory}>
-                {translateCategoryToFrench(subcategory)}
-              </option>
-            ))}
-          </select>
-        )}
-
         <div className="mt-2 flex flex-row items-center gap-1 md:mt-0 md:space-x-2">
           {/* Date Range */}
           <div className="flex items-center gap-1 md:space-x-2">
             <input
               type="date"
               placeholder="Date de début"
-              className="rounded-md border-[1px] border-gray-900/50 p-1 text-[12px] text-gray-900 shadow-sm md:px-4 md:py-1 md:text-[16px]"
+              className="w-24 rounded-md border-[1px] border-gray-900/50 p-1 text-[12px] text-gray-900 shadow-sm md:w-36 md:px-4 md:py-1 md:text-[16px]"
               value={formatDateForInput(currentFilters.startDate)}
               onChange={(e) => handleDateChange(e.target.value, true)}
             />
@@ -237,19 +248,38 @@ const Filters = ({
             <input
               type="date"
               placeholder="Date de fin"
-              className="rounded-md border-[1px] border-gray-900/50 p-1 text-[12px] text-gray-900 shadow-sm md:px-4 md:py-1 md:text-[16px]"
+              className="w-24 rounded-md border-[1px] border-gray-900/50 p-1 text-[12px] text-gray-900 shadow-sm md:w-36 md:px-4 md:py-1 md:text-[16px]"
               value={formatDateForInput(currentFilters.endDate)}
               onChange={(e) => handleDateChange(e.target.value, false)}
             />
           </div>
 
-          <button
-            onClick={() => onExport('csv', !currentFilters.type)}
-            className="flex items-center justify-center rounded-[5px] bg-gray-900 p-1 text-sm font-semibold text-white hover:bg-gray-700 md:rounded-md md:px-4 md:py-2"
-          >
-            <Download className="mr-0 size-4 md:mr-2" />
-            <span className="hidden md:block">Exporter</span>
-          </button>
+          {/* Export Buttons */}
+          <div className="flex items-center space-x-1">
+            {/* Conversion Rate Input */}
+            <div className="flex items-center gap-1">
+              <label className="text-xs text-gray-600 md:text-sm">
+                Taux(1$)=
+              </label>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                value={conversionRate}
+                onChange={(e) => setConversionRate(Number(e.target.value))}
+                className="w-10 rounded-md border-[1px] border-gray-900/50 p-1 text-[10px] text-gray-900 shadow-sm md:w-16 md:px-2 md:py-1 md:text-[14px]"
+                placeholder="2800"
+              />
+              <span className="text-xs md:text-sm">FC</span>
+            </div>
+            <button
+              onClick={() => onExport('csv', false, conversionRate)}
+              className="flex items-center justify-center rounded-[5px] bg-gray-900 p-1 text-sm font-semibold text-white hover:bg-gray-700 md:rounded-md md:p-2"
+              title="Exporter en CSV"
+            >
+              <Download className="size-4" />
+            </button>
+          </div>
         </div>
       </div>
     </div>

@@ -518,6 +518,12 @@ const UsersManagement: React.FC = () => {
   // In the render section, replace nested ternaries with the helper function
   const activeFilterButton = getActiveFilterButton(filters.isActive);
 
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    // Scroll to top when page changes
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <Layout>
       <div className="container mx-auto px-4 py-8">
@@ -838,7 +844,7 @@ const UsersManagement: React.FC = () => {
           <Pagination
             totalPages={Math.ceil(totalUsers / filters.limit!)}
             currentPage={currentPage}
-            onPageChange={setCurrentPage}
+            onPageChange={handlePageChange}
           />
         </div>
       </div>

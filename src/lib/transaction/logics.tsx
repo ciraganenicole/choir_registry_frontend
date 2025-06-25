@@ -18,6 +18,9 @@ import type {
 } from './types';
 import { Currency, TransactionType } from './types';
 
+// Default conversion rate from FC to USD (1 USD = 2800 FC)
+const DEFAULT_FC_TO_USD_RATE = 2800;
+
 // Helper to determine transaction type
 export const getTransactionType = (category: string): 'INCOME' | 'EXPENSE' => {
   const IncomeCategories = ['DAILY', 'SPECIAL', 'DONATION', 'OTHER'];
@@ -141,18 +144,44 @@ export const useExportTransactions = () => {
     mutationFn: async (params: {
       filters: TransactionFilters;
       exportAll?: boolean;
+      conversionRate?: number;
     }) => {
       try {
+        // Use provided conversion rate or default
+        const conversionRate = params.conversionRate || DEFAULT_FC_TO_USD_RATE;
+
         const queryParams = new URLSearchParams();
 
-        if (!params.exportAll) {
-          Object.entries(params.filters).forEach(([key, value]) => {
-            if (value !== undefined && value !== '') {
-              queryParams.append(key, value.toString());
-            }
-          });
+        // Determine if we should export all based on filters
+        const shouldExportAll =
+          !params.filters.startDate &&
+          !params.filters.endDate &&
+          !params.filters.type &&
+          !params.filters.category &&
+          !params.filters.search;
+
+        // Apply filters if not exporting all
+        if (!shouldExportAll) {
+          // Handle date filters first
+          if (params.filters.startDate) {
+            queryParams.append('startDate', params.filters.startDate);
+          }
+          if (params.filters.endDate) {
+            queryParams.append('endDate', params.filters.endDate);
+          }
+          // Handle other filters
+          if (params.filters.type) {
+            queryParams.append('type', params.filters.type);
+          }
+          if (params.filters.category) {
+            queryParams.append('category', params.filters.category);
+          }
+          if (params.filters.search) {
+            queryParams.append('search', params.filters.search);
+          }
         }
 
+        // Add pagination parameters
         queryParams.append('page', '1');
         queryParams.append('limit', '999999');
 
@@ -194,17 +223,17 @@ export const useExportTransactions = () => {
         doc.text('CHORALE LA NOUVELLE JERUSALEM', margin + 30, 30);
 
         doc.setFontSize(12);
-        doc.text('TRANSACTIONS', margin, 45);
+        doc.text('TRANSACTIONS', margin, 40);
 
         let frenchDateHeader = '';
-        if (params.exportAll) {
-          frenchDateHeader = `${format(parseISO(new Date().toISOString()), 'MMMM, yyyy', { locale: fr })}`;
+        if (shouldExportAll) {
+          frenchDateHeader = `${format(parseISO(new Date().toISOString()), 'MM/yyyy', { locale: fr })}`;
         } else if (params.filters.startDate && params.filters.endDate) {
-          frenchDateHeader = `Transactions du ${format(parseISO(params.filters.startDate), 'MMMM, yyyy', { locale: fr })} au ${format(parseISO(params.filters.endDate), 'MMMM, yyyy', { locale: fr })}`;
+          frenchDateHeader = `Période : ${format(parseISO(params.filters.startDate), 'dd/MM/yyyy', { locale: fr })} à ${format(parseISO(params.filters.endDate), 'dd/MM/yyyy', { locale: fr })}`;
         }
 
         doc.setFontSize(10);
-        doc.text(frenchDateHeader, margin, 52);
+        doc.text(frenchDateHeader, margin, 45);
 
         const transactions = transactionResponse.data.data.map(
           (transaction: Transaction) => {
@@ -258,8 +287,16 @@ export const useExportTransactions = () => {
             0,
           );
 
+        // Convert FC to USD for totals using the provided conversion rate
+        const totalIncomeFCInUSD = totalIncomeFC / conversionRate;
+        const totalExpenseFCInUSD = totalExpenseFC / conversionRate;
+
+        // Calculate total income and expense in USD
+        const totalIncomeInUSD = totalIncomeUSD + totalIncomeFCInUSD;
+        const totalExpenseInUSD = totalExpenseUSD + totalExpenseFCInUSD;
+
         autoTable(doc, {
-          startY: 60,
+          startY: 48,
           head: [
             [
               'Contributeur',
@@ -272,24 +309,26 @@ export const useExportTransactions = () => {
           ],
           body: transactions,
           foot: [
-            ['REVENU TOTAL', '', '', '', `${totalIncomeUSD.toFixed(2)}`, 'USD'],
+            ['', '', '', 'REVENU TOTAL', `${totalIncomeUSD.toFixed(2)}`, '$'],
             ['', '', '', '', `${totalIncomeFC.toFixed(2)}`, 'FC'],
+            ['', '', '', '', `${totalIncomeFCInUSD.toFixed(2)}`, '$'],
             [
+              '',
+              '',
+              '',
               'DÉPENSE TOTALE',
-              '',
-              '',
-              '',
               `${totalExpenseUSD.toFixed(2)}`,
-              'USD',
+              '$',
             ],
             ['', '', '', '', `${totalExpenseFC.toFixed(2)}`, 'FC'],
+            ['', '', '', '', `${totalExpenseFCInUSD.toFixed(2)}`, '$'],
             [
+              '',
+              '',
+              '',
               'SOLDE',
-              '',
-              '',
-              '',
               `${(totalIncomeUSD - totalExpenseUSD).toFixed(2)}`,
-              'USD',
+              '$',
             ],
             [
               '',
@@ -299,54 +338,92 @@ export const useExportTransactions = () => {
               `${(totalIncomeFC - totalExpenseFC).toFixed(2)}`,
               'FC',
             ],
+            [
+              '',
+              '',
+              '',
+              '',
+              `${(totalIncomeInUSD - totalExpenseInUSD).toFixed(2)}`,
+              '$',
+            ],
+            ['', '', '', 'Taux de conversion', `1$= ${conversionRate} FC`, ''],
           ],
-          theme: 'grid',
+          theme: 'plain',
           styles: {
-            fontSize: 8,
-            cellPadding: 2,
+            fontSize: 9,
+            cellPadding: 0.5,
             lineColor: [0, 0, 0],
-            lineWidth: 0.1,
+            lineWidth: 0,
+            textColor: [0, 0, 0],
+            halign: 'left',
           },
           headStyles: {
             fillColor: [43, 53, 68],
             textColor: [255, 255, 255],
             fontStyle: 'bold',
-            halign: 'center',
+            halign: 'left',
+            fontSize: 9,
+            cellPadding: 0.5,
+            lineWidth: 0,
           },
           footStyles: {
             fillColor: [240, 240, 240],
             textColor: [0, 0, 0],
-            fontStyle: 'bold',
+            fontStyle: 'normal',
+            fontSize: 9,
+            cellPadding: 0.5,
+            lineWidth: 0,
+            halign: 'right',
+          },
+          alternateRowStyles: {
+            fillColor: [188, 188, 188],
+            textColor: [0, 0, 0],
+            halign: 'left',
           },
           columnStyles: {
-            0: { cellWidth: 40 },
-            1: { cellWidth: 20 },
-            2: { cellWidth: 30 },
-            3: { cellWidth: 30 },
+            0: { cellWidth: 48, halign: 'left' },
+            1: { cellWidth: 25, halign: 'left' },
+            2: { cellWidth: 30, halign: 'left' },
+            3: { cellWidth: 30, halign: 'left' },
             4: { cellWidth: 25, halign: 'right' },
-            5: { cellWidth: 15, halign: 'center' },
+            5: { cellWidth: 20, halign: 'left' },
           },
           didParseCell: (hookData) => {
             const newStyles = { ...hookData.cell.styles };
-
-            if (
-              hookData.section === 'body' &&
-              Array.isArray(hookData.row.raw)
-            ) {
-              const type = hookData.row.raw[1];
-              if (type === 'Revenu') {
-                newStyles.textColor = [0, 128, 0];
-              } else if (type === 'Dépense') {
-                newStyles.textColor = [255, 0, 0];
+            if (hookData.section === 'head') {
+              // Right align the amount column header
+              if (hookData.column.index === 4) {
+                newStyles.halign = 'right';
+              }
+            } else if (hookData.section === 'foot') {
+              // Right align all footer cells except the last row
+              if (hookData.row.index < 9) {
+                newStyles.halign = 'right';
+              } else {
+                newStyles.halign = 'left';
+              }
+              // Apply alternate row color for footer
+              if (hookData.row.index % 2 === 1) {
+                newStyles.fillColor = [91, 227, 248];
+              }
+              // Make SOLDE row bold (rows 6, 7, and 8)
+              if (hookData.row.index >= 6 && hookData.row.index <= 8) {
+                newStyles.fontStyle = 'bold';
+              }
+            } else {
+              newStyles.textColor = [0, 0, 0];
+              // Only set left alignment if it's not the amount column
+              if (hookData.column.index !== 4) {
+                newStyles.halign = 'left';
               }
             }
-
             Object.assign(hookData.cell.styles, newStyles);
           },
-          margin: { top: margin, right: margin, bottom: margin, left: margin },
+          margin: { top: 2, left: margin, bottom: margin, right: margin },
+          showFoot: 'lastPage',
         });
 
-        const filename = params.exportAll
+        const filename = shouldExportAll
           ? `transactions_${format(parseISO(new Date().toISOString()), 'MMMM-d-yyyy').replace(/\//g, '-')}.pdf`
           : `transactions_${format(parseISO(params.filters.startDate ?? new Date().toISOString()), 'MMMM-d-yyyy')}_${format(parseISO(params.filters.endDate ?? new Date().toISOString()), 'MMMM-d-yyyy')}.pdf`;
 
@@ -497,7 +574,7 @@ export const useExportDailyContributions = () => {
             fillColor: [43, 53, 68],
             textColor: [255, 255, 255],
             fontStyle: 'bold',
-            halign: 'center',
+            halign: 'left',
           },
           footStyles: {
             fillColor: [240, 240, 240],
@@ -517,10 +594,10 @@ export const useExportDailyContributions = () => {
               hookData.column.index > 1 &&
               hookData.column.index < headers.length - 1
             ) {
-              newStyles.halign = 'center';
+              newStyles.halign = 'left';
             }
 
-            // Right align the total column
+            // left align the total column
             if (hookData.column.index === headers.length - 1) {
               newStyles.halign = 'right';
             }
@@ -528,13 +605,13 @@ export const useExportDailyContributions = () => {
             // Color the amounts in green (except in header and footer)
             if (hookData.section === 'body' && hookData.column.index > 1) {
               if (hookData.cell.raw !== '-') {
-                newStyles.textColor = [0, 128, 0];
+                newStyles.textColor = [0, 0, 0];
               }
             }
 
             Object.assign(hookData.cell.styles, newStyles);
           },
-          margin: { top: margin, right: margin, bottom: margin, left: margin },
+          margin: { top: 5, left: margin, bottom: margin, right: margin },
         });
 
         const filename = `contributions_quotidiennes_${format(parseISO(new Date().toISOString()), 'MMMM-d-yyyy').replace(/\//g, '-')}.pdf`;
@@ -559,26 +636,24 @@ export const useTransactionStats = (filters?: TransactionFilters) => {
           params: filters,
         });
 
-        console.log('API /transactions/stats response:', responseData);
-
         const stats: TransactionStats = {
           usd: {
             totalIncome: Number(responseData.totals?.usd || 0),
-            totalExpense: 0,
-            netRevenue: 0,
+            totalExpense: Number(responseData.totals?.usd || 0),
+            netRevenue: Number(responseData.totals?.usd || 0),
           },
           fc: {
             totalIncome: Number(responseData.totals?.fc || 0),
-            totalExpense: 0,
-            netRevenue: 0,
+            totalExpense: Number(responseData.totals?.fc || 0),
+            netRevenue: Number(responseData.totals?.fc || 0),
           },
           dailyTotalUSD: Number(responseData.dailyTotalUSD || 0),
           dailyTotalFC: Number(responseData.dailyTotalFC || 0),
         };
-
-        console.log('Mapped stats object:', stats);
+        console.log(responseData.totals?.fc || 0);
 
         queryClient.invalidateQueries({ queryKey: ['transactions'] });
+        console.log(stats);
         return stats;
       } catch (error) {
         logError(error);
@@ -596,11 +671,20 @@ export const useExportTransactionsPDF = () => {
     mutationFn: async (params: {
       filters: TransactionFilters;
       exportAll?: boolean;
+      conversionRate?: number;
     }) => {
       try {
+        // Determine if we should export all based on filters
+        const shouldExportAll =
+          !params.filters.startDate &&
+          !params.filters.endDate &&
+          !params.filters.type &&
+          !params.filters.category &&
+          !params.filters.search;
+
         // Skip date validation if exporting all transactions
         if (
-          !params.exportAll &&
+          !shouldExportAll &&
           !params.filters.startDate &&
           !params.filters.endDate
         ) {
@@ -609,13 +693,25 @@ export const useExportTransactionsPDF = () => {
 
         const queryParams = new URLSearchParams();
 
-        // Only apply filters if not exporting all
-        if (!params.exportAll) {
-          Object.entries(params.filters).forEach(([key, value]) => {
-            if (value !== undefined && value !== '') {
-              queryParams.append(key, value.toString());
-            }
-          });
+        // Apply filters if not exporting all
+        if (!shouldExportAll) {
+          // Handle date filters first
+          if (params.filters.startDate) {
+            queryParams.append('startDate', params.filters.startDate);
+          }
+          if (params.filters.endDate) {
+            queryParams.append('endDate', params.filters.endDate);
+          }
+          // Handle other filters
+          if (params.filters.type) {
+            queryParams.append('type', params.filters.type);
+          }
+          if (params.filters.category) {
+            queryParams.append('category', params.filters.category);
+          }
+          if (params.filters.search) {
+            queryParams.append('search', params.filters.search);
+          }
         }
 
         // Add pagination parameters to get all records
@@ -639,7 +735,7 @@ export const useExportTransactionsPDF = () => {
 
         // Generate filename based on date range or "all" if exporting everything
         const getDateRangeSuffix = () => {
-          if (params.exportAll) {
+          if (shouldExportAll) {
             return 'all';
           }
 

@@ -20,6 +20,8 @@ import type {
   TransactionFilters,
 } from '@/lib/transaction/types';
 import { Currency, TransactionType } from '@/lib/transaction/types';
+import { canUpdateUsers } from '@/lib/user/permissions';
+import { useAuth } from '@/providers/AuthProvider';
 
 import Filters from '../../lib/transaction/filters';
 import { CreateTransaction } from './create';
@@ -45,9 +47,9 @@ const formatAmount = (amount: number | string | undefined): string => {
 
 const formatCurrencyStats = (stats: { USD: number; FC: number }) => {
   return (
-    <div className="space-y-[2px] text-[18px] font-medium text-gray-800">
-      <div className="text-[12px] md:text-[18px]">{stats.USD.toFixed(2)} $</div>
-      <div className="text-[12px] md:text-[18px]">{stats.FC.toFixed(2)} FC</div>
+    <div className="space-y-[1px] text-[18px] font-medium text-gray-800">
+      <div className="text-[12px] md:text-[14px]">{stats.USD.toFixed(2)} $</div>
+      <div className="text-[12px] md:text-[14px]">{stats.FC.toFixed(2)} FC</div>
     </div>
   );
 };
@@ -103,6 +105,7 @@ const getContributorName = (transaction: Transaction): string => {
 };
 
 const Transactions = () => {
+  const { user: currentUser } = useAuth();
   const [filters, setFilters] = useState<TransactionFilters>({
     startDate: format(
       startOfDay(new Date(new Date().getFullYear(), new Date().getMonth(), 1)),
@@ -115,7 +118,7 @@ const Transactions = () => {
       'yyyy-MM-dd',
     ),
   });
-  const [pagination, setPagination] = useState({ page: 1, limit: 8 });
+  const [pagination, setPagination] = useState({ page: 1, limit: 14 });
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] =
@@ -153,6 +156,7 @@ const Transactions = () => {
   const handleExport = async (
     exportFormat: 'csv' | 'pdf',
     exportAll: boolean = false,
+    conversionRate?: number,
   ) => {
     try {
       // Create a copy of filters without the type property
@@ -167,11 +171,13 @@ const Transactions = () => {
         await exportTransactions.mutateAsync({
           filters: exportFilters,
           exportAll,
+          conversionRate,
         });
       } else {
         await exportTransactionsPDF.mutateAsync({
           filters: exportFilters,
           exportAll,
+          conversionRate,
         });
       }
     } catch (error) {
@@ -235,7 +241,7 @@ const Transactions = () => {
     if (isLoading) {
       return (
         <tr>
-          <td colSpan={8} className="px-6 py-4 text-center">
+          <td colSpan={8} className="px-6 py-1 text-center">
             Chargement des transactions...
           </td>
         </tr>
@@ -245,7 +251,7 @@ const Transactions = () => {
     if (!data?.data?.length) {
       return (
         <tr>
-          <td colSpan={8} className="px-6 py-4 text-center">
+          <td colSpan={8} className="px-6 py-1 text-center">
             Aucune transaction trouvée
           </td>
         </tr>
@@ -261,15 +267,15 @@ const Transactions = () => {
             : 'bg-red-50'
         }`}
       >
-        <td className="whitespace-nowrap px-3 py-4">{index + 1}</td>
-        <td className="whitespace-nowrap px-6 py-4">
-          <div className="text-sm font-medium text-gray-900">
+        <td className="whitespace-nowrap px-3 py-1 text-xs">{index + 1}</td>
+        <td className="whitespace-nowrap px-6 py-1">
+          <div className="text-xs font-medium text-gray-900">
             {getContributorName(transaction)}
           </div>
         </td>
-        <td className="whitespace-nowrap px-6 py-4">
+        <td className="whitespace-nowrap px-6 py-1">
           <div
-            className={`text-sm font-medium ${
+            className={`text-xs font-medium ${
               transaction.type === TransactionType.INCOME
                 ? 'text-green-600'
                 : 'text-red-600'
@@ -278,21 +284,21 @@ const Transactions = () => {
             {transaction.type === TransactionType.INCOME ? 'Revenu' : 'Dépense'}
           </div>
         </td>
-        <td className="whitespace-nowrap px-6 py-4">
-          <div className="text-sm text-gray-900">
+        <td className="whitespace-nowrap px-6 py-1">
+          <div className="text-xs text-gray-900">
             {translateCategoryToFrench(transaction.category)}
           </div>
         </td>
-        <td className="whitespace-nowrap px-6 py-4">
-          <div className="text-sm text-gray-900">
+        <td className="whitespace-nowrap px-6 py-1">
+          <div className="text-xs text-gray-900">
             {transaction.subcategory
               ? translateCategoryToFrench(transaction.subcategory)
               : '-'}
           </div>
         </td>
-        <td className="whitespace-nowrap px-6 py-4">
+        <td className="whitespace-nowrap px-6 py-1">
           <div
-            className={`text-sm font-medium ${
+            className={`text-xs font-medium ${
               transaction.type === TransactionType.INCOME
                 ? 'text-green-600'
                 : 'text-red-600'
@@ -302,20 +308,22 @@ const Transactions = () => {
             {transaction.currency === Currency.USD ? '$' : 'FC'}
           </div>
         </td>
-        <td className="whitespace-nowrap px-6 py-4">
-          <div className="text-sm text-gray-900">
+        <td className="whitespace-nowrap px-6 py-1">
+          <div className="text-xs text-gray-900">
             {format(parseISO(transaction.transactionDate), 'dd/MM/yyyy')}
           </div>
         </td>
-        <td className="whitespace-nowrap px-6 py-4">
-          <button
-            onClick={() => handleUpdate(transaction)}
-            className="rounded-full bg-blue-500 p-2 text-white hover:bg-blue-600"
-            title="Modifier"
-          >
-            <FaEdit className="size-3" />
-          </button>
-        </td>
+        {canUpdateUsers(currentUser?.role) && (
+          <td className="whitespace-nowrap px-6 py-1">
+            <button
+              onClick={() => handleUpdate(transaction)}
+              className="rounded-full bg-blue-500 p-1 text-white hover:bg-blue-600"
+              title="Modifier"
+            >
+              <FaEdit className="size-3" />
+            </button>
+          </td>
+        )}
       </tr>
     ));
   };
@@ -323,7 +331,7 @@ const Transactions = () => {
   return (
     <Layout>
       <div className="p-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between py-4 md:mb-4">
+        <div className="flex items-center justify-between py-2 md:mb-2">
           <h2 className="mr-2 text-[18px] font-semibold md:mr-0 md:text-2xl">
             Transactions
           </h2>
@@ -339,11 +347,11 @@ const Transactions = () => {
         <div className="grid grid-cols-2 gap-2 md:grid-cols-2 md:gap-4 lg:grid-cols-4">
           <Card>
             <CardContent>
-              <h3 className="font-regular mb-[4px] text-[12px] text-green-600 md:mb-[8px] md:text-[14px]">
+              <h3 className="font-regular mb-[1px] text-[12px] text-green-600  md:text-[14px]">
                 Revenu Total ({filters.startDate ? 'Période filtrée' : 'Tout'})
               </h3>
               <div className="flex items-center justify-between">
-                <div className="text-[12px] font-bold md:text-[24px]">
+                <div className="text-[12px] font-bold md:text-[16px]">
                   <p>
                     {formatCurrencyStats({
                       USD: stats?.usd?.totalIncome || 0,
@@ -363,17 +371,17 @@ const Transactions = () => {
 
           <Card>
             <CardContent>
-              <h3 className="font-regular mb-[4px] text-[12px] text-red-600 md:mb-[8px] md:text-[14px]">
+              <h3 className="font-regular mb-[1px] text-[12px] text-red-600  md:text-[14px]">
                 Dépense Totale ({filters.startDate ? 'Période filtrée' : 'Tout'}
                 )
               </h3>
               <div className="flex items-center justify-between">
-                <span className="text-2xl font-bold text-red-600">
+                <div className="text-[12px] font-bold md:text-[16px]">
                   {formatCurrencyStats({
                     USD: stats?.usd?.totalExpense || 0,
                     FC: stats?.fc?.totalExpense || 0,
                   })}
-                </span>
+                </div>
                 <button
                   onClick={() => handleAddTransaction(TransactionType.EXPENSE)}
                   className="rounded-full bg-red-500 p-2 text-white hover:bg-red-600"
@@ -386,7 +394,7 @@ const Transactions = () => {
 
           <Card>
             <CardContent>
-              <h3 className="font-regular mb-[4px] text-[12px] text-blue-500 md:mb-[8px] md:text-[14px]">
+              <h3 className="font-regular mb-[1px] text-[12px] text-blue-500  md:text-[14px]">
                 Solde ({filters.startDate ? 'Période filtrée' : 'Tout'})
               </h3>
               <span className="text-2xl font-bold">
@@ -404,13 +412,10 @@ const Transactions = () => {
 
           <Card>
             <CardContent>
-              <div className="mb-[4px] flex flex-row items-center justify-between md:mb-[8px]">
+              <div className="mb-[4px] flex flex-row items-center justify-between ">
                 <h3 className="font-regular text-[12px] text-orange-500 md:text-[14px]">
                   Revenu Quotidien
                 </h3>
-                {/* <p className="md:text-md text-[10px] font-semibold text-gray-800">
-                  {new Date().toLocaleString('fr-FR', { month: 'long' })}
-                </p> */}
               </div>
               <div className="flex flex-row items-center justify-between">
                 <span className="text-2xl font-bold">
@@ -457,9 +462,11 @@ const Transactions = () => {
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                     Date
                   </th>
-                  <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900">
-                    Action
-                  </th>
+                  {canUpdateUsers(currentUser?.role) && (
+                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-900">
+                      Action
+                    </th>
+                  )}
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-300 bg-white">
@@ -470,7 +477,7 @@ const Transactions = () => {
         </div>
 
         {/* Mobile Cards */}
-        <div className="space-y-4 md:hidden">
+        <div className="mt-4 space-y-4 md:hidden">
           {(() => {
             if (isLoading) {
               return (
