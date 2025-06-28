@@ -24,6 +24,7 @@ const formatDate = (dateString: string) => {
 
 const DailyContributions = () => {
   const [currentPage, setCurrentPage] = useState(1);
+  const [conversionRate, setConversionRate] = useState<number>(2800);
   const [filters, setFilters] = useState<DailyContributionFilters>({
     startDate: new Date(
       new Date().getFullYear(),
@@ -112,7 +113,7 @@ const DailyContributions = () => {
           dailyContributions,
         };
       });
-      await exportToPDF(summaries);
+      await exportToPDF(summaries, conversionRate);
     } catch (error) {
       logger.error('Error exporting daily contributions as PDF:', error);
     }
@@ -172,6 +173,25 @@ const DailyContributions = () => {
             </div>
             <div className="flex flex-row items-center justify-between gap-2 sm:gap-4">
               <SearchInput onSearch={handleSearch} />
+              <div className="flex items-center gap-2">
+                <label
+                  htmlFor="conversionRate"
+                  className="text-xs text-gray-600 md:text-sm"
+                >
+                  Taux(1$)=
+                </label>
+                <input
+                  id="conversionRate"
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={conversionRate}
+                  onChange={(e) => setConversionRate(Number(e.target.value))}
+                  className="w-14 rounded-md border-[1px] border-gray-900/50 p-1 text-xs text-gray-900 shadow-sm md:w-20 md:px-2 md:py-1 md:text-sm"
+                  placeholder="2800"
+                />
+                <span className="text-xs md:text-sm">FC</span>
+              </div>
               <button
                 onClick={handleExport}
                 className="flex items-center rounded-md border-[1px] border-gray-900/50 px-3 py-1.5 text-sm text-gray-900 shadow-sm hover:bg-gray-50 sm:px-4 sm:py-2"

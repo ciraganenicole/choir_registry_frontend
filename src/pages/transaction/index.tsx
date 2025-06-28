@@ -136,10 +136,11 @@ const Transactions = () => {
   const createTransaction = useCreateTransaction();
   const exportTransactions = useExportTransactions();
   const exportTransactionsPDF = useExportTransactionsPDF();
-  // Use the same filters for stats
+  // Use the same filters for stats, but do NOT pass the type filter so we always get both totals
   const { data: stats, refetch: refetchStats } = useTransactionStats({
     startDate: filters.startDate,
     endDate: filters.endDate,
+    // type: filters.type, // <-- removed so cards always show both totals
   });
 
   const handleCreateTransaction = async (

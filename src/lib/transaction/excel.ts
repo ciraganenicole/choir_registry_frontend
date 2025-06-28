@@ -11,6 +11,7 @@ export const exportToPDF = async (
       amountUSD: number;
     }[];
   })[],
+  conversionRate?: number,
 ) => {
   const pdfDoc = new JsPDF({
     orientation: 'portrait',
@@ -62,16 +63,6 @@ export const exportToPDF = async (
   });
   const allDates = Array.from(allDatesSet).sort();
 
-  // Calculate grand totals
-  const grandTotalFC = data.reduce(
-    (sum, item) => sum + (item.totalAmountFC || 0),
-    0,
-  );
-  const grandTotalUSD = data.reduce(
-    (sum, item) => sum + (item.totalAmountUSD || 0),
-    0,
-  );
-
   // Table headers
   const headers = [
     'Noms',
@@ -86,25 +77,114 @@ export const exportToPDF = async (
 
   // Table body
   const body = data.map((item) => {
-    // Map each date to the contribution for that date (FC)
+    // Map each date to the contribution for that date (FC and USD)
     const dateCells = allDates.map((date) => {
-      const contrib = item.dailyContributions?.find(
-        (c: any) => c.date === date,
-      );
-      return contrib ? contrib.amountFC : 0;
+      const contribs =
+        item.dailyContributions?.filter((c: any) => c.date === date) || [];
+      const amountFC = contribs
+        .filter((c: any) => c.amountFC)
+        .reduce((sum: number, c: any) => sum + (c.amountFC || 0), 0);
+      const amountUSD = contribs
+        .filter((c: any) => c.amountUSD)
+        .reduce((sum: number, c: any) => sum + (c.amountUSD || 0), 0);
+      if (amountFC > 0 && amountUSD > 0) {
+        return `${amountFC.toLocaleString()} FC, ${amountUSD.toFixed(2)} $`;
+      }
+      if (amountFC > 0) {
+        return `${amountFC.toLocaleString()} FC`;
+      }
+      if (amountUSD > 0) {
+        return `${amountUSD.toFixed(2)} $`;
+      }
+      return '0';
     });
-    // Total cell: FC up, USD down
-    const totalCell = `${item.totalAmountFC > 0 ? `${item.totalAmountFC.toLocaleString()} FC` : '0 FC'}\n${item.totalAmountUSD > 0 ? `$${item.totalAmountUSD.toFixed(2)}` : '0 $'}`;
+    // Total cell: FC and USD logic
+    const totalFC = item.totalAmountFC || 0;
+    const totalUSD = item.totalAmountUSD || 0;
+    let totalCell = '';
+    if (totalFC > 0 && totalUSD > 0) {
+      totalCell = `${totalFC.toLocaleString()} FC, ${totalUSD.toFixed(2)} $`;
+    } else if (totalFC > 0) {
+      totalCell = `${totalFC.toLocaleString()} FC`;
+    } else if (totalUSD > 0) {
+      totalCell = `${totalUSD.toFixed(2)} $`;
+    } else {
+      totalCell = '0';
+    }
     return [`${item.lastName} ${item.firstName}`, ...dateCells, totalCell];
   });
 
+  // Insert an empty row between the list of names and the Total général row
+  const emptyRow = Array(headers.length).fill('');
+  body.push(emptyRow);
+
   // Add totals row
+  let totalsFC = 0;
+  let totalsUSD = 0;
+  const grandTotalCell = (() => {
+    if (totalsFC > 0 && totalsUSD > 0) {
+      return `${totalsFC.toLocaleString()} FC, ${totalsUSD.toFixed(2)} $`;
+    }
+    if (totalsFC > 0) {
+      return `${totalsFC.toLocaleString()} FC`;
+    }
+    if (totalsUSD > 0) {
+      return `${totalsUSD.toFixed(2)} $`;
+    }
+    return '0';
+  })();
   const totalsRow = [
     'Total général',
-    ...allDates.map(() => ''),
-    `${grandTotalFC > 0 ? `${grandTotalFC.toLocaleString()} FC` : '0 FC'}\n${grandTotalUSD > 0 ? `$${grandTotalUSD.toFixed(2)}` : '0 $'}`,
+    ...allDates.map((date) => {
+      let sumFC = 0;
+      let sumUSD = 0;
+      data.forEach((item) => {
+        const contribs =
+          item.dailyContributions?.filter((c: any) => c.date === date) || [];
+        sumFC += contribs
+          .filter((c: any) => c.amountFC)
+          .reduce((sum: number, c: any) => sum + (c.amountFC || 0), 0);
+        sumUSD += contribs
+          .filter((c: any) => c.amountUSD)
+          .reduce((sum: number, c: any) => sum + (c.amountUSD || 0), 0);
+      });
+      totalsFC += sumFC;
+      totalsUSD += sumUSD;
+      if (sumFC > 0 && sumUSD > 0) {
+        return `${sumFC.toLocaleString()} FC, ${sumUSD.toFixed(2)} $`;
+      }
+      if (sumFC > 0) {
+        return `${sumFC.toLocaleString()} FC`;
+      }
+      if (sumUSD > 0) {
+        return `${sumUSD.toFixed(2)} $`;
+      }
+      return '0';
+    }),
+    grandTotalCell,
   ];
   body.push(totalsRow);
+
+  // Add subtotal and total rows
+  const subtotalFCRow = [
+    '',
+    ...Array(allDates.length).fill(''),
+    `Sous-total FC: ${totalsFC.toLocaleString()} FC`,
+  ];
+  const subtotalUSDRow = [
+    '',
+    ...Array(allDates.length).fill(''),
+    `Sous-total $: ${totalsUSD.toFixed(2)} $`,
+  ];
+  const convertedFCtoUSD =
+    conversionRate && conversionRate > 0 ? totalsFC / conversionRate : 0;
+  const totalUSD = convertedFCtoUSD + totalsUSD;
+  const totalUSDRow = [
+    '',
+    ...Array(allDates.length).fill(''),
+    `Total $: ${totalUSD.toFixed(2)} $`,
+  ];
+  body.push(subtotalFCRow, subtotalUSDRow, totalUSDRow);
 
   autoTable(pdfDoc, {
     head: [headers],
@@ -118,12 +198,12 @@ export const exportToPDF = async (
       fontStyle: 'bold',
       halign: 'left',
       fontSize: 12,
-      cellPadding: 2,
+      cellPadding: 4,
     },
     bodyStyles: {
       fontSize: 12,
       halign: 'left',
-      cellPadding: 2,
+      cellPadding: 4,
     },
     alternateRowStyles: {
       fillColor: [240, 240, 240],
@@ -132,11 +212,36 @@ export const exportToPDF = async (
       const { cell, column, row } = hookData;
       const isTotalsRow =
         Array.isArray(row.raw) && row.raw[0] === 'Total général';
+      const lastCell = Array.isArray(row.raw)
+        ? row.raw[row.raw.length - 1]
+        : undefined;
+      const isSummaryRow =
+        typeof lastCell === 'string' &&
+        (lastCell.startsWith('Sous-total FC:') ||
+          lastCell.startsWith('Sous-total $:') ||
+          lastCell.startsWith('Total $:'));
       if (isTotalsRow) {
         cell.styles.fillColor = [230, 230, 230];
         if (column.index === 0) {
           cell.styles.fontStyle = 'bold';
         }
+      }
+      if (isSummaryRow) {
+        cell.styles.fillColor = [91, 227, 248];
+        cell.styles.fontSize = 14;
+        cell.styles.fontStyle = 'bold';
+        if (Array.isArray(row.raw) && column.index === row.raw.length - 1) {
+          cell.styles.textColor = [0, 0, 0];
+        }
+      }
+      // Make the Total column (last column) semi-bold and larger
+      if (Array.isArray(row.raw) && column.index === row.raw.length - 1) {
+        cell.styles.fontStyle = 'bold'; // 'semibold' is not supported, use 'bold'
+        cell.styles.fontSize = 14;
+      }
+      // Set all text except header to black
+      if (hookData.section !== 'head') {
+        cell.styles.textColor = [0, 0, 0];
       }
       // Set base styles
       cell.styles.lineWidth = 0.1;

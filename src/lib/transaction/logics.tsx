@@ -450,180 +450,6 @@ export function useDailyContributions(
   return query;
 }
 
-export const useExportDailyContributions = () => {
-  return useMutation({
-    mutationFn: async (filters: DailyContributionFilters) => {
-      try {
-        const response = await api.get('/transactions/daily', {
-          params: {
-            ...filters,
-            limit: 999999,
-          },
-        });
-
-        const { data } = response;
-        const dates = data.dates || [];
-        const contributors = data.contributors || [];
-
-        // Create PDF document with consistent margins
-        const doc = new JSPDF({
-          orientation: 'landscape',
-          unit: 'mm',
-          format: 'a4',
-        });
-        const margin = 15;
-
-        try {
-          const logoResponse = await fetch('/assets/images/Wlogo.png');
-          const blob = await logoResponse.blob();
-          const reader = new FileReader();
-
-          const base64 = await new Promise<string>((resolve) => {
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.readAsDataURL(blob);
-          });
-
-          doc.addImage(base64, 'PNG', 15, 15, 35, 20);
-        } catch (error) {
-          logError(error);
-        }
-
-        doc.setFontSize(11);
-        doc.setFont('helvetica', 'bold');
-        doc.text(
-          'COMMUNAUTE DES EGLISES LIBRES DE PENTECOTE EN AFRIQUE',
-          margin + 30,
-          20,
-        );
-        doc.text('5è CELPA SALEM GOMA', margin + 30, 25);
-        doc.text('CHORALE LA NOUVELLE JERUSALEM', margin + 30, 30);
-
-        doc.setFontSize(12);
-        doc.text('CONTRIBUTIONS QUOTIDIENNES', margin, 45);
-
-        let frenchDateHeader = '';
-        if (filters.startDate && filters.endDate) {
-          frenchDateHeader = `Contributions du ${format(parseISO(filters.startDate), 'MMMM d, yyyy')} au ${format(parseISO(filters.endDate), 'MMMM d, yyyy')}`;
-        }
-
-        doc.setFontSize(10);
-        doc.text(frenchDateHeader, margin, 52);
-
-        // Prepare table headers
-        const headers = ['Prénom', 'Nom'];
-        dates.forEach((date: string) => {
-          headers.push(format(parseISO(date), 'MMM d, yyyy'));
-        });
-        headers.push('Total');
-
-        // Prepare table data
-        const tableData = contributors.map((contributor: any) => {
-          const rowData = [contributor.lastName, contributor.firstName];
-          let contributorTotal = 0;
-
-          dates.forEach((date: string) => {
-            const contribution = contributor.contributions.find(
-              (c: any) => c.date === date,
-            );
-            const amount = contribution?.amount || 0;
-            contributorTotal += amount;
-            rowData.push(amount ? amount.toFixed(2) : '-');
-          });
-
-          rowData.push(contributorTotal.toFixed(2));
-          return rowData;
-        });
-
-        // Calculate totals for each date
-        const dailyTotals = dates.map((date: string) => {
-          return contributors.reduce((sum: number, contributor: any) => {
-            const contribution = contributor.contributions.find(
-              (c: any) => c.date === date,
-            );
-            return sum + (contribution?.amount || 0);
-          }, 0);
-        });
-
-        // Calculate grand total
-        const grandTotal = dailyTotals.reduce(
-          (sum: number, total: number) => sum + total,
-          0,
-        );
-
-        // Add totals row
-        const totalsRow = [
-          'Total',
-          '',
-          ...dailyTotals.map((t: number) => t.toFixed(2)),
-          grandTotal.toFixed(2),
-        ];
-
-        autoTable(doc, {
-          startY: 60,
-          head: [headers],
-          body: tableData,
-          foot: [totalsRow],
-          theme: 'grid',
-          styles: {
-            fontSize: 8,
-            cellPadding: 2,
-            lineColor: [0, 0, 0],
-            lineWidth: 0.1,
-          },
-          headStyles: {
-            fillColor: [43, 53, 68],
-            textColor: [255, 255, 255],
-            fontStyle: 'bold',
-            halign: 'left',
-          },
-          footStyles: {
-            fillColor: [240, 240, 240],
-            textColor: [0, 0, 0],
-            fontStyle: 'bold',
-          },
-          columnStyles: {
-            0: { cellWidth: 30 }, // Prénom
-            1: { cellWidth: 30 }, // Nom
-            [headers.length - 1]: { cellWidth: 25 }, // Total column
-          },
-          didParseCell: (hookData) => {
-            const newStyles = { ...hookData.cell.styles };
-
-            // Center align all date columns
-            if (
-              hookData.column.index > 1 &&
-              hookData.column.index < headers.length - 1
-            ) {
-              newStyles.halign = 'left';
-            }
-
-            // left align the total column
-            if (hookData.column.index === headers.length - 1) {
-              newStyles.halign = 'right';
-            }
-
-            // Color the amounts in green (except in header and footer)
-            if (hookData.section === 'body' && hookData.column.index > 1) {
-              if (hookData.cell.raw !== '-') {
-                newStyles.textColor = [0, 0, 0];
-              }
-            }
-
-            Object.assign(hookData.cell.styles, newStyles);
-          },
-          margin: { top: 5, left: margin, bottom: margin, right: margin },
-        });
-
-        const filename = `contributions_quotidiennes_${format(parseISO(new Date().toISOString()), 'MMMM-d-yyyy').replace(/\//g, '-')}.pdf`;
-        doc.save(filename);
-      } catch (error) {
-        logError(error);
-        throw error;
-      }
-    },
-  });
-};
-
 // Get transaction statistics
 export const useTransactionStats = (filters?: TransactionFilters) => {
   const queryClient = useQueryClient();
@@ -638,17 +464,17 @@ export const useTransactionStats = (filters?: TransactionFilters) => {
 
         const stats: TransactionStats = {
           usd: {
-            totalIncome: Number(responseData.totals?.usd || 0),
-            totalExpense: Number(responseData.totals?.usd || 0),
-            netRevenue: Number(responseData.totals?.usd || 0),
+            totalIncome: responseData.totals?.income?.usd || 0,
+            totalExpense: responseData.totals?.expense?.usd || 0,
+            netRevenue: responseData.totals?.solde?.usd || 0,
           },
           fc: {
-            totalIncome: Number(responseData.totals?.fc || 0),
-            totalExpense: Number(responseData.totals?.fc || 0),
-            netRevenue: Number(responseData.totals?.fc || 0),
+            totalIncome: responseData.totals?.income?.fc || 0,
+            totalExpense: responseData.totals?.expense?.fc || 0,
+            netRevenue: responseData.totals?.solde?.fc || 0,
           },
-          dailyTotalUSD: Number(responseData.dailyTotalUSD || 0),
-          dailyTotalFC: Number(responseData.dailyTotalFC || 0),
+          dailyTotalUSD: responseData.dailyTotalUSD || 0,
+          dailyTotalFC: responseData.dailyTotalFC || 0,
         };
         console.log(responseData.totals?.fc || 0);
 
