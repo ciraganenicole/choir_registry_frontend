@@ -38,25 +38,28 @@ const DailyContributions = () => {
     ).toISOString(),
   });
 
-  const { data: contributionsData, isLoading: isContributionsLoading } =
-    useQuery<DailyContributionsResponse>({
-      queryKey: [
-        'daily-contributions',
-        filters,
-        { page: currentPage, limit: 10 },
-      ],
-      queryFn: () =>
-        TransactionService.fetchDailyContributions(filters, {
-          page: currentPage,
-          limit: 10,
-        }),
-      staleTime: 1000 * 60,
-    });
+  const {
+    data: contributionsData,
+    isLoading: isContributionsLoading,
+    refetch,
+  } = useQuery<DailyContributionsResponse>({
+    queryKey: [
+      'daily-contributions',
+      filters,
+      { page: currentPage, limit: 10 },
+    ],
+    queryFn: () =>
+      TransactionService.fetchDailyContributions(filters, {
+        page: currentPage,
+        limit: 10,
+      }),
+    staleTime: 0,
+  });
 
   const { data: usersData, isLoading: isUsersLoading } = useQuery({
     queryKey: ['users', { page: currentPage, limit: 1000 }],
     queryFn: () => FetchUsers({ page: currentPage, limit: 1000 }),
-    staleTime: 1000 * 60,
+    staleTime: 0,
   });
 
   const handleSearch = (query: string) => {
@@ -199,6 +202,16 @@ const DailyContributions = () => {
                 <Download className="size-4 md:mr-2" />
                 <span className="hidden sm:inline">Exporter</span>
               </button>
+              <button
+                onClick={async () => {
+                  console.log('Refresh button clicked');
+                  const result = await refetch();
+                  console.log('Refetched contributionsData:', result.data);
+                }}
+                className="flex items-center rounded-md border-[1px] border-gray-900/50 px-3 py-1.5 text-sm text-gray-900 shadow-sm hover:bg-gray-50 sm:px-4 sm:py-2"
+              >
+                <span>Rafraîchir</span>
+              </button>
             </div>
           </div>
         </div>
@@ -234,7 +247,7 @@ const DailyContributions = () => {
                           key={date}
                           className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 sm:px-6"
                         >
-                          {formatDate(date)}
+                          {format(parseISO(date), 'dd')}
                         </th>
                       ))}
                       <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 sm:px-6">

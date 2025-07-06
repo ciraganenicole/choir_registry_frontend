@@ -1,7 +1,6 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import { format, parseISO, startOfDay } from 'date-fns';
 import { Download, RefreshCw } from 'lucide-react';
-import { useState } from 'react';
 
 import type { TransactionFilters } from './types';
 import {
@@ -47,15 +46,17 @@ interface FiltersProps {
     conversionRate?: number,
   ) => void;
   currentFilters: TransactionFilters;
+  conversionRate: number;
+  setConversionRate: React.Dispatch<React.SetStateAction<number>>;
 }
 
 const Filters = ({
   onFilterChange,
   onExport,
   currentFilters,
+  conversionRate,
+  setConversionRate,
 }: FiltersProps) => {
-  const [conversionRate, setConversionRate] = useState<number>(2800);
-
   const getCategories = () => {
     if (currentFilters.type === TransactionType.INCOME) {
       return Object.values(IncomeCategories);

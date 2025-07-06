@@ -40,20 +40,6 @@ const formatAmount = (amount: number | string | undefined): string => {
   return Number.isNaN(numAmount) ? '0.00' : numAmount.toFixed(2);
 };
 
-// const formatChange = (change?: number) => {
-//   if (change === undefined) return '0';
-//   return `${change > 0 ? '+' : ''}${change.toFixed(2)}`;
-// };
-
-const formatCurrencyStats = (stats: { USD: number; FC: number }) => {
-  return (
-    <div className="space-y-[1px] text-[18px] font-medium text-gray-800">
-      <div className="text-[12px] md:text-[14px]">{stats.USD.toFixed(2)} $</div>
-      <div className="text-[12px] md:text-[14px]">{stats.FC.toFixed(2)} FC</div>
-    </div>
-  );
-};
-
 // Helper function to translate categories to French
 const translateCategoryToFrench = (category: string): string => {
   const translations: Record<string, string> = {
@@ -106,6 +92,7 @@ const getContributorName = (transaction: Transaction): string => {
 
 const Transactions = () => {
   const { user: currentUser } = useAuth();
+  const [conversionRate, setConversionRate] = useState<number>(2800);
   const [filters, setFilters] = useState<TransactionFilters>({
     startDate: format(
       startOfDay(new Date(new Date().getFullYear(), new Date().getMonth(), 1)),
@@ -157,7 +144,7 @@ const Transactions = () => {
   const handleExport = async (
     exportFormat: 'csv' | 'pdf',
     exportAll: boolean = false,
-    conversionRate?: number,
+    exportConversionRate?: number,
   ) => {
     try {
       // Create a copy of filters without the type property
@@ -172,13 +159,13 @@ const Transactions = () => {
         await exportTransactions.mutateAsync({
           filters: exportFilters,
           exportAll,
-          conversionRate,
+          conversionRate: exportConversionRate,
         });
       } else {
         await exportTransactionsPDF.mutateAsync({
           filters: exportFilters,
           exportAll,
-          conversionRate,
+          conversionRate: exportConversionRate,
         });
       }
     } catch (error) {
@@ -236,6 +223,22 @@ const Transactions = () => {
     // Refetch data and stats
     refetch();
     refetchStats();
+  };
+
+  const formatCurrencyStats = (currencyStats: { USD: number; FC: number }) => {
+    return (
+      <div className="space-y-[1px] text-[18px] font-medium text-gray-800">
+        <div className="text-[12px] md:text-[14px]">
+          {currencyStats.USD.toFixed(0)} $
+        </div>
+        <div className="flex items-center gap-1 text-[12px] md:text-[14px]">
+          {currencyStats.FC.toFixed(0)} FC
+          <span className="text-xs text-gray-500">
+            (~{(currencyStats.FC / conversionRate).toFixed(2)} $)
+          </span>
+        </div>
+      </div>
+    );
   };
 
   const renderTableContent = () => {
@@ -343,10 +346,12 @@ const Transactions = () => {
           onFilterChange={handleFilterChange}
           onExport={handleExport}
           currentFilters={filters}
+          conversionRate={conversionRate}
+          setConversionRate={setConversionRate}
         />
 
         <div className="grid grid-cols-2 gap-2 md:grid-cols-2 md:gap-4 lg:grid-cols-4">
-          <Card>
+          <Card className="border-l-4 border-green-500">
             <CardContent>
               <h3 className="font-regular mb-[1px] text-[12px] text-green-600  md:text-[14px]">
                 Revenu Total ({filters.startDate ? 'Période filtrée' : 'Tout'})
@@ -370,7 +375,7 @@ const Transactions = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-red-500">
             <CardContent>
               <h3 className="font-regular mb-[1px] text-[12px] text-red-600  md:text-[14px]">
                 Dépense Totale ({filters.startDate ? 'Période filtrée' : 'Tout'}
@@ -393,7 +398,7 @@ const Transactions = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-blue-500">
             <CardContent>
               <h3 className="font-regular mb-[1px] text-[12px] text-blue-500  md:text-[14px]">
                 Solde ({filters.startDate ? 'Période filtrée' : 'Tout'})
@@ -411,7 +416,7 @@ const Transactions = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="border-l-4 border-orange-500">
             <CardContent>
               <div className="mb-[4px] flex flex-row items-center justify-between ">
                 <h3 className="font-regular text-[12px] text-orange-500 md:text-[14px]">

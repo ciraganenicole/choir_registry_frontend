@@ -14,7 +14,7 @@ export const exportToPDF = async (
   conversionRate?: number,
 ) => {
   const pdfDoc = new JsPDF({
-    orientation: 'portrait',
+    orientation: 'landscape',
     unit: 'mm',
     format: 'a4',
   });
@@ -68,9 +68,7 @@ export const exportToPDF = async (
     'Noms',
     ...allDates.map((date) => {
       const d = new Date(date);
-      return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1)
-        .toString()
-        .padStart(2, '0')}`;
+      return d.getDate().toString().padStart(2, '0');
     }),
     'Total',
   ];
@@ -88,10 +86,10 @@ export const exportToPDF = async (
         .filter((c: any) => c.amountUSD)
         .reduce((sum: number, c: any) => sum + (c.amountUSD || 0), 0);
       if (amountFC > 0 && amountUSD > 0) {
-        return `${amountFC.toLocaleString()} FC, ${amountUSD.toFixed(2)} $`;
+        return `${amountFC} FC, ${amountUSD.toFixed(2)} $`;
       }
       if (amountFC > 0) {
-        return `${amountFC.toLocaleString()} FC`;
+        return `${amountFC} FC`;
       }
       if (amountUSD > 0) {
         return `${amountUSD.toFixed(2)} $`;
@@ -103,9 +101,9 @@ export const exportToPDF = async (
     const totalUSD = item.totalAmountUSD || 0;
     let totalCell = '';
     if (totalFC > 0 && totalUSD > 0) {
-      totalCell = `${totalFC.toLocaleString()} FC, ${totalUSD.toFixed(2)} $`;
+      totalCell = `${totalFC} FC, ${totalUSD.toFixed(2)} $`;
     } else if (totalFC > 0) {
-      totalCell = `${totalFC.toLocaleString()} FC`;
+      totalCell = `${totalFC} FC`;
     } else if (totalUSD > 0) {
       totalCell = `${totalUSD.toFixed(2)} $`;
     } else {
@@ -123,10 +121,10 @@ export const exportToPDF = async (
   let totalsUSD = 0;
   const grandTotalCell = (() => {
     if (totalsFC > 0 && totalsUSD > 0) {
-      return `${totalsFC.toLocaleString()} FC, ${totalsUSD.toFixed(2)} $`;
+      return `${totalsFC} FC, ${totalsUSD.toFixed(2)} $`;
     }
     if (totalsFC > 0) {
-      return `${totalsFC.toLocaleString()} FC`;
+      return `${totalsFC} FC`;
     }
     if (totalsUSD > 0) {
       return `${totalsUSD.toFixed(2)} $`;
@@ -169,7 +167,7 @@ export const exportToPDF = async (
   const subtotalFCRow = [
     '',
     ...Array(allDates.length).fill(''),
-    `Sous-total FC: ${totalsFC.toLocaleString()} FC`,
+    `Sous-total FC: ${totalsFC} FC`,
   ];
   const subtotalUSDRow = [
     '',
@@ -201,7 +199,7 @@ export const exportToPDF = async (
       cellPadding: 4,
     },
     bodyStyles: {
-      fontSize: 12,
+      fontSize: 10,
       halign: 'left',
       cellPadding: 4,
     },

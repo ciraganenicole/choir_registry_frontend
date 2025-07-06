@@ -7,6 +7,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import React, { useState } from 'react';
 import type { IconType } from 'react-icons';
+import { FaClock, FaCog, FaMusic, FaTrophy } from 'react-icons/fa';
 import { IoLogoUsd } from 'react-icons/io';
 import { TbLogout2 } from 'react-icons/tb';
 
@@ -60,6 +61,46 @@ const Layout = ({ children }: { children: ReactNode }) => {
       label: 'Transactions',
       roles: [UserRole.SUPER_ADMIN, UserRole.FINANCE_ADMIN],
     },
+    {
+      path: '/performance',
+      icon: FaTrophy,
+      label: 'Performance',
+      roles: [
+        UserRole.SUPER_ADMIN,
+        UserRole.ATTENDANCE_ADMIN,
+        UserRole.FINANCE_ADMIN,
+      ],
+    },
+    {
+      path: '/library',
+      icon: FaMusic,
+      label: 'Repertoire',
+      roles: [
+        UserRole.SUPER_ADMIN,
+        UserRole.ATTENDANCE_ADMIN,
+        UserRole.FINANCE_ADMIN,
+      ],
+    },
+    {
+      path: '/shift',
+      icon: FaClock,
+      label: 'Shifts',
+      roles: [
+        UserRole.SUPER_ADMIN,
+        UserRole.ATTENDANCE_ADMIN,
+        UserRole.FINANCE_ADMIN,
+      ],
+    },
+    {
+      path: '/settings',
+      icon: FaCog,
+      label: 'Settings',
+      roles: [
+        UserRole.SUPER_ADMIN,
+        UserRole.ATTENDANCE_ADMIN,
+        UserRole.FINANCE_ADMIN,
+      ],
+    },
   ];
 
   // Filter menu items based on user role
@@ -70,7 +111,9 @@ const Layout = ({ children }: { children: ReactNode }) => {
   const renderSidebarContent = (isMobile = false) => (
     <>
       <div>
-        <nav className={`flex flex-col gap-4 ${isMobile ? 'mt-16' : 'mt-8'}`}>
+        <nav
+          className={`flex flex-col gap-4 md:gap-6 ${isMobile ? 'mt-16' : 'mt-8'}`}
+        >
           {filteredMenuItems.map((item) => (
             <Link
               key={item.path}

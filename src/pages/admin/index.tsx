@@ -323,7 +323,7 @@ const AdminDashboard: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-2 gap-2 md:gap-4 lg:grid-cols-4">
-          <div className="flex items-center justify-between rounded-lg bg-white p-2 shadow-sm md:p-6">
+          <div className="flex items-center justify-between rounded-lg border-l-4 border-blue-500 bg-white p-2 shadow-sm md:p-6">
             <div>
               <p className="text-xs font-medium text-gray-500 md:text-sm">
                 Total Membres
@@ -337,7 +337,7 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg bg-white p-2 shadow-sm md:p-6">
+          <div className="flex items-center justify-between rounded-lg border-l-4 border-green-500 bg-white p-2 shadow-sm md:p-6">
             <div>
               <p className="text-xs font-medium text-gray-500 md:text-sm">
                 Présences cette Année
@@ -351,7 +351,7 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg bg-white p-2 shadow-sm md:p-6">
+          <div className="flex items-center justify-between rounded-lg border-l-4 border-orange-500 bg-white p-2 shadow-sm md:p-6">
             <div>
               <p className="text-xs font-medium text-gray-500 md:text-sm">
                 Retards cette Année
@@ -365,7 +365,7 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg bg-white p-2 shadow-sm md:p-6">
+          <div className="flex items-center justify-between rounded-lg border-l-4 border-red-500 bg-white p-2 shadow-sm md:p-6">
             <div>
               <p className="text-xs font-medium text-gray-500 md:text-sm">
                 Absences cette Année
