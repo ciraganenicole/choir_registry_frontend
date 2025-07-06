@@ -18,10 +18,6 @@ import type { User } from '@/lib/user/type';
 import { FetchUsers } from '@/lib/user/user_actions';
 import { logger } from '@/utils/logger';
 
-const formatDate = (dateString: string) => {
-  return format(parseISO(dateString), 'dd/MM/yyyy');
-};
-
 const DailyContributions = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [conversionRate, setConversionRate] = useState<number>(2800);
@@ -38,25 +34,28 @@ const DailyContributions = () => {
     ).toISOString(),
   });
 
-  const { data: contributionsData, isLoading: isContributionsLoading } =
-    useQuery<DailyContributionsResponse>({
-      queryKey: [
-        'daily-contributions',
-        filters,
-        { page: currentPage, limit: 10 },
-      ],
-      queryFn: () =>
-        TransactionService.fetchDailyContributions(filters, {
-          page: currentPage,
-          limit: 10,
-        }),
-      staleTime: 1000 * 60,
-    });
+  const {
+    data: contributionsData,
+    isLoading: isContributionsLoading,
+    refetch,
+  } = useQuery<DailyContributionsResponse>({
+    queryKey: [
+      'daily-contributions',
+      filters,
+      { page: currentPage, limit: 1000 },
+    ],
+    queryFn: () =>
+      TransactionService.fetchDailyContributions(filters, {
+        page: currentPage,
+        limit: 1000,
+      }),
+    staleTime: 0,
+  });
 
   const { data: usersData, isLoading: isUsersLoading } = useQuery({
     queryKey: ['users', { page: currentPage, limit: 1000 }],
     queryFn: () => FetchUsers({ page: currentPage, limit: 1000 }),
-    staleTime: 1000 * 60,
+    staleTime: 0,
   });
 
   const handleSearch = (query: string) => {
@@ -166,10 +165,6 @@ const DailyContributions = () => {
               <h2 className="text-lg font-semibold sm:text-xl md:text-2xl">
                 Contributions Quotidiennes
               </h2>
-              <p className="text-xs text-gray-500 sm:text-sm">
-                {filters.startDate &&
-                  format(parseISO(filters.startDate), 'dd/MM/yyyy')}
-              </p>
             </div>
             <div className="flex flex-row items-center justify-between gap-2 sm:gap-4">
               <SearchInput onSearch={handleSearch} />
@@ -232,9 +227,9 @@ const DailyContributions = () => {
                       {dates.map((date: string) => (
                         <th
                           key={date}
-                          className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 sm:px-6"
+                          className="px-1 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 sm:px-6"
                         >
-                          {formatDate(date)}
+                          {format(parseISO(date), 'dd')}
                         </th>
                       ))}
                       <th className="px-4 py-3 text-center text-xs font-medium uppercase tracking-wider text-gray-500 sm:px-6">
@@ -266,7 +261,7 @@ const DailyContributions = () => {
                             return (
                               <td
                                 key={date}
-                                className="whitespace-nowrap px-4 py-3 text-center text-sm sm:px-6"
+                                className="whitespace-nowrap px-1 py-3 text-center text-sm"
                               >
                                 {contribution ? (
                                   <span className="text-green-600">
@@ -283,7 +278,7 @@ const DailyContributions = () => {
                               </td>
                             );
                           })}
-                          <td className="whitespace-nowrap px-4 py-3 text-center text-sm font-bold sm:px-6">
+                          <td className="whitespace-nowrap px-4 py-3 text-center text-sm font-bold">
                             <div className="flex flex-col gap-1">
                               {contributorTotal.usd > 0 && (
                                 <span className="text-green-600">
@@ -384,7 +379,7 @@ const DailyContributions = () => {
                           >
                             <div className="flex flex-col">
                               <span className="text-sm font-medium text-gray-900 sm:text-base">
-                                {formatDate(date)}
+                                {format(parseISO(date), 'dd')}
                               </span>
                             </div>
                             <span

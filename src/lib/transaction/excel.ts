@@ -1,5 +1,6 @@
 import { jsPDF as JsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { api } from '@/config/api';
 
 import type { DailyContributionSummary } from './types';
 
@@ -14,7 +15,7 @@ export const exportToPDF = async (
   conversionRate?: number,
 ) => {
   const pdfDoc = new JsPDF({
-    orientation: 'portrait',
+    orientation: 'landscape',
     unit: 'mm',
     format: 'a4',
   });
@@ -52,6 +53,73 @@ export const exportToPDF = async (
     margin + 18,
   );
 
+  // 1. Fetch total solde (all-time)
+  let totalSoldeUSD = 0;
+  let totalSoldeFC = 0;
+  try {
+    const { data: totalSoldeData } = await api.get('/transactions/stats');
+    totalSoldeUSD = totalSoldeData.totals?.solde?.usd || 0;
+    totalSoldeFC = totalSoldeData.totals?.solde?.fc || 0;
+  } catch (err) {
+    // If the fetch fails, leave totals at 0
+  }
+
+  // 2. Fetch solde for the current month
+  const now = new Date();
+  const firstDayCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const today = now;
+  const startDateCurrent = firstDayCurrentMonth.toISOString().split('T')[0];
+  const endDateCurrent = today.toISOString().split('T')[0];
+  let currentMonthSoldeUSD = 0;
+  let currentMonthSoldeFC = 0;
+  try {
+    const { data: currentMonthData } = await api.get('/transactions/stats', {
+      params: { startDate: startDateCurrent, endDate: endDateCurrent }
+    });
+    currentMonthSoldeUSD = currentMonthData.totals?.solde?.usd || 0;
+    currentMonthSoldeFC = currentMonthData.totals?.solde?.fc || 0;
+  } catch (err) {
+    // If the fetch fails, leave at 0
+  }
+
+  // 3. Calculate solde for all previous months
+  const pastMonthSoldeUSD = totalSoldeUSD - currentMonthSoldeUSD;
+  const pastMonthSoldeFC = totalSoldeFC - currentMonthSoldeFC;
+  const pastMonthFCinUSD = conversionRate && conversionRate > 0 ? (pastMonthSoldeFC / conversionRate) : 0;
+  const pastMonthDiff = (Math.abs(pastMonthFCinUSD) - Math.abs(pastMonthSoldeUSD)).toFixed(2);
+
+  // Fetch total expenses (all time)
+  let totalExpenseUSD = 0;
+  let totalExpenseFC = 0;
+  try {
+    const { data: statsData } = await api.get('/transactions/stats');
+    totalExpenseUSD = statsData.totals?.expense?.usd || 0;
+    totalExpenseFC = statsData.totals?.expense?.fc || 0;
+  } catch (err) {}
+
+  // Helper to show FC equivalent in dollars
+  const fcToUsd = (fc: number) =>
+    conversionRate && conversionRate > 0 ? `(${(fc / conversionRate).toFixed(2)} $)` : '';
+
+  // Add summary (resume) section under the logo, before the table
+  let summaryY = margin + 15; // After logo and title/date
+  pdfDoc.setFontSize(12);
+  pdfDoc.setFont('helvetica', 'bold');
+  pdfDoc.text('Résumé:', margin, summaryY);
+  pdfDoc.setFontSize(11);
+  pdfDoc.setFont('helvetica', 'normal');
+  const totalFCinUSD = conversionRate && conversionRate > 0 ? (totalSoldeFC / conversionRate) : 0;
+  const totalSoldeDiff = (Math.abs(totalFCinUSD) - Math.abs(totalSoldeUSD)).toFixed(2);
+  pdfDoc.text(
+    `Solde cumulé: ${totalSoldeUSD} $ / ${totalSoldeFC} FC (${totalFCinUSD.toFixed(2)} $) = ${totalSoldeDiff}`,
+    margin,
+    summaryY + 8
+  );
+  pdfDoc.text(
+    `Solde du Mois Précédent: ${pastMonthSoldeUSD} $ / ${pastMonthSoldeFC} FC (${pastMonthFCinUSD.toFixed(2)} $) = ${pastMonthDiff}`,
+    margin,
+    summaryY + 16
+  );
   // Gather all unique dates from data
   const allDatesSet = new Set<string>();
   data.forEach((item) => {
@@ -88,13 +156,13 @@ export const exportToPDF = async (
         .filter((c: any) => c.amountUSD)
         .reduce((sum: number, c: any) => sum + (c.amountUSD || 0), 0);
       if (amountFC > 0 && amountUSD > 0) {
-        return `${amountFC.toLocaleString()} FC, ${amountUSD.toFixed(2)} $`;
+        return `${amountFC} FC, ${amountUSD.toFixed(0)} $`;
       }
       if (amountFC > 0) {
-        return `${amountFC.toLocaleString()} FC`;
+        return `${amountFC} FC`;
       }
       if (amountUSD > 0) {
-        return `${amountUSD.toFixed(2)} $`;
+        return `${amountUSD.toFixed(0)} $`;
       }
       return '0';
     });
@@ -103,11 +171,11 @@ export const exportToPDF = async (
     const totalUSD = item.totalAmountUSD || 0;
     let totalCell = '';
     if (totalFC > 0 && totalUSD > 0) {
-      totalCell = `${totalFC.toLocaleString()} FC, ${totalUSD.toFixed(2)} $`;
+      totalCell = `${totalFC} FC, ${totalUSD.toFixed(0)} $`;
     } else if (totalFC > 0) {
-      totalCell = `${totalFC.toLocaleString()} FC`;
+      totalCell = `${totalFC} FC`;
     } else if (totalUSD > 0) {
-      totalCell = `${totalUSD.toFixed(2)} $`;
+      totalCell = `${totalUSD.toFixed(0)} $`;
     } else {
       totalCell = '0';
     }
@@ -123,13 +191,13 @@ export const exportToPDF = async (
   let totalsUSD = 0;
   const grandTotalCell = (() => {
     if (totalsFC > 0 && totalsUSD > 0) {
-      return `${totalsFC.toLocaleString()} FC, ${totalsUSD.toFixed(2)} $`;
+      return `${totalsFC} FC, ${totalsUSD.toFixed(0)} $`;
     }
     if (totalsFC > 0) {
-      return `${totalsFC.toLocaleString()} FC`;
+      return `${totalsFC} FC`;
     }
     if (totalsUSD > 0) {
-      return `${totalsUSD.toFixed(2)} $`;
+      return `${totalsUSD.toFixed(0)} $`;
     }
     return '0';
   })();
@@ -151,13 +219,13 @@ export const exportToPDF = async (
       totalsFC += sumFC;
       totalsUSD += sumUSD;
       if (sumFC > 0 && sumUSD > 0) {
-        return `${sumFC.toLocaleString()} FC, ${sumUSD.toFixed(2)} $`;
+        return `${sumFC} FC, ${sumUSD.toFixed(0)} $`;
       }
       if (sumFC > 0) {
-        return `${sumFC.toLocaleString()} FC`;
+        return `${sumFC} FC`;
       }
       if (sumUSD > 0) {
-        return `${sumUSD.toFixed(2)} $`;
+        return `${sumUSD.toFixed(0)} $`;
       }
       return '0';
     }),
@@ -169,12 +237,12 @@ export const exportToPDF = async (
   const subtotalFCRow = [
     '',
     ...Array(allDates.length).fill(''),
-    `Sous-total FC: ${totalsFC.toLocaleString()} FC`,
+    `Sous-total FC: ${totalsFC} FC`,
   ];
   const subtotalUSDRow = [
     '',
     ...Array(allDates.length).fill(''),
-    `Sous-total $: ${totalsUSD.toFixed(2)} $`,
+    `Sous-total $: ${totalsUSD.toFixed(0)} $`,
   ];
   const convertedFCtoUSD =
     conversionRate && conversionRate > 0 ? totalsFC / conversionRate : 0;
@@ -182,14 +250,15 @@ export const exportToPDF = async (
   const totalUSDRow = [
     '',
     ...Array(allDates.length).fill(''),
-    `Total $: ${totalUSD.toFixed(2)} $`,
+    `Total $: ${totalUSD.toFixed(0)} $`,
   ];
   body.push(subtotalFCRow, subtotalUSDRow, totalUSDRow);
 
+  // Store the result of autoTable to get finalY
   autoTable(pdfDoc, {
     head: [headers],
     body,
-    startY: margin + 25,
+    startY: summaryY + 28,
     margin: { left: margin, right: margin },
     theme: 'grid',
     headStyles: {
@@ -197,12 +266,12 @@ export const exportToPDF = async (
       textColor: [255, 255, 255],
       fontStyle: 'bold',
       halign: 'left',
-      fontSize: 12,
+      fontSize: 8,
       cellPadding: 4,
     },
     bodyStyles: {
-      fontSize: 12,
-      halign: 'left',
+      fontSize: 8,
+      halign: 'right',
       cellPadding: 4,
     },
     alternateRowStyles: {
@@ -228,7 +297,7 @@ export const exportToPDF = async (
       }
       if (isSummaryRow) {
         cell.styles.fillColor = [91, 227, 248];
-        cell.styles.fontSize = 14;
+        cell.styles.fontSize = 8;
         cell.styles.fontStyle = 'bold';
         if (Array.isArray(row.raw) && column.index === row.raw.length - 1) {
           cell.styles.textColor = [0, 0, 0];
@@ -237,7 +306,7 @@ export const exportToPDF = async (
       // Make the Total column (last column) semi-bold and larger
       if (Array.isArray(row.raw) && column.index === row.raw.length - 1) {
         cell.styles.fontStyle = 'bold'; // 'semibold' is not supported, use 'bold'
-        cell.styles.fontSize = 14;
+        cell.styles.fontSize = 8;
       }
       // Set all text except header to black
       if (hookData.section !== 'head') {
@@ -254,11 +323,11 @@ export const exportToPDF = async (
       };
 
       if (column.index > 2) {
-        cell.styles.halign = 'left';
+        cell.styles.halign = 'right';
       }
 
       if (row.index > 0 && column.index > 2) {
-        cell.styles.fontSize = 12;
+        cell.styles.fontSize = 8;
       }
     },
     didDrawCell: (cellData) => {
@@ -279,12 +348,12 @@ export const exportToPDF = async (
             const currency = match[2];
             const textX = x + 2;
             cellData.doc.setFont('helvetica', 'bold');
-            cellData.doc.setFontSize(12);
+            cellData.doc.setFontSize(8);
             cellData.doc.setTextColor(0, 0, 0);
             cellData.doc.text(number, textX, textY, { baseline: 'top' });
             const numberWidth = cellData.doc.getTextWidth(number);
             cellData.doc.setFont('helvetica', 'normal');
-            cellData.doc.setFontSize(12);
+            cellData.doc.setFontSize(8);
             cellData.doc.setTextColor(0, 0, 0);
             cellData.doc.text(` ${currency}`, textX + numberWidth, textY, {
               baseline: 'top',
@@ -297,8 +366,11 @@ export const exportToPDF = async (
     },
   });
 
+  // Get the Y position from pdfDoc.lastAutoTable.finalY
+  const finalY = (pdfDoc as any).lastAutoTable?.finalY || (margin + 60);
+
   // Save PDF
   pdfDoc.save(
-    `Daily_Contributions_${new Date().toISOString().split('T')[0]}.pdf`,
+    `Daily_Contributions_${new Date().toISOString().split('T')[0]}.pdf`
   );
 };

@@ -46,6 +46,8 @@ interface FiltersProps {
     exportAll?: boolean,
     conversionRate?: number,
   ) => void;
+  conversionRate?: number;
+  setConversionRate: React.Dispatch<React.SetStateAction<number>>;
   currentFilters: TransactionFilters;
 }
 

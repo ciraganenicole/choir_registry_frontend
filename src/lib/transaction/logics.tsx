@@ -491,6 +491,31 @@ export const useTransactionStats = (filters?: TransactionFilters) => {
   });
 };
 
+// Get total balance without any filters (complete balance)
+export const useTotalBalance = () => {
+  const queryClient = useQueryClient();
+
+  return useQuery({
+    queryKey: ['totalBalance'],
+    queryFn: async () => {
+      try {
+        // Use the backend stats endpoint with no filters to get the true total balance
+        const { data: responseData } = await api.get('/transactions/stats');
+        const totalBalance = {
+          usd: responseData.totals?.solde?.usd || 0,
+          fc: responseData.totals?.solde?.fc || 0,
+        };
+        return totalBalance;
+      } catch (error) {
+        logError(error);
+        throw error;
+      }
+    },
+    staleTime: 1000 * 60 * 5,
+    refetchInterval: 1000 * 60 * 5,
+  });
+};
+
 // Export transactions as PDF
 export const useExportTransactionsPDF = () => {
   return useMutation({

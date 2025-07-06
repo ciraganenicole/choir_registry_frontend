@@ -13,6 +13,7 @@ import {
   useExportTransactionsPDF,
   useTransactions,
   useTransactionStats,
+  useTotalBalance,
 } from '@/lib/transaction/logics';
 import type {
   CreateTransactionDto,
@@ -38,20 +39,6 @@ const formatAmount = (amount: number | string | undefined): string => {
   if (amount === undefined || amount === null) return '0.00';
   const numAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
   return Number.isNaN(numAmount) ? '0.00' : numAmount.toFixed(2);
-};
-
-// const formatChange = (change?: number) => {
-//   if (change === undefined) return '0';
-//   return `${change > 0 ? '+' : ''}${change.toFixed(2)}`;
-// };
-
-const formatCurrencyStats = (stats: { USD: number; FC: number }) => {
-  return (
-    <div className="space-y-[1px] text-[18px] font-medium text-gray-800">
-      <div className="text-[12px] md:text-[14px]">{stats.USD.toFixed(2)} $</div>
-      <div className="text-[12px] md:text-[14px]">{stats.FC.toFixed(2)} FC</div>
-    </div>
-  );
 };
 
 // Helper function to translate categories to French
@@ -106,6 +93,7 @@ const getContributorName = (transaction: Transaction): string => {
 
 const Transactions = () => {
   const { user: currentUser } = useAuth();
+  const [conversionRate, setConversionRate] = useState<number>(2800);
   const [filters, setFilters] = useState<TransactionFilters>({
     startDate: format(
       startOfDay(new Date(new Date().getFullYear(), new Date().getMonth(), 1)),
@@ -142,6 +130,9 @@ const Transactions = () => {
     endDate: filters.endDate,
     // type: filters.type, // <-- removed so cards always show both totals
   });
+
+  // Get total balance without any filters (complete balance)
+  const { data: totalBalance } = useTotalBalance();
 
   const handleCreateTransaction = async (
     transactionData: CreateTransactionDto,
@@ -236,6 +227,22 @@ const Transactions = () => {
     // Refetch data and stats
     refetch();
     refetchStats();
+  };
+
+  const formatCurrencyStats = (stats: { USD: number; FC: number }) => {
+    return (
+      <div className="space-y-[1px] text-[18px] font-medium text-gray-800">
+        <div className="text-[12px] md:text-[14px]">
+          {stats.USD.toFixed(0)} $
+        </div>
+        <div className="text-[12px] md:text-[14px]">
+          {stats.FC.toFixed(0)} FC
+          <span className="ml-2 text-sm font-semibold text-gray-700">
+            ({(stats.FC / conversionRate).toFixed(2)} $)
+          </span>
+        </div>
+      </div>
+    );
   };
 
   const renderTableContent = () => {
@@ -343,6 +350,8 @@ const Transactions = () => {
           onFilterChange={handleFilterChange}
           onExport={handleExport}
           currentFilters={filters}
+          conversionRate={conversionRate}
+          setConversionRate={setConversionRate}
         />
 
         <div className="grid grid-cols-2 gap-2 md:grid-cols-2 md:gap-4 lg:grid-cols-4">
@@ -434,6 +443,20 @@ const Transactions = () => {
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        <div className="mt-1">
+          <h3 className="font-regular text-[12px] text-orange-500 md:text-[14px]">
+            Solde Total (Toutes les Transactions)
+          </h3>
+          <div className="flex flex-row items-center justify-between">
+            <span className="text-2xl font-bold">
+              {formatCurrencyStats({
+                USD: totalBalance?.usd || 0,
+                FC: totalBalance?.fc || 0,
+              })}
+            </span>
+        </div>
         </div>
 
         {/* Desktop Table */}
