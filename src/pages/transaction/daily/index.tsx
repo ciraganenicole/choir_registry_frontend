@@ -34,23 +34,20 @@ const DailyContributions = () => {
     ).toISOString(),
   });
 
-  const {
-    data: contributionsData,
-    isLoading: isContributionsLoading,
-    refetch,
-  } = useQuery<DailyContributionsResponse>({
-    queryKey: [
-      'daily-contributions',
-      filters,
-      { page: currentPage, limit: 1000 },
-    ],
-    queryFn: () =>
-      TransactionService.fetchDailyContributions(filters, {
-        page: currentPage,
-        limit: 1000,
-      }),
-    staleTime: 0,
-  });
+  const { data: contributionsData, isLoading: isContributionsLoading } =
+    useQuery<DailyContributionsResponse>({
+      queryKey: [
+        'daily-contributions',
+        filters,
+        { page: currentPage, limit: 1000 },
+      ],
+      queryFn: () =>
+        TransactionService.fetchDailyContributions(filters, {
+          page: currentPage,
+          limit: 1000,
+        }),
+      staleTime: 0,
+    });
 
   const { data: usersData, isLoading: isUsersLoading } = useQuery({
     queryKey: ['users', { page: currentPage, limit: 1000 }],

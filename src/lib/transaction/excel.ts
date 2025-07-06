@@ -1,5 +1,6 @@
 import { jsPDF as JsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+
 import { api } from '@/config/api';
 
 import type { DailyContributionSummary } from './types';
@@ -74,7 +75,7 @@ export const exportToPDF = async (
   let currentMonthSoldeFC = 0;
   try {
     const { data: currentMonthData } = await api.get('/transactions/stats', {
-      params: { startDate: startDateCurrent, endDate: endDateCurrent }
+      params: { startDate: startDateCurrent, endDate: endDateCurrent },
     });
     currentMonthSoldeUSD = currentMonthData.totals?.solde?.usd || 0;
     currentMonthSoldeFC = currentMonthData.totals?.solde?.fc || 0;
@@ -85,40 +86,52 @@ export const exportToPDF = async (
   // 3. Calculate solde for all previous months
   const pastMonthSoldeUSD = totalSoldeUSD - currentMonthSoldeUSD;
   const pastMonthSoldeFC = totalSoldeFC - currentMonthSoldeFC;
-  const pastMonthFCinUSD = conversionRate && conversionRate > 0 ? (pastMonthSoldeFC / conversionRate) : 0;
-  const pastMonthDiff = (Math.abs(pastMonthFCinUSD) - Math.abs(pastMonthSoldeUSD)).toFixed(2);
+  const pastMonthFCinUSD =
+    conversionRate && conversionRate > 0
+      ? pastMonthSoldeFC / conversionRate
+      : 0;
+  const pastMonthDiff = (
+    Math.abs(pastMonthFCinUSD) - Math.abs(pastMonthSoldeUSD)
+  ).toFixed(2);
 
-  // Fetch total expenses (all time)
-  let totalExpenseUSD = 0;
-  let totalExpenseFC = 0;
-  try {
-    const { data: statsData } = await api.get('/transactions/stats');
-    totalExpenseUSD = statsData.totals?.expense?.usd || 0;
-    totalExpenseFC = statsData.totals?.expense?.fc || 0;
-  } catch (err) {}
+  // Fetch total expenses (all time) - commented out as not currently used
+  // let totalExpenseUSD = 0;
+  // let totalExpenseFC = 0;
+  // try {
+  //   const { data: statsData } = await api.get('/transactions/stats');
+  //   totalExpenseUSD = statsData.totals?.expense?.usd || 0;
+  //   totalExpenseFC = statsData.totals?.expense?.fc || 0;
+  // } catch (err) {
+  //   // Handle error silently
+  // }
 
-  // Helper to show FC equivalent in dollars
-  const fcToUsd = (fc: number) =>
-    conversionRate && conversionRate > 0 ? `(${(fc / conversionRate).toFixed(2)} $)` : '';
+  // Helper to show FC equivalent in dollars - commented out as not currently used
+  // const fcToUsd = (fc: number) =>
+  //   conversionRate && conversionRate > 0
+  //     ? `(${(fc / conversionRate).toFixed(2)} $)`
+  //     : '';
 
   // Add summary (resume) section under the logo, before the table
-  let summaryY = margin + 15; // After logo and title/date
+  const summaryY = margin + 15; // After logo and title/date
   pdfDoc.setFontSize(12);
   pdfDoc.setFont('helvetica', 'bold');
   pdfDoc.text('Résumé:', margin, summaryY);
   pdfDoc.setFontSize(11);
   pdfDoc.setFont('helvetica', 'normal');
-  const totalFCinUSD = conversionRate && conversionRate > 0 ? (totalSoldeFC / conversionRate) : 0;
-  const totalSoldeDiff = (Math.abs(totalFCinUSD) - Math.abs(totalSoldeUSD)).toFixed(2);
+  const totalFCinUSD =
+    conversionRate && conversionRate > 0 ? totalSoldeFC / conversionRate : 0;
+  const totalSoldeDiff = (
+    Math.abs(totalFCinUSD) - Math.abs(totalSoldeUSD)
+  ).toFixed(2);
   pdfDoc.text(
     `Solde cumulé: ${totalSoldeUSD} $ / ${totalSoldeFC} FC (${totalFCinUSD.toFixed(2)} $) = ${totalSoldeDiff}`,
     margin,
-    summaryY + 8
+    summaryY + 8,
   );
   pdfDoc.text(
     `Solde du Mois Précédent: ${pastMonthSoldeUSD} $ / ${pastMonthSoldeFC} FC (${pastMonthFCinUSD.toFixed(2)} $) = ${pastMonthDiff}`,
     margin,
-    summaryY + 16
+    summaryY + 16,
   );
   // Gather all unique dates from data
   const allDatesSet = new Set<string>();
@@ -366,11 +379,11 @@ export const exportToPDF = async (
     },
   });
 
-  // Get the Y position from pdfDoc.lastAutoTable.finalY
-  const finalY = (pdfDoc as any).lastAutoTable?.finalY || (margin + 60);
+  // Get the Y position from pdfDoc.lastAutoTable.finalY - commented out as not currently used
+  // const finalY = (pdfDoc as any).lastAutoTable?.finalY || margin + 60;
 
   // Save PDF
   pdfDoc.save(
-    `Daily_Contributions_${new Date().toISOString().split('T')[0]}.pdf`
+    `Daily_Contributions_${new Date().toISOString().split('T')[0]}.pdf`,
   );
 };

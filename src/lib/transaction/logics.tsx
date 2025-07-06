@@ -1,5 +1,6 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import console from 'console';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 import { jsPDF as JSPDF } from 'jspdf';
@@ -452,8 +453,6 @@ export function useDailyContributions(
 
 // Get transaction statistics
 export const useTransactionStats = (filters?: TransactionFilters) => {
-  const queryClient = useQueryClient();
-
   return useQuery({
     queryKey: ['transactionStats', filters],
     queryFn: async () => {
@@ -478,7 +477,6 @@ export const useTransactionStats = (filters?: TransactionFilters) => {
         };
         console.log(responseData.totals?.fc || 0);
 
-        queryClient.invalidateQueries({ queryKey: ['transactions'] });
         console.log(stats);
         return stats;
       } catch (error) {
@@ -493,8 +491,6 @@ export const useTransactionStats = (filters?: TransactionFilters) => {
 
 // Get total balance without any filters (complete balance)
 export const useTotalBalance = () => {
-  const queryClient = useQueryClient();
-
   return useQuery({
     queryKey: ['totalBalance'],
     queryFn: async () => {

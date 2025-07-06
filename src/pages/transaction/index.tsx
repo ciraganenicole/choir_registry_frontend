@@ -11,9 +11,9 @@ import {
   useCreateTransaction,
   useExportTransactions,
   useExportTransactionsPDF,
+  useTotalBalance,
   useTransactions,
   useTransactionStats,
-  useTotalBalance,
 } from '@/lib/transaction/logics';
 import type {
   CreateTransactionDto,
@@ -148,7 +148,7 @@ const Transactions = () => {
   const handleExport = async (
     exportFormat: 'csv' | 'pdf',
     exportAll: boolean = false,
-    conversionRate?: number,
+    exportConversionRate?: number,
   ) => {
     try {
       // Create a copy of filters without the type property
@@ -163,13 +163,13 @@ const Transactions = () => {
         await exportTransactions.mutateAsync({
           filters: exportFilters,
           exportAll,
-          conversionRate,
+          conversionRate: exportConversionRate,
         });
       } else {
         await exportTransactionsPDF.mutateAsync({
           filters: exportFilters,
           exportAll,
-          conversionRate,
+          conversionRate: exportConversionRate,
         });
       }
     } catch (error) {
@@ -229,16 +229,16 @@ const Transactions = () => {
     refetchStats();
   };
 
-  const formatCurrencyStats = (stats: { USD: number; FC: number }) => {
+  const formatCurrencyStats = (currencyStats: { USD: number; FC: number }) => {
     return (
       <div className="space-y-[1px] text-[18px] font-medium text-gray-800">
         <div className="text-[12px] md:text-[14px]">
-          {stats.USD.toFixed(0)} $
+          {currencyStats.USD.toFixed(0)} $
         </div>
         <div className="text-[12px] md:text-[14px]">
-          {stats.FC.toFixed(0)} FC
+          {currencyStats.FC.toFixed(0)} FC
           <span className="ml-2 text-sm font-semibold text-gray-700">
-            ({(stats.FC / conversionRate).toFixed(2)} $)
+            ({(currencyStats.FC / conversionRate).toFixed(2)} $)
           </span>
         </div>
       </div>
@@ -456,7 +456,7 @@ const Transactions = () => {
                 FC: totalBalance?.fc || 0,
               })}
             </span>
-        </div>
+          </div>
         </div>
 
         {/* Desktop Table */}
