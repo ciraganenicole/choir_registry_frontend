@@ -64,7 +64,12 @@
         "unused-imports/no-unused-vars": [
           "error",
           { "argsIgnorePattern": "^_" }
-        ]
+        ],
+        "no-nested-ternary": "off",
+        "prefer-destructuring": "off",
+        "no-empty": "off",
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/ban-ts-comment": "off"
       }
     }
   ]

@@ -1,4 +1,10 @@
-import { FaCalendarAlt, FaDollarSign, FaUsers } from 'react-icons/fa';
+import {
+  FaCalendarAlt,
+  FaDollarSign,
+  FaMicrophone,
+  FaMusic,
+  FaUsers,
+} from 'react-icons/fa';
 import { LuLayoutDashboard } from 'react-icons/lu';
 
 export const menuItems = [
@@ -6,6 +12,26 @@ export const menuItems = [
     title: 'Dashboard',
     path: '/',
     icon: LuLayoutDashboard,
+  },
+  {
+    title: 'Performances',
+    path: '/performance',
+    icon: FaMicrophone,
+  },
+  {
+    title: 'Répétitions',
+    path: '/rehearsal',
+    icon: FaMusic,
+  },
+  {
+    title: 'Bibliothèque',
+    path: '/library',
+    icon: FaMusic,
+  },
+  {
+    title: 'Horaire',
+    path: '/shift',
+    icon: FaCalendarAlt,
   },
   {
     title: 'Transactions',

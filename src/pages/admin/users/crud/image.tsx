@@ -41,7 +41,6 @@ const ImageUpload: React.FC<ImageUploadProps> = ({
       const errorMessage =
         error instanceof Error ? error.message : 'Failed to upload image';
       onUploadError(errorMessage);
-      console.error('Upload error:', error);
     } finally {
       setIsUploading(false);
     }

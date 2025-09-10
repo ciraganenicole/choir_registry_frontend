@@ -49,15 +49,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.clear();
     sessionStorage.clear();
 
-    // Unregister service worker
-    if ('serviceWorker' in navigator) {
-      const registrations = await navigator.serviceWorker.getRegistrations();
-      // Use Promise.all to handle all unregistrations in parallel
-      await Promise.all(
-        registrations.map((registration) => registration.unregister()),
-      );
-    }
-
     // Clear all caches
     if ('caches' in window) {
       const cacheNames = await caches.keys();

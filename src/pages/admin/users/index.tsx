@@ -18,6 +18,7 @@ import { HiDownload } from 'react-icons/hi';
 import AttendanceDetailsPopup from '@/components/attendance/UserAttendanceDetails';
 import SearchInput from '@/components/filters/search';
 import Layout from '@/components/layout';
+import LeadCredentialsPopup from '@/components/LeadCredentialsPopup';
 import Pagination from '@/components/pagination';
 import UserContributionsDetails from '@/components/transactions/UserContributionsDetails';
 import { useAuth } from '@/providers/AuthProvider';
@@ -45,7 +46,6 @@ import DeleteUser from './crud/delete';
 import UpdateUser from './crud/update';
 import ViewUser, { translateCategory } from './crud/view';
 
-// Translation functions
 const translateGender = (gender: string): string => {
   const translations: Record<string, string> = {
     MALE: 'Masculin',
@@ -112,13 +112,6 @@ const translateCommission = (commission: string): string => {
   return translations[commission] || commission;
 };
 
-// Move handleError to the top level
-const handleError = (error: unknown, setError: (msg: string) => void) => {
-  const errorMessage =
-    error instanceof Error ? error.message : 'An error occurred';
-  setError(errorMessage);
-};
-
 const getActiveFilterButton = (isActive: boolean | undefined) => {
   if (isActive === true) {
     return {
@@ -164,24 +157,25 @@ const UsersManagement: React.FC = () => {
   const [isAttendancePopupOpen, setIsAttendancePopupOpen] = useState(false);
   const [isContributionsPopupOpen, setIsContributionsPopupOpen] =
     useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  console.log(errorMessage, 'error');
+  const [showLeadCredentials, setShowLeadCredentials] = useState(false);
+  const [leadCredentials, setLeadCredentials] = useState<{
+    firstName: string;
+    lastName: string;
+    email: string;
+    password: string;
+  } | null>(null);
 
   const loadUsers = async () => {
-    try {
-      const apiFilters = {
-        ...filters,
-        page: currentPage,
-        isActive: filters.isActive === undefined ? undefined : filters.isActive,
-      };
-      const response = await FetchUsers(apiFilters);
+    const apiFilters = {
+      ...filters,
+      page: currentPage,
+      isActive: filters.isActive === undefined ? undefined : filters.isActive,
+    };
+    const response = await FetchUsers(apiFilters);
 
-      if (response.data) {
-        setUsers(response.data);
-        setTotalUsers(response.total);
-      }
-    } catch (err) {
-      handleError(err, setErrorMessage);
+    if (response.data) {
+      setUsers(response.data);
+      setTotalUsers(response.total);
     }
   };
 
@@ -253,7 +247,6 @@ const UsersManagement: React.FC = () => {
     try {
       const AllUsers = await FetchUsers({ ...filters, limit: totalUsers });
 
-      // Create PDF document with consistent margins
       const doc = new JSPDF({
         orientation: 'landscape',
         unit: 'mm',
@@ -261,7 +254,6 @@ const UsersManagement: React.FC = () => {
       });
       const margin = 15;
 
-      // Add logo
       try {
         const response = await fetch('/assets/images/Wlogo.png');
         const blob = await response.blob();
@@ -274,10 +266,10 @@ const UsersManagement: React.FC = () => {
 
         doc.addImage(base64, 'PNG', margin, margin, 35, 20);
       } catch (error) {
+        // Silently ignore logo loading errors - PDF will still be generated without logo
         console.warn('Failed to add logo to PDF:', error);
       }
 
-      // Add header text with exact positioning
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
       doc.text(
@@ -291,7 +283,6 @@ const UsersManagement: React.FC = () => {
       doc.setFontSize(12);
       doc.text('REGISTRE DE CHORISTES', margin, 45);
 
-      // Add current date
       const currentDate = new Date().toLocaleDateString('fr-FR', {
         year: 'numeric',
         month: 'long',
@@ -300,7 +291,6 @@ const UsersManagement: React.FC = () => {
       doc.setFontSize(10);
       doc.text(`Date: ${currentDate}`, margin, 52);
 
-      // Define table headers
       const headers = [
         'N°',
         'Nom Complet',
@@ -316,9 +306,7 @@ const UsersManagement: React.FC = () => {
         'Adresse',
       ];
 
-      // Prepare table data
       const tableData = AllUsers.data.map((user, index) => {
-        // Format address parts
         const addressParts = [];
         if (user.commune) addressParts.push(translateCommune(user.commune));
         if (user.quarter) addressParts.push(user.quarter);
@@ -342,7 +330,6 @@ const UsersManagement: React.FC = () => {
         ];
       });
 
-      // Add table
       autoTable(doc, {
         head: [headers],
         body: tableData,
@@ -392,10 +379,9 @@ const UsersManagement: React.FC = () => {
         },
       });
 
-      // Save PDF
       doc.save(`registre_choristes_${currentDate.replace(/\//g, '-')}.pdf`);
     } catch (err) {
-      handleError(err, setErrorMessage);
+      console.error('Error loading users:', err);
     }
   };
 
@@ -449,6 +435,7 @@ const UsersManagement: React.FC = () => {
           edit: 'text-blue-500 hover:bg-blue-50',
           attendance: 'text-purple-500 hover:bg-purple-50',
           contributions: 'text-yellow-500 hover:bg-yellow-50',
+          lead: 'text-indigo-500 hover:bg-indigo-50',
           delete: 'text-red-500 hover:bg-red-50',
         }
       : {
@@ -457,6 +444,7 @@ const UsersManagement: React.FC = () => {
           edit: 'text-blue-500 hover:text-blue-700',
           attendance: 'text-purple-500 hover:text-purple-700',
           contributions: 'text-yellow-500 hover:text-yellow-700',
+          lead: 'text-indigo-500 hover:text-indigo-700',
           delete: 'text-red-500 hover:text-red-700',
         };
 
@@ -515,12 +503,10 @@ const UsersManagement: React.FC = () => {
     );
   };
 
-  // In the render section, replace nested ternaries with the helper function
   const activeFilterButton = getActiveFilterButton(filters.isActive);
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
-    // Scroll to top when page changes
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -888,6 +874,15 @@ const UsersManagement: React.FC = () => {
           onClose={() => setIsContributionsPopupOpen(false)}
         />
       )}
+
+      <LeadCredentialsPopup
+        isOpen={showLeadCredentials}
+        onClose={() => {
+          setShowLeadCredentials(false);
+          setLeadCredentials(null);
+        }}
+        userData={leadCredentials}
+      />
     </Layout>
   );
 };

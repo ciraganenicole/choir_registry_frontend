@@ -38,107 +38,113 @@ export const useCloudinaryWidget = () => {
   const uploadToCloudinary = async (
     source: 'local' | 'camera',
   ): Promise<string> => {
-    try {
-      await loadScript();
+    await loadScript();
 
-      return await new Promise((resolve, reject) => {
-        const widget = window.cloudinary.createUploadWidget(
-          {
-            cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-            uploadPreset: process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET,
-            sources: [source],
-            multiple: false,
-            maxFileSize: 5000000, // 5MB
-            resourceType: 'image',
-            folder: 'choir_members',
-            showUploadMoreButton: false,
-            showAdvancedOptions: false,
-            singleUploadAutoClose: true,
-            language: 'fr',
-            text: {
-              fr: {
-                queue: {
-                  title:
-                    source === 'local'
-                      ? 'Choisir une photo'
-                      : 'Prendre une photo',
-                  title_for_uploading: 'Téléchargement en cours...',
-                  title_for_failed: 'Échec du téléchargement',
-                  title_for_success: 'Téléchargement réussi',
-                },
-                local: {
-                  browse: 'Parcourir',
-                  dd_title_single: 'Choisir une photo',
-                  dd_title_multiple: 'Choisir une photo',
-                  drop_title_single: 'Choisir une photo',
-                  drop_title_multiple: 'Choisir une photo',
-                },
-                camera: {
-                  capture: 'Prendre une photo',
-                  switch_camera: 'Changer de caméra',
-                  take_photo: 'Prendre la photo',
-                  retake: 'Reprendre',
-                  done: 'Terminé',
-                },
+    return new Promise((resolve, reject) => {
+      const widget = window.cloudinary.createUploadWidget(
+        {
+          cloudName: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
+          uploadPreset: process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET,
+          sources: [source],
+          multiple: false,
+          maxFileSize: 5000000, // 5MB
+          resourceType: 'image',
+          folder: 'choir_members',
+          showUploadMoreButton: false,
+          showAdvancedOptions: false,
+          singleUploadAutoClose: true,
+          language: 'fr',
+          text: {
+            fr: {
+              queue: {
+                title:
+                  source === 'local'
+                    ? 'Choisir une photo'
+                    : 'Prendre une photo',
+                title_for_uploading: 'Téléchargement en cours...',
+                title_for_failed: 'Échec du téléchargement',
+                title_for_success: 'Téléchargement réussi',
+              },
+              local: {
+                browse: 'Parcourir',
+                dd_title_single: 'Choisir une photo',
+                dd_title_multiple: 'Choisir une photo',
+                drop_title_single: 'Choisir une photo',
+                drop_title_multiple: 'Choisir une photo',
+              },
+              camera: {
+                capture: 'Prendre une photo',
+                switch_camera: 'Changer de caméra',
+                take_photo: 'Prendre la photo',
+                retake: 'Reprendre',
+                done: 'Terminé',
               },
             },
-            clientAllowedFormats: ['jpg', 'jpeg', 'png'],
-            maxChunkSize: 2000000,
-            maxImageFileSize: 5000000,
-            secure: true,
-            secureDistribution: 'res.cloudinary.com',
-            use_filename: true,
-            unique_filename: true,
-            invalidate: true,
-            resource_type: 'auto',
-            allowed_formats: ['jpg', 'jpeg', 'png'],
-            transformation: [
-              { width: 400, height: 400, crop: 'fill' },
-              { quality: 'auto' },
-              { fetch_format: 'auto' },
-            ],
           },
-          (error: any, result: any) => {
-            if (error) {
-              console.error('Error uploading to Cloudinary:', error);
-              reject(error);
-            } else if (result && result.event === 'success') {
-              resolve(result.info.secure_url);
-            }
-          },
-        );
+          clientAllowedFormats: ['jpg', 'jpeg', 'png'],
+          maxChunkSize: 2000000,
+          maxImageFileSize: 5000000,
+          secure: true,
+          secureDistribution: 'res.cloudinary.com',
+          use_filename: true,
+          unique_filename: true,
+          invalidate: true,
+          resource_type: 'auto',
+          allowed_formats: ['jpg', 'jpeg', 'png'],
+          transformation: [
+            { width: 400, height: 400, crop: 'fill' },
+            { quality: 'auto' },
+            { fetch_format: 'auto' },
+          ],
+        },
+        (error: any, result: any) => {
+          if (error) {
+            reject(error);
+          } else if (result && result.event === 'success') {
+            resolve(result.info.secure_url);
+          }
+        },
+      );
 
-        widget.open();
-      });
-    } catch (error) {
-      console.error('Error initializing Cloudinary widget:', error);
-      throw error;
-    }
+      widget.open();
+    });
   };
 
   return { uploadToCloudinary };
 };
 
 export const uploadImage = async (file: File): Promise<string> => {
-  try {
-    const formData = new FormData();
-    formData.append('file', file);
+  const formData = new FormData();
+  formData.append('file', file);
 
-    const response = await fetch(`${API_URL}/upload/image`, {
-      method: 'POST',
-      body: formData,
-    });
+  const response = await fetch(`${API_URL}/upload/image`, {
+    method: 'POST',
+    body: formData,
+  });
 
-    if (!response.ok) {
-      throw new Error('Failed to upload image');
-    }
-
-    const data = await response.json();
-    return data.url;
-  } catch (error) {
-    console.error('Error uploading image:', error);
-    throw error;
+  if (!response.ok) {
+    throw new Error('Failed to upload image');
   }
+
+  const data = await response.json();
+  return data.url;
+};
+
+export const uploadPDF = async (file: File): Promise<string> => {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const response = await fetch(`${API_URL}/upload/pdf`, {
+    method: 'POST',
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to upload PDF');
+  }
+
+  const data = await response.json();
+  return data.url;
 };
 
 export const dataURLtoFile = (dataUrl: string, filename: string): File => {

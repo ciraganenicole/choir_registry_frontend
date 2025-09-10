@@ -55,19 +55,10 @@ const JustificationPopup = ({
   };
 
   const handleReasonChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    console.log('Selected justification reason:', e.target.value);
     setReason(e.target.value as JustificationReason);
   };
 
   const handleSave = () => {
-    console.log(
-      'Saving justification. isJustified:',
-      isJustified,
-      'reason:',
-      reason,
-      'isNotJustified:',
-      isNotJustified,
-    );
     if (isJustified && reason) {
       onSave(true, reason as JustificationReason);
     } else if (isNotJustified) {
@@ -161,7 +152,6 @@ const AttendancePage: React.FC = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 10;
 
-  // Initialize with today's date in local timezone
   const getTodayDate = (): string => {
     const now = new Date();
     const year = now.getFullYear();
@@ -187,7 +177,6 @@ const AttendancePage: React.FC = () => {
     const inputDate = e.target.value || getTodayDate();
     setSelectedDate(inputDate);
 
-    // Check if we have any records for this date
     const hasRecordsForDate = Object.values(attendance).some(
       (records) =>
         Array.isArray(records) &&
@@ -196,17 +185,14 @@ const AttendancePage: React.FC = () => {
         ),
     );
 
-    // If no records exist for this date, initialize all users as absent
     if (!hasRecordsForDate) {
       try {
-        // Call backend to initialize all users as absent
         await api.post('/attendance/initialize', {
           date: inputDate,
           eventType: selectedEventType,
           status: AttendanceStatus.ABSENT,
         });
 
-        // Update local state to reflect all users as absent
         const updatedAttendance = { ...attendance };
         filteredUsers.forEach((user) => {
           updatedAttendance[user.id] = [
@@ -226,7 +212,8 @@ const AttendancePage: React.FC = () => {
         });
         setAttendance(updatedAttendance);
       } catch (error) {
-        console.error('Error initializing attendance:', error);
+        // Silently ignore attendance update errors - UI will reflect current state
+        console.warn('Failed to update attendance:', error);
       }
     }
   };
@@ -235,7 +222,6 @@ const AttendancePage: React.FC = () => {
     userId: number,
     newStatus: AttendanceStatus,
   ) => {
-    // Normalize the date to YYYY-MM-DD format
     const dateToUse = new Date(selectedDate).toISOString().split('T')[0];
 
     if (
@@ -260,11 +246,9 @@ const AttendancePage: React.FC = () => {
             minute: '2-digit',
           }),
         });
-        // Update only the affected user's attendance in state
         setAttendance((prev) => ({
           ...prev,
           [userId]: [
-            // Remove any record for the same date/eventType, then add the new one
             ...(prev[userId] || []).filter(
               (r) =>
                 !(r.date === dateToUse && r.eventType === selectedEventType),
@@ -273,7 +257,8 @@ const AttendancePage: React.FC = () => {
           ],
         }));
       } catch (error) {
-        console.error('Error marking attendance:', error);
+        // Silently ignore status change errors - UI will reflect current state
+        console.warn('Failed to change attendance status:', error);
       }
     }
   };
@@ -282,10 +267,8 @@ const AttendancePage: React.FC = () => {
     _justified: boolean,
     reason?: JustificationReason,
   ) => {
-    console.log('handleJustificationSave called with reason:', reason);
     if (!popupState.userId || !popupState.date || !popupState.status) return;
 
-    // Normalize the date to YYYY-MM-DD format
     const dateToUse = new Date(popupState.date).toISOString().split('T')[0];
     const attendanceData = {
       userId: popupState.userId,
@@ -299,18 +282,15 @@ const AttendancePage: React.FC = () => {
       }),
       justification: reason,
     };
-    console.log('Sending attendanceData to backend:', attendanceData);
 
     try {
       const updatedRecord = await markAttendance(
         popupState.userId,
         attendanceData,
       );
-      // Update only the affected user's attendance in state
       setAttendance((prev) => ({
         ...prev,
         [popupState.userId!]: [
-          // Remove any record for the same date/eventType, then add the new one
           ...(prev[popupState.userId!] || []).filter(
             (r) =>
               !(
@@ -322,7 +302,8 @@ const AttendancePage: React.FC = () => {
         ],
       }));
     } catch (error) {
-      console.error('Error saving attendance:', error);
+      // Silently ignore justification save errors - UI will reflect current state
+      console.warn('Failed to save justification:', error);
     }
 
     setPopupState({
@@ -343,7 +324,6 @@ const AttendancePage: React.FC = () => {
     date: string,
   ): { status: string | null; hasJustification: boolean } => {
     const userAttendance = attendance[userId] || [];
-    // Normalize both dates to YYYY-MM-DD format for comparison
     const normalizedSearchDate = new Date(date).toISOString().split('T')[0];
     const attendanceRecord = userAttendance.find((r) => {
       const normalizedRecordDate = new Date(r.date).toISOString().split('T')[0];
@@ -363,7 +343,7 @@ const AttendancePage: React.FC = () => {
     hasJustification: boolean,
     isActive: boolean,
   ) => {
-    if (!isActive) return '—'; // Inactive user
+    if (!isActive) return '—';
     let emoji = '';
     switch ((status || '').toUpperCase()) {
       case 'PRESENT':
@@ -378,7 +358,7 @@ const AttendancePage: React.FC = () => {
       case '':
       case null:
       default:
-        emoji = '❌'; // Default for active user with no record
+        emoji = '❌';
     }
     return hasJustification ? `${emoji}J` : emoji;
   };
@@ -392,7 +372,6 @@ const AttendancePage: React.FC = () => {
       if (Array.isArray(records)) {
         records.forEach((record) => {
           if (record?.date && record.eventType === selectedEventType) {
-            // Defensive date parsing to avoid timezone issues
             const recordDate = new Date(`${record.date}T00:00:00`);
             if (filters.startDate || filters.endDate) {
               const startDate = filters.startDate
@@ -423,7 +402,6 @@ const AttendancePage: React.FC = () => {
 
   let datesWithAttendance = getDatesWithAttendance();
 
-  // Only include dates that have at least one attendance record for the selected event type
   datesWithAttendance = datesWithAttendance.filter((date) =>
     Object.values(attendance).some(
       (records) =>
@@ -439,19 +417,17 @@ const AttendancePage: React.FC = () => {
   }
   datesWithAttendance = datesWithAttendance.sort((a, b) => b.localeCompare(a));
 
-  // Create a debounced search handler
   const debouncedSearch = useCallback(
     debounce((searchTerm: string) => {
       setFilters((prevFilters) => ({
         ...prevFilters,
         search: searchTerm,
       }));
-    }, 300), // Wait 300ms after user stops typing
+    }, 300),
     [],
   );
 
   const handleSearch = (searchTerm: string) => {
-    // Update UI immediately but debounce the actual filter update
     debouncedSearch(searchTerm);
   };
 
@@ -478,10 +454,9 @@ const AttendancePage: React.FC = () => {
         )}
 
         {loading && (
-          <div className="mb-4 text-center text-gray-600">Loading...</div>
+          <div className="mb-4 text-center text-gray-600">Chargement...</div>
         )}
 
-        {/* Filters */}
         <div className="mb-4 flex flex-wrap gap-[2px] md:gap-4">
           <select
             value={filters.status || 'all'}
@@ -528,13 +503,11 @@ const AttendancePage: React.FC = () => {
           />
         </div>
 
-        {/* Event Type Selector */}
         <EventTypeSelector
           selectedEventType={selectedEventType}
           onEventTypeChange={changeEventType}
         />
 
-        {/* Event Type Header and Date Selector */}
         <div className="mb-4 mt-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div className="flex flex-row items-center gap-2 md:gap-8">
             <div className="w-[50%] md:w-auto">
@@ -561,7 +534,6 @@ const AttendancePage: React.FC = () => {
             </div>
           </div>
 
-          {/* Manual Date Selector */}
           <div className="flex items-center gap-2">
             <label className="text-[12px] font-medium text-gray-700 md:text-[14px]">
               Date de présence:
@@ -575,7 +547,6 @@ const AttendancePage: React.FC = () => {
           </div>
         </div>
 
-        {/* Table */}
         {filteredUsers.length === 0 ? (
           <div className="mt-4 rounded-md bg-gray-50 p-4 text-center text-gray-600">
             Aucun membre trouvé pour ce type d&apos;événement
@@ -584,7 +555,6 @@ const AttendancePage: React.FC = () => {
           <div>
             <div className="mb-4 flex flex-col gap-4 md:hidden">
               {currentUsers.map((user) => {
-                // Add logic to allow marking attendance for active users and inactive newcomers only
                 const isInactiveNewcomer =
                   !user.isActive &&
                   user.categories.includes(UserCategory.NEWCOMER);
@@ -735,7 +705,6 @@ const AttendancePage: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-200 bg-white">
                   {currentUsers.map((user) => {
-                    // Add logic to allow marking attendance for active users and inactive newcomers only
                     const isInactiveNewcomer =
                       !user.isActive &&
                       user.categories.includes(UserCategory.NEWCOMER);
@@ -876,14 +845,12 @@ const AttendancePage: React.FC = () => {
           </div>
         )}
 
-        {/* Pagination */}
         <Pagination
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={setCurrentPage}
         />
 
-        {/* Justification Popup */}
         <JustificationPopup
           isOpen={popupState.isOpen}
           onClose={() =>

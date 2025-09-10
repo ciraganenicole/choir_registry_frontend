@@ -2,20 +2,25 @@
 
 import { motion } from 'framer-motion';
 import type { LucideIcon } from 'lucide-react';
-import { Calendar, Home, Menu, Users, X } from 'lucide-react';
+import {
+  Calendar,
+  ChevronDown,
+  ChevronRight,
+  Home,
+  Menu,
+  Users,
+  X,
+} from 'lucide-react';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
 import React, { useState } from 'react';
 import type { IconType } from 'react-icons';
-import { FaClock, FaCog, FaMusic, FaTrophy } from 'react-icons/fa';
+import { FaClock, FaMusic, FaTrophy } from 'react-icons/fa';
 import { IoLogoUsd } from 'react-icons/io';
 import { TbLogout2 } from 'react-icons/tb';
 
-import { UserRole } from '@/lib/user/type';
+import { UserCategory, UserRole } from '@/lib/user/type';
 import { useAuth } from '@/providers/AuthProvider';
-
-import InstallPrompt from '../pwa/InstallPrompt';
-import OfflineIndicator from '../pwa/OfflineIndicator';
 
 interface MenuItem {
   path: string;
@@ -24,12 +29,25 @@ interface MenuItem {
   roles: UserRole[];
 }
 
+interface DropdownMenuItem {
+  label: string;
+  icon?: LucideIcon | IconType;
+  items: MenuItem[];
+}
+
 const Layout = ({ children }: { children: ReactNode }) => {
   const [isOpen, setIsOpen] = useState(false);
+  const [expandedDropdown, setExpandedDropdown] = useState<string | null>(null);
   const { logout, user } = useAuth();
 
   const handleLogout = () => {
     logout();
+  };
+
+  const toggleDropdown = (dropdownLabel: string) => {
+    setExpandedDropdown(
+      expandedDropdown === dropdownLabel ? null : dropdownLabel,
+    );
   };
 
   const menuItems: MenuItem[] = [
@@ -61,52 +79,95 @@ const Layout = ({ children }: { children: ReactNode }) => {
       label: 'Transactions',
       roles: [UserRole.SUPER_ADMIN, UserRole.FINANCE_ADMIN],
     },
+  ];
+
+  const dropdownMenuItems: DropdownMenuItem[] = [
     {
-      path: '/performance',
-      icon: FaTrophy,
-      label: 'Performance',
-      roles: [
-        UserRole.SUPER_ADMIN,
-        UserRole.ATTENDANCE_ADMIN,
-        UserRole.FINANCE_ADMIN,
-      ],
-    },
-    {
-      path: '/library',
+      label: 'Musique',
       icon: FaMusic,
-      label: 'Repertoire',
-      roles: [
-        UserRole.SUPER_ADMIN,
-        UserRole.ATTENDANCE_ADMIN,
-        UserRole.FINANCE_ADMIN,
-      ],
-    },
-    {
-      path: '/shift',
-      icon: FaClock,
-      label: 'Shifts',
-      roles: [
-        UserRole.SUPER_ADMIN,
-        UserRole.ATTENDANCE_ADMIN,
-        UserRole.FINANCE_ADMIN,
-      ],
-    },
-    {
-      path: '/settings',
-      icon: FaCog,
-      label: 'Settings',
-      roles: [
-        UserRole.SUPER_ADMIN,
-        UserRole.ATTENDANCE_ADMIN,
-        UserRole.FINANCE_ADMIN,
+      items: [
+        {
+          path: '/admin/users/leads',
+          icon: Users,
+          label: 'Conducteurs',
+          roles: [UserRole.SUPER_ADMIN],
+        },
+        {
+          path: '/library',
+          icon: FaMusic,
+          label: 'Repertoire',
+          roles: [UserRole.SUPER_ADMIN, UserRole.LEAD],
+        },
+        {
+          path: '/shift',
+          icon: FaClock,
+          label: 'Horaire',
+          roles: [UserRole.SUPER_ADMIN, UserRole.LEAD],
+        },
+        {
+          path: '/rehearsal',
+          icon: FaMusic,
+          label: 'Répétitions',
+          roles: [UserRole.SUPER_ADMIN, UserRole.LEAD],
+        },
+        {
+          path: '/performance',
+          icon: FaTrophy,
+          label: 'Performances',
+          roles: [UserRole.SUPER_ADMIN, UserRole.LEAD],
+        },
       ],
     },
   ];
 
-  // Filter menu items based on user role
-  const filteredMenuItems = menuItems.filter(
-    (item) => user && item.roles.includes(user.role),
-  );
+  // Filter menu items based on user role and categories
+  const filteredMenuItems = menuItems.filter((item) => {
+    if (!user) return false;
+
+    // Check if user has the required role
+    const hasRequiredRole = item.roles.includes(user.role);
+
+    return hasRequiredRole;
+  });
+
+  // Filter dropdown menu items based on user role and categories
+  const filteredDropdownMenuItems = dropdownMenuItems
+    .map((dropdown) => ({
+      ...dropdown,
+      items: dropdown.items.filter((item) => {
+        if (!user) return false;
+
+        // Check if user has the required role
+        const hasRequiredRole = item.roles.includes(user.role);
+
+        // Special cases for routes that should be accessible by LEAD category
+        if (item.path === '/admin/users/leads') {
+          const hasLeadCategory = user.categories?.includes(UserCategory.LEAD);
+          return hasRequiredRole || hasLeadCategory;
+        }
+
+        return hasRequiredRole;
+      }),
+    }))
+    .filter((dropdown) => dropdown.items.length > 0);
+
+  // Check if user is admin (should see dropdown) or LEAD category user (should see direct menu items)
+  const isAdmin =
+    user &&
+    (user.role === UserRole.SUPER_ADMIN ||
+      user.role === UserRole.ATTENDANCE_ADMIN ||
+      user.role === UserRole.FINANCE_ADMIN);
+  const isLeadCategory = user && user.categories?.includes(UserCategory.LEAD);
+
+  // Get LEAD-specific menu items for direct display
+  const leadMenuItems =
+    isLeadCategory && dropdownMenuItems[0]
+      ? dropdownMenuItems[0].items.filter(
+          (item) =>
+            item.roles.includes(UserRole.LEAD) ||
+            item.path === '/admin/users/leads',
+        )
+      : [];
 
   const renderSidebarContent = (isMobile = false) => (
     <>
@@ -114,6 +175,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
         <nav
           className={`flex flex-col gap-4 md:gap-6 ${isMobile ? 'mt-16' : 'mt-8'}`}
         >
+          {/* Regular menu items */}
           {filteredMenuItems.map((item) => (
             <Link
               key={item.path}
@@ -125,6 +187,63 @@ const Layout = ({ children }: { children: ReactNode }) => {
               <span className="whitespace-nowrap text-base">{item.label}</span>
             </Link>
           ))}
+
+          {/* Show dropdown only for admin users */}
+          {isAdmin &&
+            filteredDropdownMenuItems.map((dropdown) => (
+              <div key={dropdown.label} className="space-y-1">
+                <button
+                  onClick={() => toggleDropdown(dropdown.label)}
+                  className="flex w-full items-center justify-between rounded-lg p-2 text-white transition-colors hover:bg-gray-800 hover:text-white"
+                >
+                  <div className="flex items-center gap-3">
+                    {dropdown.icon && (
+                      <dropdown.icon className="size-6 shrink-0" />
+                    )}
+                    <span className="whitespace-nowrap text-base">
+                      {dropdown.label}
+                    </span>
+                  </div>
+                  {expandedDropdown === dropdown.label ? (
+                    <ChevronDown className="size-4 shrink-0" />
+                  ) : (
+                    <ChevronRight className="size-4 shrink-0" />
+                  )}
+                </button>
+
+                {expandedDropdown === dropdown.label && (
+                  <div className="ml-6 space-y-1">
+                    {dropdown.items.map((item) => (
+                      <Link
+                        key={item.path}
+                        href={item.path}
+                        className="flex items-center gap-3 rounded-lg p-2 text-sm text-gray-300 transition-colors hover:bg-gray-800 hover:text-white"
+                        onClick={isMobile ? () => setIsOpen(false) : undefined}
+                      >
+                        {item.icon && <item.icon className="size-5 shrink-0" />}
+                        <span className="whitespace-nowrap">{item.label}</span>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+
+          {/* Show direct menu items for LEAD category users */}
+          {isLeadCategory &&
+            leadMenuItems.map((item) => (
+              <Link
+                key={item.path}
+                href={item.path}
+                className="flex items-center gap-3 rounded-lg p-2 text-white transition-colors hover:bg-gray-800 hover:text-white"
+                onClick={isMobile ? () => setIsOpen(false) : undefined}
+              >
+                {item.icon && <item.icon className="size-6 shrink-0" />}
+                <span className="whitespace-nowrap text-base">
+                  {item.label}
+                </span>
+              </Link>
+            ))}
         </nav>
       </div>
 
@@ -174,11 +293,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
 
       {/* Main Content */}
       <div className="flex-1 bg-gray-300 md:bg-gray-100">
-        <div className="h-full p-2 md:p-8">
-          {children}
-          <InstallPrompt />
-          <OfflineIndicator />
-        </div>
+        <div className="h-full p-2 md:p-8">{children}</div>
       </div>
     </div>
   );

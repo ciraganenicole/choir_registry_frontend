@@ -31,7 +31,8 @@ export const exportToPDF = async (
     });
     pdfDoc.addImage(base64, 'PNG', margin, margin, 35, 20);
   } catch (error) {
-    // Remove console.warn
+    // Silently ignore logo loading errors - PDF will still be generated without logo
+    console.warn('Failed to add logo to PDF:', error);
   }
 
   // Add title

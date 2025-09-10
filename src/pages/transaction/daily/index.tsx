@@ -11,7 +11,6 @@ import { exportToPDF } from '@/lib/transaction/excel';
 import { TransactionService } from '@/lib/transaction/service';
 import type {
   DailyContributionFilters,
-  DailyContributionsResponse,
   DailyContributor,
 } from '@/lib/transaction/types';
 import type { User } from '@/lib/user/type';
@@ -38,23 +37,20 @@ const DailyContributions = () => {
     ).toISOString(),
   });
 
-  const {
-    data: contributionsData,
-    isLoading: isContributionsLoading,
-    refetch,
-  } = useQuery<DailyContributionsResponse>({
-    queryKey: [
-      'daily-contributions',
-      filters,
-      { page: currentPage, limit: 10 },
-    ],
-    queryFn: () =>
-      TransactionService.fetchDailyContributions(filters, {
-        page: currentPage,
-        limit: 10,
-      }),
-    staleTime: 0,
-  });
+  const { data: contributionsData, isLoading: isContributionsLoading } =
+    useQuery({
+      queryKey: [
+        'daily-contributions',
+        filters,
+        { page: currentPage, limit: 10 },
+      ],
+      queryFn: () =>
+        TransactionService.fetchDailyContributions(filters, {
+          page: currentPage,
+          limit: 10,
+        }),
+      staleTime: 0,
+    });
 
   const { data: usersData, isLoading: isUsersLoading } = useQuery({
     queryKey: ['users', { page: currentPage, limit: 1000 }],
@@ -76,16 +72,21 @@ const DailyContributions = () => {
 
   const handleExport = async () => {
     try {
-      const dates = contributionsData?.dates || [];
-      const contributors = contributionsData?.contributors || [];
+      const dates =
+        (contributionsData as any)?.dates ||
+        (contributionsData as any)?.data?.dates ||
+        [];
+      const contributors =
+        (contributionsData as any)?.contributors ||
+        (contributionsData as any)?.data?.contributors ||
+        [];
       const summaries = (usersData?.data || []).map((user) => {
         const c = contributors.find(
-          (contributor) => contributor.userId === user.id,
+          (contributor: any) => contributor.userId === user.id,
         );
-        // Build dailyContributions array for this user
-        const dailyContributions = dates.map((date) => {
+        const dailyContributions = dates.map((date: any) => {
           const contribution = c?.contributions.find(
-            (con) => con.date === date,
+            (con: any) => con.date === date,
           );
           return {
             date,
@@ -100,18 +101,26 @@ const DailyContributions = () => {
           };
         });
         const allUSD = c
-          ? c.contributions.filter((con) => con.currency === 'USD')
+          ? c.contributions.filter((con: any) => con.currency === 'USD')
           : [];
         const allFC = c
-          ? c.contributions.filter((con) => con.currency === 'FC')
+          ? c.contributions.filter((con: any) => con.currency === 'FC')
           : [];
         return {
           userId: user.id,
           firstName: user.firstName,
           lastName: user.lastName,
-          totalAmountUSD: allUSD.reduce((sum, con) => sum + con.amount, 0),
-          totalAmountFC: allFC.reduce((sum, con) => sum + con.amount, 0),
-          contributionDates: c ? c.contributions.map((con) => con.date) : [],
+          totalAmountUSD: allUSD.reduce(
+            (sum: any, con: any) => sum + con.amount,
+            0,
+          ),
+          totalAmountFC: allFC.reduce(
+            (sum: any, con: any) => sum + con.amount,
+            0,
+          ),
+          contributionDates: c
+            ? c.contributions.map((con: any) => con.date)
+            : [],
           frequency: c ? c.contributions.length : 0,
           dailyContributions,
         };
@@ -122,8 +131,14 @@ const DailyContributions = () => {
     }
   };
 
-  const dates = contributionsData?.dates || [];
-  const contributors = contributionsData?.contributors || [];
+  const dates =
+    (contributionsData as any)?.dates ||
+    (contributionsData as any)?.data?.dates ||
+    [];
+  const contributors =
+    (contributionsData as any)?.contributors ||
+    (contributionsData as any)?.data?.contributors ||
+    [];
   const users = usersData?.data || [];
 
   // Calculate total amounts correctly by summing individual contributions
@@ -201,16 +216,6 @@ const DailyContributions = () => {
               >
                 <Download className="size-4 md:mr-2" />
                 <span className="hidden sm:inline">Exporter</span>
-              </button>
-              <button
-                onClick={async () => {
-                  console.log('Refresh button clicked');
-                  const result = await refetch();
-                  console.log('Refetched contributionsData:', result.data);
-                }}
-                className="flex items-center rounded-md border-[1px] border-gray-900/50 px-3 py-1.5 text-sm text-gray-900 shadow-sm hover:bg-gray-50 sm:px-4 sm:py-2"
-              >
-                <span>Rafraîchir</span>
               </button>
             </div>
           </div>

@@ -68,13 +68,6 @@ const translateCategoryToFrench = (category: string): string => {
   return translations[category] || category;
 };
 
-const logError = (error: unknown): void => {
-  if (process.env.NODE_ENV !== 'production') {
-    // eslint-disable-next-line no-console
-    console.error('Error:', error);
-  }
-};
-
 const getContributorName = (transaction: Transaction): string => {
   if (transaction.contributor) {
     const firstName = transaction.contributor.firstName || '';
@@ -137,7 +130,8 @@ const Transactions = () => {
       await createTransaction.mutateAsync(transactionData);
       refetchStats(); // Refetch stats after creating a transaction
     } catch (error) {
-      logError(error);
+      // Silently ignore transaction creation errors - UI will reflect current state
+      console.warn('Failed to create transaction:', error);
     }
   };
 
@@ -169,7 +163,8 @@ const Transactions = () => {
         });
       }
     } catch (error) {
-      logError(error);
+      // Silently ignore export errors - user will be notified by the mutation
+      console.warn('Failed to export transactions:', error);
     }
   };
 
@@ -193,7 +188,6 @@ const Transactions = () => {
         ...newFilters,
       };
 
-      // Convert date strings to Date objects for the API
       if (updated.startDate) {
         updated.startDate = new Date(updated.startDate).toISOString();
       }
@@ -201,7 +195,6 @@ const Transactions = () => {
         updated.endDate = new Date(updated.endDate).toISOString();
       }
 
-      // Remove undefined values
       Object.keys(updated).forEach((key) => {
         if (updated[key as keyof TransactionFilters] === undefined) {
           delete updated[key as keyof TransactionFilters];
@@ -220,7 +213,6 @@ const Transactions = () => {
   const handleUpdateComplete = () => {
     setShowUpdateModal(false);
     setSelectedTransaction(null);
-    // Refetch data and stats
     refetch();
     refetchStats();
   };
@@ -441,7 +433,6 @@ const Transactions = () => {
           </Card>
         </div>
 
-        {/* Desktop Table */}
         <div className="hidden md:block">
           <div className="mt-4 overflow-hidden rounded-lg border border-gray-300 bg-white shadow">
             <table className="min-w-full divide-y divide-gray-200">
@@ -482,7 +473,6 @@ const Transactions = () => {
           </div>
         </div>
 
-        {/* Mobile Cards */}
         <div className="mt-4 space-y-4 md:hidden">
           {(() => {
             if (isLoading) {
@@ -501,7 +491,6 @@ const Transactions = () => {
               );
             }
 
-            // Group transactions by user
             const groupedTransactions = data.data.reduce<
               Record<string, { name: string; transactions: Transaction[] }>
             >((acc, transaction) => {
@@ -516,7 +505,6 @@ const Transactions = () => {
                 };
               }
 
-              // Now TypeScript knows acc[contributorId] exists
               acc[contributorId]?.transactions.push(transaction);
               return acc;
             }, {});

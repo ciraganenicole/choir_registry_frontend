@@ -37,6 +37,19 @@ export const TransactionService = {
     });
 
     const { data } = await api.get('/transactions', { params: queryParams });
+
+    // Handle the response structure: [transactionsArray, totalCount]
+    if (Array.isArray(data) && data.length === 2) {
+      const [transactions, total] = data;
+      return {
+        data: transactions || [],
+        total: total || 0,
+        page: pagination.page,
+        limit: pagination.limit,
+      };
+    }
+
+    // Fallback for other response structures
     return data;
   },
 
@@ -115,6 +128,19 @@ export const TransactionService = {
         },
       },
     );
+
+    // Handle the response structure: [contributionsArray, totalCount]
+    if (Array.isArray(data) && data.length === 2) {
+      const [contributions, total] = data;
+      return {
+        data: contributions || [],
+        total: total || 0,
+        page: pagination.page,
+        limit: pagination.limit,
+      };
+    }
+
+    // Fallback for other response structures
     return data;
   },
 };

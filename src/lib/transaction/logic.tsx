@@ -6,18 +6,12 @@ import type { TransactionFilters, TransactionStats } from './types';
 export const useTransactionStats = (filters?: TransactionFilters) => {
   const queryClient = useQueryClient();
 
-  // const startDate = new Date().toISOString().split('T')[0]; // always use this format
-
-  console.log('Sending filters to backend:', filters);
-
   return useQuery({
     queryKey: ['transactionStats', filters],
     queryFn: async () => {
       const { data: responseData } = await api.get('/transactions/stats', {
         params: filters,
       });
-
-      console.log('API /transactions/stats response:', responseData);
 
       const stats: TransactionStats = {
         usd: {
@@ -33,9 +27,6 @@ export const useTransactionStats = (filters?: TransactionFilters) => {
         dailyTotalUSD: Number(responseData.dailyTotalUSD || 0),
         dailyTotalFC: Number(responseData.dailyTotalFC || 0),
       };
-
-      console.log('Mapped stats object:', stats);
-
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       return stats;
     },
@@ -51,6 +42,16 @@ export const useTransactions = (filters?: TransactionFilters) => {
       const { data } = await api.get('/transactions', {
         params: filters,
       });
+      if (Array.isArray(data) && data.length === 2) {
+        const [transactions, total] = data;
+        return {
+          data: transactions || [],
+          total: total || 0,
+          page: filters?.page || 1,
+          limit: filters?.limit || 10,
+        };
+      }
+
       return data;
     },
     staleTime: 1000 * 60 * 5,

@@ -20,6 +20,7 @@ const translateCategory = (category: string): string => {
     NEWCOMER: 'Adhérant',
     WORSHIPPER: 'Louado',
     COMMITTEE: 'Comité',
+    LEAD: 'Lead',
   };
   return translations[category] || category;
 };
