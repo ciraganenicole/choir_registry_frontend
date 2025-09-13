@@ -1,4 +1,3 @@
-// userActions.ts
 import { useState } from 'react';
 
 import { api } from '@/config/api';
@@ -66,64 +65,53 @@ export const CreateUser = <T extends DefaultFormData>(
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    try {
-      // Prepare the data for submission
-      const categoriesWithNewcomer = formData.categories?.includes(
-        UserCategory.NEWCOMER,
-      )
-        ? formData.categories
-        : [...formData.categories, UserCategory.NEWCOMER];
-      const dataToSubmit = {
-        firstName: formData.firstName.trim(),
-        lastName: formData.lastName.trim(),
-        // For enum fields, send empty string if null
-        gender: formData.gender || '',
-        maritalStatus: formData.maritalStatus || '',
-        educationLevel: formData.educationLevel || '',
-        profession: formData.profession || '',
-        // For string fields, send empty string if null
-        competenceDomain: formData.competenceDomain?.trim() || '',
-        churchOfOrigin: formData.churchOfOrigin?.trim() || '',
-        commune: formData.commune || '',
-        quarter: formData.quarter?.trim() || '',
-        reference: formData.reference?.trim() || '',
-        address: formData.address?.trim() || '',
-        phoneNumber: formData.phoneNumber?.trim() || '',
-        whatsappNumber: formData.whatsappNumber?.trim() || '',
-        email: formData.email?.trim() || '',
-        // For arrays, keep as empty arrays
-        commissions: formData.commissions || [],
-        categories: categoriesWithNewcomer,
-        // For optional fields that can be null
-        profilePicture: formData.profilePicture || null,
-        joinDate: null,
-        fingerprintData: null,
-        voiceCategory: null,
-        isActive: false,
-      };
+    const categoriesWithNewcomer = formData.categories?.includes(
+      UserCategory.NEWCOMER,
+    )
+      ? formData.categories
+      : [...formData.categories, UserCategory.NEWCOMER];
+    const dataToSubmit = {
+      firstName: formData.firstName.trim(),
+      lastName: formData.lastName.trim(),
+      gender: formData.gender || '',
+      maritalStatus: formData.maritalStatus || '',
+      educationLevel: formData.educationLevel || '',
+      profession: formData.profession || '',
+      competenceDomain: formData.competenceDomain?.trim() || '',
+      churchOfOrigin: formData.churchOfOrigin?.trim() || '',
+      commune: formData.commune || '',
+      quarter: formData.quarter?.trim() || '',
+      reference: formData.reference?.trim() || '',
+      address: formData.address?.trim() || '',
+      phoneNumber: formData.phoneNumber?.trim() || '',
+      whatsappNumber: formData.whatsappNumber?.trim() || '',
+      email: formData.email?.trim() || '',
+      commissions: formData.commissions || [],
+      categories: categoriesWithNewcomer,
+      profilePicture: formData.profilePicture || null,
+      joinDate: null,
+      fingerprintData: null,
+      voiceCategory: null,
+      isActive: false,
+    };
 
-      const response = await api.post('/users', dataToSubmit);
+    const response = await api.post('/users', dataToSubmit);
 
-      if (response.status === 201) {
-        setFormData({ ...defaultFormData } as T);
-        onClose();
-        onUserCreated();
-      } else {
-        console.error('Failed to create user:', response.data);
-        throw new Error(
-          Array.isArray(response.data.errors)
-            ? response.data.errors
-                .map(
-                  (err: any) =>
-                    `${err.field}: ${Object.values(err.constraints || {}).join(', ')}`,
-                )
-                .join('\n')
-            : response.data.message || 'Failed to create user',
-        );
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      throw error;
+    if (response.status === 201) {
+      setFormData({ ...defaultFormData } as T);
+      onClose();
+      onUserCreated();
+    } else {
+      throw new Error(
+        Array.isArray(response.data.errors)
+          ? response.data.errors
+              .map(
+                (err: any) =>
+                  `${err.field}: ${Object.values(err.constraints || {}).join(', ')}`,
+              )
+              .join('\n')
+          : response.data.message || 'Failed to create user',
+      );
     }
   };
 
@@ -138,99 +126,84 @@ export const UpdateUserAction = async (
   id: number,
   updatedData: Partial<User>,
 ) => {
-  try {
-    const response = await api.put(`/users/${id}`, updatedData);
-    return response.data;
-  } catch (error) {
-    console.error('Error updating user:', error);
-    throw error;
-  }
+  const response = await api.put(`/users/${id}`, updatedData);
+  return response.data;
 };
 
 export const toggleUserStatus = async (
   userId: number,
   currentStatus: boolean,
 ) => {
-  try {
-    const response = await api.put(`/users/${userId}/status`, {
-      isActive: !currentStatus,
-    });
-    return response.data;
-  } catch (error) {
-    console.error('Error toggling user status:', error);
-    throw error;
-  }
+  const response = await api.put(`/users/${userId}/status`, {
+    isActive: !currentStatus,
+  });
+  return response.data;
 };
 
 export const DeleteUserAction = async (userId: number) => {
-  try {
-    await api.delete(`/users/${userId}`);
-    return true;
-  } catch (error) {
-    console.error('Error deleting user:', error);
-    throw error;
-  }
+  await api.delete(`/users/${userId}`);
+  return true;
 };
 
 export const ViewUser = async (userId: number) => {
-  try {
-    const response = await api.get(`/users/${userId}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching user:', error);
-    throw error;
-  }
+  const response = await api.get(`/users/${userId}`);
+  return response.data;
 };
 
 export const FetchUsers = async (
   filters: UserFilters,
 ): Promise<{ data: User[]; total: number; page: number; limit: number }> => {
-  try {
-    const queryParams = new URLSearchParams();
+  const queryParams = new URLSearchParams();
 
-    // Handle each filter parameter explicitly
-    Object.entries(filters).forEach(([key, value]) => {
-      if (value !== undefined && value !== '') {
-        // Special handling for isActive to ensure it's a proper boolean
-        if (key === 'isActive') {
-          // Only append if it's explicitly true or false
-          if (value === true) {
-            queryParams.append('isActive', 'true');
-          } else if (value === false) {
-            queryParams.append('isActive', 'false');
-          }
-        } else {
-          queryParams.append(key, value.toString());
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== '') {
+      if (key === 'isActive') {
+        if (value === true) {
+          queryParams.append('isActive', 'true');
+        } else if (value === false) {
+          queryParams.append('isActive', 'false');
         }
+      } else {
+        queryParams.append(key, value.toString());
       }
-    });
+    }
+  });
 
-    const response = await api.get(`/users?${queryParams.toString()}`);
-    return response.data;
-  } catch (error) {
-    console.error('Error fetching users:', error);
-    throw error;
+  const response = await api.get(`/users?${queryParams.toString()}`);
+
+  if (Array.isArray(response.data) && response.data.length === 2) {
+    const [users, total] = response.data;
+    return {
+      data: users,
+      total,
+      page: filters.page || 1,
+      limit: filters.limit || 8,
+    };
   }
+
+  return response.data;
 };
 
 export const RegisterFingerprint = async (userId: number) => {
-  try {
-    // Step 1: Register challenge
-    const registerResponse = await api.post(
-      `/users/${userId}/fingerprint/register`,
-    );
-    const { challenge } = registerResponse.data;
+  const registerResponse = await api.post(
+    `/users/${userId}/fingerprint/register`,
+  );
+  const { challenge } = registerResponse.data;
 
-    // Step 2: Verify registration
-    const verifyResponse = await api.post(
-      `/users/${userId}/fingerprint/verify`,
-      {
-        challenge,
-      },
-    );
-    return verifyResponse.data;
-  } catch (error) {
-    console.error('Error registering fingerprint:', error);
-    throw error;
-  }
+  const verifyResponse = await api.post(`/users/${userId}/fingerprint/verify`, {
+    challenge,
+  });
+  return verifyResponse.data;
+};
+
+export const assignLeadRole = async (
+  userId: number,
+): Promise<{ user: User; password: string }> => {
+  const response = await api.post(`/users/${userId}/assign-lead`);
+  return response.data;
+};
+
+export const removeLeadRole = async (userId: number): Promise<User> => {
+  const response = await api.post(`/users/${userId}/remove-lead`);
+  return response.data;
 };

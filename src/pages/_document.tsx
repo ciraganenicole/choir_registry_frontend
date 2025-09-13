@@ -10,18 +10,10 @@ class MyDocument extends Document {
       <Html lang={AppConfig.locale}>
         <Head>
           <meta name="application-name" content="NJC" />
-          <meta name="apple-mobile-web-app-capable" content="yes" />
-          <meta
-            name="apple-mobile-web-app-status-bar-style"
-            content="default"
-          />
-          <meta name="apple-mobile-web-app-title" content="NJC" />
           <meta name="format-detection" content="telephone=no" />
-          <meta name="mobile-web-app-capable" content="yes" />
           <meta name="theme-color" content="#1e40af" />
 
-          <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
-          <link rel="manifest" href="/manifest.json" />
+          <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         </Head>
         <body>
           <Main />

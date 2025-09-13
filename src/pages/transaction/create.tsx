@@ -104,7 +104,8 @@ export const CreateTransaction = ({
         }));
         setUsers(formattedUsers);
       } catch (error) {
-        console.error('Error loading users:', error);
+        // Silently ignore user fetch errors - form will work without user list
+        console.warn('Failed to fetch users for transaction form:', error);
       }
     };
     loadUsers();
@@ -160,10 +161,6 @@ export const CreateTransaction = ({
       setErrors({
         submit: { message: 'Une erreur est survenue lors de la soumission' },
       });
-      if (process.env.NODE_ENV !== 'production') {
-        // eslint-disable-next-line no-console
-        console.error('Error submitting transaction:', error);
-      }
     }
   };
 

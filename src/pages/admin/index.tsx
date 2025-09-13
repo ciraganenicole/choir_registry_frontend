@@ -52,7 +52,6 @@ const AdminDashboard: React.FC = () => {
     totalAbsent: 0,
   });
 
-  // Generate array of years (from 2020 to current year + 5)
   const years = useMemo(() => {
     const currentYear = new Date().getFullYear();
     return Array.from(
@@ -67,7 +66,8 @@ const AdminDashboard: React.FC = () => {
         const response = await FetchUsers({ page: 1, limit: 10 });
         setTotalUsers(response.total);
       } catch (error) {
-        console.error('Error fetching users:', error);
+        // Silently ignore user fetch errors - component will handle empty state
+        console.warn('Failed to fetch users:', error);
       } finally {
         setLoading(false);
       }
@@ -78,7 +78,6 @@ const AdminDashboard: React.FC = () => {
 
   useEffect(() => {
     if (!attendance) {
-      console.log('No attendance data available');
       return;
     }
 
@@ -88,7 +87,6 @@ const AdminDashboard: React.FC = () => {
       totalAbsent: 0,
     };
 
-    // Initialize monthly stats with safe type checking
     const monthlyStats = Array.from({ length: 12 }, () => ({
       present: 0,
       late: 0,
@@ -96,7 +94,6 @@ const AdminDashboard: React.FC = () => {
       total: 0,
     }));
 
-    // First pass: Count total records per month and yearly totals
     Object.entries(attendance).forEach(([_userId, records]) => {
       if (!Array.isArray(records)) return;
 
@@ -115,7 +112,6 @@ const AdminDashboard: React.FC = () => {
         const recordYear = recordDate.getFullYear();
         const recordMonth = recordDate.getMonth();
 
-        // Only process records for the selected year
         if (
           recordYear === selectedYear &&
           recordMonth >= 0 &&
@@ -140,28 +136,17 @@ const AdminDashboard: React.FC = () => {
               monthStat.absent += 1;
               break;
             default:
-              console.warn('Unknown status:', record.status);
               break;
           }
         }
       });
     });
 
-    // Calculate total records for the year
     const totalYearlyRecords =
       yearlyStats.totalPresent +
       yearlyStats.totalLate +
       yearlyStats.totalAbsent;
 
-    // Debug log to check raw numbers
-    console.log('Raw yearly totals:', {
-      present: yearlyStats.totalPresent,
-      late: yearlyStats.totalLate,
-      absent: yearlyStats.totalAbsent,
-      total: totalYearlyRecords,
-    });
-
-    // Calculate percentages for the cards
     const presentPercentage =
       totalYearlyRecords > 0
         ? Math.round((yearlyStats.totalPresent / totalYearlyRecords) * 100)
@@ -175,11 +160,10 @@ const AdminDashboard: React.FC = () => {
         ? Math.round((yearlyStats.totalAbsent / totalYearlyRecords) * 100)
         : 0;
 
-    // Update metrics with percentages for cards
     setMetrics({
-      totalPresent: presentPercentage, // Percentage for card display
-      totalLate: latePercentage, // Percentage for card display
-      totalAbsent: absentPercentage, // Percentage for card display
+      totalPresent: presentPercentage,
+      totalLate: latePercentage,
+      totalAbsent: absentPercentage,
       attendanceRate: presentPercentage + latePercentage, // Total attendance rate (present + late)
     });
 
@@ -198,7 +182,6 @@ const AdminDashboard: React.FC = () => {
       'Décembre',
     ];
 
-    // Convert monthly stats to chart format
     setAttendanceStats({
       present: monthlyStats.map((m) => m.present),
       late: monthlyStats.map((m) => m.late),
@@ -323,7 +306,7 @@ const AdminDashboard: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-2 gap-2 md:gap-4 lg:grid-cols-4">
-          <div className="flex items-center justify-between rounded-lg bg-white p-2 shadow-sm md:p-6">
+          <div className="flex items-center justify-between rounded-lg border-l-4 border-blue-500 bg-white p-2 shadow-sm md:p-6">
             <div>
               <p className="text-xs font-medium text-gray-500 md:text-sm">
                 Total Membres
@@ -337,7 +320,7 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg bg-white p-2 shadow-sm md:p-6">
+          <div className="flex items-center justify-between rounded-lg border-l-4 border-green-500 bg-white p-2 shadow-sm md:p-6">
             <div>
               <p className="text-xs font-medium text-gray-500 md:text-sm">
                 Présences cette Année
@@ -351,7 +334,7 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg bg-white p-2 shadow-sm md:p-6">
+          <div className="flex items-center justify-between rounded-lg border-l-4 border-orange-500 bg-white p-2 shadow-sm md:p-6">
             <div>
               <p className="text-xs font-medium text-gray-500 md:text-sm">
                 Retards cette Année
@@ -365,7 +348,7 @@ const AdminDashboard: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg bg-white p-2 shadow-sm md:p-6">
+          <div className="flex items-center justify-between rounded-lg border-l-4 border-red-500 bg-white p-2 shadow-sm md:p-6">
             <div>
               <p className="text-xs font-medium text-gray-500 md:text-sm">
                 Absences cette Année

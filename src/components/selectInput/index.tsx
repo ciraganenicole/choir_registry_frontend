@@ -6,6 +6,7 @@ interface SelectInputProps {
   onChange: (selected: any) => void;
   placeholder?: string;
   isMulti?: boolean;
+  value?: any;
 }
 
 const SelectInput: React.FC<SelectInputProps> = ({
@@ -13,17 +14,25 @@ const SelectInput: React.FC<SelectInputProps> = ({
   onChange,
   placeholder = 'Select...',
   isMulti = true,
+  value,
 }) => {
   const [inputValue, setInputValue] = useState('');
   const [selectOptions, setSelectOptions] = useState(options);
   const [selectedOptions, setSelectedOptions] = useState<any>(
-    isMulti ? [] : null,
+    value || (isMulti ? [] : null),
   );
 
   // Sync external options with internal state
   useEffect(() => {
     setSelectOptions(options);
   }, [options]);
+
+  // Sync external value with internal state
+  useEffect(() => {
+    if (value !== undefined) {
+      setSelectedOptions(value);
+    }
+  }, [value]);
 
   // Handle new option creation
   const handleCreateOption = () => {

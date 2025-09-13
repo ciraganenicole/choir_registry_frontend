@@ -1,6 +1,5 @@
 /* eslint-disable new-cap */
 /* eslint-disable import/no-extraneous-dependencies */
-import axios from 'axios';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 import { jsPDF } from 'jspdf';
@@ -12,38 +11,6 @@ import { api } from '@/config/api';
 
 import type { User } from '../user/type';
 import { Commission, UserCategory } from '../user/type';
-
-// const API_BASE_URL = 'https://choir-registry.onrender.com';
-
-// Simple logging utility that can be disabled in production
-const log = (message: string, data?: any) => {
-  if (process.env.NODE_ENV !== 'production') {
-    // eslint-disable-next-line no-console
-    if (data) {
-      // eslint-disable-next-line no-console
-      console.log(message, data);
-    } else {
-      // eslint-disable-next-line no-console
-      console.log(message);
-    }
-  }
-};
-
-// Error logging utility
-const logError = (message: string, error: any) => {
-  if (process.env.NODE_ENV !== 'production') {
-    // eslint-disable-next-line no-console
-    console.error(message, error);
-    if (axios.isAxiosError(error)) {
-      // eslint-disable-next-line no-console
-      console.error('Axios error details:', {
-        status: error.response?.status,
-        data: error.response?.data,
-        message: error.message,
-      });
-    }
-  }
-};
 
 export enum AttendanceStatus {
   PRESENT = 'PRESENT',
@@ -169,7 +136,6 @@ export const useAttendance = () => {
   const getFilteredAttendance = (userId: number) => {
     const userAttendance = attendance[userId] || [];
 
-    // If no filters are set, return all attendance records
     if (
       !filters.startDate &&
       !filters.endDate &&
@@ -180,15 +146,12 @@ export const useAttendance = () => {
     }
 
     return userAttendance.filter((record) => {
-      // Date range filter
       const matchesDate =
         (!filters.startDate || record.date >= filters.startDate) &&
         (!filters.endDate || record.date <= filters.endDate);
 
-      // Status filter
       const matchesStatus = !filters.status || record.status === filters.status;
 
-      // Event type filter
       const matchesEventType =
         !filters.eventType || record.eventType === filters.eventType;
 
@@ -200,32 +163,28 @@ export const useAttendance = () => {
     setLoading(true);
     setErrorMessage(null);
     try {
-      log('Fetching users...');
-
-      // Add pagination parameters to get all users
       const queryParams = new URLSearchParams();
       queryParams.append('limit', '1000'); // Set a high limit to get all users
       queryParams.append('page', '1');
 
       const response = await api.get(`/users?${queryParams.toString()}`);
-      log('Users response:', response.data);
 
-      // Check if the response has the expected structure
-      const usersData = response.data.data || [];
-      const totalUsers = response.data.total || usersData.length;
+      let usersData: User[] = [];
 
-      log('Processed users data:', usersData);
-      log('Total users:', totalUsers);
+      if (Array.isArray(response.data) && response.data.length === 2) {
+        const [usersFromResponse] = response.data;
+        usersData = usersFromResponse || [];
+      } else if (response.data && response.data.data) {
+        usersData = response.data.data || [];
+      } else {
+        usersData = Array.isArray(response.data) ? response.data : [];
+      }
 
       setUsers(usersData);
 
-      // Fetch attendance for each user
       const userAttendancePromises = usersData.map(async (user: User) => {
         try {
-          // Create query parameters for attendance filters
           const attendanceParams = new URLSearchParams();
-
-          // Add filters to the query parameters if they exist
           if (filters.startDate) {
             attendanceParams.append('startDate', filters.startDate);
           }
@@ -239,19 +198,16 @@ export const useAttendance = () => {
             attendanceParams.append('eventType', filters.eventType);
           }
 
-          // Add pagination parameters to get all records
           attendanceParams.append('limit', '1000');
           attendanceParams.append('page', '1');
 
           const userAttendance = await api.get(
             `/attendance/user/${user.id}?${attendanceParams.toString()}`,
           );
-          log(`Attendance for user ${user.id}:`, userAttendance.data);
 
-          // Handle the response format: [records, total]
           const records =
             Array.isArray(userAttendance.data) && userAttendance.data.length > 0
-              ? userAttendance.data[0] // First element is the array of records
+              ? userAttendance.data[0]
               : [];
 
           return {
@@ -259,7 +215,6 @@ export const useAttendance = () => {
             records: Array.isArray(records) ? records : [],
           };
         } catch (error) {
-          logError(`Error fetching attendance for user ${user.id}:`, error);
           return { userId: user.id, records: [] };
         }
       });
@@ -269,11 +224,8 @@ export const useAttendance = () => {
       userAttendanceResults.forEach((result) => {
         mergedAttendance[result.userId] = result.records;
       });
-
-      log('Merged attendance:', mergedAttendance);
       setAttendance(mergedAttendance);
     } catch (error) {
-      logError('Error fetching users or attendance:', error);
       setErrorMessage('Failed to fetch attendance data. Please try again.');
       setUsers([]);
       setAttendance({});
@@ -285,7 +237,6 @@ export const useAttendance = () => {
   // Fetch on first mount only
   useEffect(() => {
     if (!users.length) {
-      log('Fetching data on first mount');
       fetchUsersAndAttendance();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -294,7 +245,6 @@ export const useAttendance = () => {
   // Fetch when filters change, but only if users are already loaded
   useEffect(() => {
     if (users.length) {
-      log('Fetching data with filters:', filters);
       fetchUsersAndAttendance();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -304,16 +254,11 @@ export const useAttendance = () => {
     userId: number,
     data: Partial<AttendanceRecord>,
   ) => {
-    try {
-      const response = await api.post('/attendance/manual', {
-        ...data,
-        userId,
-      });
-      return response.data;
-    } catch (error) {
-      console.error('Error marking attendance:', error);
-      throw error;
-    }
+    const response = await api.post('/attendance/manual', {
+      ...data,
+      userId,
+    });
+    return response.data;
   };
 
   const updateAttendance = async (
@@ -323,35 +268,27 @@ export const useAttendance = () => {
     try {
       const response = await api.put(`/attendance/${id}`, data);
 
-      // Refresh attendance data after update
       await fetchUsersAndAttendance();
 
       return response.data;
     } catch (error) {
-      logError('Error updating attendance:', error);
       throw new Error(
         error instanceof Error ? error.message : 'Failed to update attendance',
       );
     }
   };
 
-  // Add function to handle event type change
   const changeEventType = (eventType: AttendanceEventType) => {
     setSelectedEventType(eventType);
   };
 
-  // Enhanced error handling utility for export operations
   const handleExportError = (error: unknown, operation: string): string => {
     let message = `Failed to ${operation}`;
 
     if (error instanceof Error) {
       message += `: ${error.message}`;
-      logError(message, error);
     } else if (typeof error === 'string') {
       message += `: ${error}`;
-      logError(message, { stringError: error });
-    } else {
-      logError(message, { unknownError: error });
     }
 
     return message;
@@ -363,24 +300,20 @@ export const useAttendance = () => {
     exportYear?: number,
   ) => {
     try {
-      // If no month/year provided, use current month/year
       const now = new Date();
       const currentMonth = now.getMonth();
       const currentYear = now.getFullYear();
 
-      // Use provided month/year or defaults
       const monthToUse =
         typeof exportMonth === 'number' ? exportMonth : currentMonth;
       const yearToUse =
         typeof exportYear === 'number' ? exportYear : currentYear;
 
-      // Create date safely
       const currentDate = new Date(yearToUse, monthToUse);
       if (Number.isNaN(currentDate.getTime())) {
         throw new Error('Invalid date created from month and year');
       }
 
-      // Get month name safely using date-fns
       const monthIndex = (exportMonth ?? monthToUse) - 1;
       let monthName;
       try {
@@ -391,13 +324,12 @@ export const useAttendance = () => {
         monthName = String(exportMonth ?? monthToUse).padStart(2, '0');
       }
 
-      // Create PDF document with consistent margins
       const Doc = new jsPDF({
         orientation: 'portrait',
         unit: 'mm',
         format: 'a4',
       });
-      const margin = 10; // Reduced margin from 15 to 10
+      const margin = 10;
 
       // Add logo
       try {
@@ -410,29 +342,28 @@ export const useAttendance = () => {
           reader.readAsDataURL(blob);
         });
 
-        Doc.addImage(base64, 'PNG', 10, 10, 35, 20); // Adjusted y position from 15 to 10
+        Doc.addImage(base64, 'PNG', 10, 10, 35, 20);
       } catch (error) {
-        // Remove console.warn
+        // Silently ignore image loading errors - PDF will still be generated without logo
+        console.warn('Failed to add logo to PDF:', error);
       }
 
-      // Add header text with exact positioning
       Doc.setFontSize(11);
       Doc.setFont('helvetica', 'bold');
       Doc.text(
         'COMMUNAUTE DES EGLISES LIBRES DE PENTECOTE EN AFRIQUE',
         margin + 30,
-        15, // Adjusted from 20
+        15,
       );
-      Doc.text('5è CELPA SALEM GOMA', margin + 30, 20); // Adjusted from 25
-      Doc.text('CHORALE LA NOUVELLE JERUSALEM', margin + 30, 25); // Adjusted from 30
+      Doc.text('5è CELPA SALEM GOMA', margin + 30, 20);
+      Doc.text('CHORALE LA NOUVELLE JERUSALEM', margin + 30, 25);
 
       Doc.setFontSize(12);
-      Doc.text('REGISTRE DES PRESENCES', margin, 35); // Adjusted from 45
+      Doc.text('REGISTRE DES PRESENCES', margin, 35);
 
       Doc.setFontSize(10);
-      Doc.text('Mois de :', margin, 42); // Adjusted from 52
+      Doc.text('Mois de :', margin, 42);
 
-      // Get all dates in the month or use all unique dates from attendance records
       let datesInMonth: Date[] = [];
       if (exportMonth !== undefined && exportYear !== undefined) {
         const lastDay = new Date(yearToUse, monthIndex + 1, 0).getDate();
@@ -441,11 +372,9 @@ export const useAttendance = () => {
           datesInMonth.push(monthDate);
         }
       } else {
-        // Get all unique dates from attendance records filtered by exportFilters
         const uniqueDates = new Set<string>();
         Object.values(attendance).forEach((userRecords) => {
           userRecords.forEach((record) => {
-            // Apply exportFilters to filter dates
             if (
               (!exportFilters.startDate ||
                 record.date >= exportFilters.startDate) &&
@@ -464,7 +393,6 @@ export const useAttendance = () => {
           .sort((a, b) => a.getTime() - b.getTime());
       }
 
-      // Get the month text based on the first date in the data
       let monthText = '';
       if (datesInMonth.length > 0 && datesInMonth[0]) {
         const firstDate = datesInMonth[0];
@@ -477,14 +405,11 @@ export const useAttendance = () => {
 
       Doc.text(monthText, margin + 20, 42);
 
-      // Add "FREQUENTATIONS JOURNALIERES" header
       Doc.setFontSize(11);
       Doc.text('FREQUENTATIONS JOURNALIERES', margin, 50);
 
-      // Add "Statistiques" text aligned to the right
       Doc.text('Statistiques', 250, 50);
 
-      // Set the month name and year for the header based on the first date in the table
       let monthNameForHeader = '';
       let yearForHeader = yearToUse;
       if (
@@ -502,7 +427,6 @@ export const useAttendance = () => {
         );
       }
 
-      // Keep the original formatFullDate function
       const formatFullDate = (date: Date | undefined): string => {
         if (!date || !(date instanceof Date) || Number.isNaN(date.getTime())) {
           return '';
@@ -518,16 +442,13 @@ export const useAttendance = () => {
         }
       };
 
-      // Prepare table data with proper typing
       const tableData: (string | number)[][] = [];
       const sortedUsers = [...users].sort((a, b) =>
         a.lastName.localeCompare(b.lastName),
       );
 
-      // Add headers
       const headers: string[] = ['#', 'Prenom', 'Nom'];
 
-      // Add date headers
       datesInMonth.forEach((date) => {
         headers.push(formatFullDate(date));
       });
@@ -535,7 +456,6 @@ export const useAttendance = () => {
       headers.push('P', 'A', 'R');
       tableData.push(headers);
 
-      // Add user data
       let memberIndex = 1;
       sortedUsers.forEach((user) => {
         const userAttendance = attendance[user.id] || [];
@@ -577,7 +497,6 @@ export const useAttendance = () => {
         memberIndex += 1;
       });
 
-      // Update table styling with proper types
       autoTable(Doc, {
         head: [headers],
         body: tableData.slice(1) as RowInput[],
@@ -693,13 +612,11 @@ export const useAttendance = () => {
         },
       });
 
-      // Generate filename
       const filename =
         exportMonth !== undefined && exportYear !== undefined
           ? `registre_presences_${monthNameForHeader}_${yearForHeader}.pdf`
           : `registre_presences_toutes_dates.pdf`;
 
-      // Save PDF
       Doc.save(filename);
     } catch (error) {
       const exportError = handleExportError(error, 'export attendance to PDF');
@@ -710,12 +627,10 @@ export const useAttendance = () => {
   const filteredUsers = users.filter((user) => {
     if (!user) return false;
 
-    // First filter by event type
     if (!userBelongsToEventType(user, selectedEventType)) {
       return false;
     }
 
-    // Then filter by search term if it exists
     if (filters.search) {
       const searchTerm = filters.search.toLowerCase();
       const fullName = `${user.lastName} ${user.firstName}`.toLowerCase();
@@ -724,7 +639,6 @@ export const useAttendance = () => {
       }
     }
 
-    // NEW: Only include active users or inactive newcomers
     const isInactiveNewcomer =
       !user.isActive && user.categories.includes(UserCategory.NEWCOMER);
     const { isActive } = user;

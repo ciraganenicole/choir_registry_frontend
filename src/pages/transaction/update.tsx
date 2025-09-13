@@ -47,7 +47,6 @@ const UpdateTransaction: React.FC<UpdateTransactionProps> = ({
         const response = await api.get('/users');
         setUsers(response.data.data || []);
       } catch (err) {
-        console.error('Error fetching users:', err);
         setError('Failed to load users');
       }
     };
@@ -75,7 +74,6 @@ const UpdateTransaction: React.FC<UpdateTransactionProps> = ({
       onUpdate();
       onClose();
     } catch (err) {
-      console.error('Error updating transaction:', err);
       setError('Failed to update transaction');
     }
   };
@@ -83,7 +81,6 @@ const UpdateTransaction: React.FC<UpdateTransactionProps> = ({
   const categories =
     type === TransactionType.INCOME ? IncomeCategories : ExpenseCategories;
 
-  // Get available subcategories based on the selected category
   const getSubcategories = (selectedCategory: string): string[] => {
     const subcategoriesMap = {
       [IncomeCategories.SPECIAL]: ['ILLNESS', 'BIRTH', 'MARRIAGE', 'DEATH'],
@@ -102,10 +99,8 @@ const UpdateTransaction: React.FC<UpdateTransactionProps> = ({
     );
   };
 
-  // Helper function to translate categories to French
   const translateCategory = (cat: string): string => {
     const translations: Record<string, string> = {
-      // Income categories
       DAILY: 'Quotidien',
       SPECIAL: 'Spécial',
       DONATION: 'Donation',

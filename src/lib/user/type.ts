@@ -44,9 +44,11 @@ export enum Commission {
 }
 
 export enum UserCategory {
+  NORMAL = 'NORMAL',
   WORSHIPPER = 'WORSHIPPER',
   COMMITTEE = 'COMMITTEE',
   NEWCOMER = 'NEWCOMER',
+  LEAD = 'LEAD',
 }
 
 export enum UserRole {
@@ -54,6 +56,7 @@ export enum UserRole {
   FINANCE_ADMIN = 'FINANCE_ADMIN',
   ATTENDANCE_ADMIN = 'ATTENDANCE_ADMIN',
   USER = 'USER',
+  LEAD = 'LEAD',
 }
 
 export interface User {

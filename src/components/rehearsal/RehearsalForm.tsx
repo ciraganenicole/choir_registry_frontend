@@ -1,0 +1,896 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { FaTimes } from 'react-icons/fa';
+
+import { usePerformances } from '@/lib/performance/logic';
+import {
+  getRehearsalTypeOptions,
+  useCreateRehearsal,
+  useUpdateRehearsal,
+} from '@/lib/rehearsal/logic';
+import { RehearsalService } from '@/lib/rehearsal/service';
+import type {
+  CreateRehearsalDto,
+  CreateRehearsalSongDto,
+  Rehearsal,
+  UpdateRehearsalDto,
+} from '@/lib/rehearsal/types';
+import { RehearsalType } from '@/lib/rehearsal/types';
+import {
+  getActualShiftStatus,
+  useCurrentShift,
+  validateShiftForPerformance,
+} from '@/lib/shift/logic';
+import { UserCategory } from '@/lib/user/type';
+import { useUsers } from '@/lib/user/useUsers';
+import { useAuth } from '@/providers/AuthProvider';
+
+import { RehearsalSongManager } from './RehearsalSongManager';
+
+interface RehearsalFormProps {
+  rehearsal?: Rehearsal | null;
+  performanceId?: number; // Make optional
+  onSuccess?: () => void;
+  onCancel?: () => void;
+  show?: boolean; // Control modal visibility
+}
+
+export const RehearsalForm: React.FC<RehearsalFormProps> = ({
+  rehearsal,
+  performanceId,
+  onSuccess,
+  onCancel,
+  show = true,
+}) => {
+  const { user } = useAuth();
+  const { createRehearsal } = useCreateRehearsal();
+  const { updateRehearsal } = useUpdateRehearsal();
+  const { currentShift } = useCurrentShift();
+  // isEditing is true only when we have a rehearsal with an ID (existing rehearsal)
+  // If we have a rehearsal without ID, it's a template for creating a new one
+  const isEditing = !!(rehearsal && rehearsal.id);
+  const isTemplateMode = !!(rehearsal && !rehearsal.id);
+
+  const [formData, setFormData] = useState<CreateRehearsalDto>({
+    title: '',
+    date: '',
+    type: RehearsalType.GENERAL_PRACTICE,
+    location: '',
+    duration: 60,
+    performanceId: performanceId || 0, // Use provided performanceId or 0 if not provided
+    rehearsalLeadId: 0,
+    shiftLeadId: currentShift?.leaderId || 0, // Use current shift leader ID, default to 0 if no shift
+    isTemplate: false,
+    notes: '',
+    objectives: '',
+    rehearsalSongs: [],
+    musicians: [],
+  });
+
+  // Instrument dropdown functionality removed as it's not used
+
+  const { users: allUsers } = useUsers();
+  const leaders = allUsers.filter((leader) =>
+    leader.categories?.includes(UserCategory.LEAD),
+  );
+  const [validationErrors, setValidationErrors] = useState<
+    Record<string, string>
+  >({});
+  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
+  const typeDropdownRef = useRef<HTMLDivElement>(null);
+  const [isRehearsalSaved, setIsRehearsalSaved] = useState(false);
+  const [savedRehearsalId, setSavedRehearsalId] = useState<number | null>(null);
+  const { performances, fetchPerformances } = usePerformances();
+
+  // Fetch performances when component mounts (only if no performanceId is provided)
+  useEffect(() => {
+    if (!performanceId) {
+      fetchPerformances();
+    }
+  }, [performanceId, fetchPerformances]);
+
+  // Handle click outside to close dropdowns
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        typeDropdownRef.current &&
+        !typeDropdownRef.current.contains(event.target as Node)
+      ) {
+        setShowTypeDropdown(false);
+      }
+      // Instrument dropdown handling removed as it's not used
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  // Initialize form data when editing
+  useEffect(() => {
+    if (rehearsal) {
+      // If editing an existing rehearsal, mark it as saved
+      setIsRehearsalSaved(true);
+      setSavedRehearsalId(rehearsal.id);
+
+      let dateString = '';
+      if (rehearsal.date) {
+        if (typeof rehearsal.date === 'string') {
+          dateString = rehearsal.date.split('T')[0] || '';
+        } else if (rehearsal.date instanceof Date) {
+          dateString = rehearsal.date.toISOString().split('T')[0] || '';
+        } else {
+          // Handle other date formats
+          dateString =
+            new Date(rehearsal.date).toISOString().split('T')[0] || '';
+        }
+      }
+
+      setFormData({
+        title: rehearsal.title || '',
+        date: dateString,
+        type: rehearsal.type || RehearsalType.GENERAL_PRACTICE,
+        location: rehearsal.location || '',
+        duration: rehearsal.duration || 60,
+        performanceId: rehearsal.performanceId,
+        rehearsalLeadId: rehearsal.rehearsalLeadId || 0,
+        shiftLeadId: rehearsal.shiftLeadId || 0,
+        isTemplate: rehearsal.isTemplate || false,
+        notes: rehearsal.notes || '',
+        objectives: rehearsal.objectives || '',
+        rehearsalSongs:
+          rehearsal.rehearsalSongs?.map((song) => ({
+            songId: song.songId,
+            leadSingerIds: song.leadSingers?.map((ls) => ls.id) || [],
+            difficulty: song.difficulty,
+            needsWork: song.needsWork,
+            order: song.order,
+            timeAllocated: song.timeAllocated,
+            focusPoints: song.focusPoints,
+            notes: song.notes,
+            musicalKey: song.musicalKey,
+            voiceParts:
+              song.voiceParts?.map((vp) => ({
+                voicePartType: vp.voicePartType,
+                memberIds: vp.members?.map((m) => m.id) || [],
+                needsWork: vp.needsWork,
+                focusPoints: vp.focusPoints,
+                notes: vp.notes,
+              })) || [],
+            musicians:
+              song.musicians?.map((m) => ({
+                userId: m.userId,
+                instrument: m.instrument,
+                customInstrument: '',
+                isAccompanist: m.isAccompanist,
+                isSoloist: false,
+                soloStartTime: 0,
+                soloEndTime: 0,
+                soloNotes: '',
+                accompanimentNotes: '',
+                needsPractice: false,
+                practiceNotes: '',
+                order: m.order,
+                timeAllocated: 0,
+                notes: m.notes || '',
+              })) || [],
+            chorusMemberIds: song.chorusMembers?.map((cm) => cm.id) || [],
+          })) || [],
+        musicians: rehearsal.musicians || [],
+      });
+    }
+  }, [rehearsal]);
+
+  // Update shiftLeadId and rehearsalLeadId when current shift changes
+  useEffect(() => {
+    if (currentShift?.leaderId && !rehearsal) {
+      setFormData((prev) => ({
+        ...prev,
+        shiftLeadId: currentShift.leaderId,
+        rehearsalLeadId: currentShift.leaderId, // Set rehearsal lead to shift lead by default
+      }));
+    } else if (currentShift?.leaderId && rehearsal) {
+      // When editing, use current shift leader ID if no shiftLeadId is set
+      setFormData((prev) => ({
+        ...prev,
+        shiftLeadId: prev.shiftLeadId || currentShift.leaderId,
+        rehearsalLeadId: prev.rehearsalLeadId || currentShift.leaderId, // Set rehearsal lead to shift lead if not already set
+      }));
+    }
+  }, [currentShift?.leaderId, rehearsal]);
+
+  // Leaders are now fetched via the centralized useUsers hook
+
+  const validateForm = async (): Promise<boolean> => {
+    const errors: Record<string, string> = {};
+
+    // Enhanced shift validation - only validate if we have shifts data
+    if (currentShift) {
+      const shiftValidation = validateShiftForPerformance([currentShift]);
+
+      if (!shiftValidation.canProceed) {
+        errors.general = shiftValidation.warning || 'Shift validation failed';
+        setValidationErrors(errors);
+        return false;
+      }
+
+      // Warning handling removed as it's not used
+    }
+
+    // Make shift validation more flexible - allow creation without active shift but with warning
+    if (!currentShift) {
+      // Warning handling removed as it's not used
+      // Don't block creation, just show warning
+    } else {
+      if (!currentShift.leaderId) {
+        errors.general = 'Aucun chef de service assigné au shift';
+        setValidationErrors(errors);
+        return false;
+      }
+
+      const actualStatus = getActualShiftStatus(currentShift);
+      if (actualStatus === 'Completed' || actualStatus === 'Cancelled') {
+        errors.general =
+          'Ce shift est terminé ou annulé, impossible de créer une répétition';
+        setValidationErrors(errors);
+        return false;
+      }
+    }
+
+    if (!formData.date) {
+      errors.date = 'La date est requise';
+    }
+
+    if (!formData.location.trim()) {
+      errors.location = 'Le lieu est requis';
+    }
+
+    if (!formData.duration || formData.duration <= 0) {
+      errors.duration = 'La durée doit être supérieure à 0';
+    }
+
+    if (!formData.rehearsalLeadId) {
+      errors.rehearsalLeadId = 'Veuillez sélectionner un chef de répétition';
+    }
+
+    // Only require shiftLeadId if there's an active shift
+    if (currentShift && !formData.shiftLeadId) {
+      errors.shiftLeadId = 'Veuillez sélectionner un chef de service';
+    }
+
+    // Validate performanceId if no performanceId is provided in props
+    if (!performanceId && formData.performanceId === 0) {
+      errors.performanceId = 'Veuillez sélectionner une performance';
+    }
+
+    // Validate song time allocation - only when rehearsal is not yet saved
+    if (!isRehearsalSaved && !isEditing) {
+      const totalSongTime = (formData.rehearsalSongs || []).reduce(
+        (total, song) => total + (song.timeAllocated || 0),
+        0,
+      );
+      if (totalSongTime > formData.duration) {
+        errors.songs = `Le temps total des chansons (${totalSongTime} min) dépasse la durée de la répétition (${formData.duration} min)`;
+      }
+    }
+
+    // Validate that songs have required fields - only when rehearsal is not yet saved
+    if (!isRehearsalSaved && !isEditing) {
+      const songsWithErrors = (formData.rehearsalSongs || []).filter(
+        (song) =>
+          !song.songId ||
+          !song.leadSingerIds ||
+          song.leadSingerIds.length === 0,
+      );
+      if (songsWithErrors.length > 0) {
+        errors.songs =
+          'Toutes les chansons doivent avoir une chanson sélectionnée et un chanteur principal';
+      }
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleInputChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >,
+  ) => {
+    const { name, value, type } = e.target;
+
+    let parsedValue: any = value;
+    if (type === 'number') {
+      parsedValue = parseInt(value, 10) || 0;
+    } else if (name === 'isTemplate') {
+      parsedValue = (e.target as HTMLInputElement).checked;
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      [name]: parsedValue,
+    }));
+
+    // Clear validation error when user starts typing
+    if (validationErrors[name]) {
+      setValidationErrors((prev) => ({
+        ...prev,
+        [name]: '',
+      }));
+    }
+  };
+
+  const handleSongsChange = (songs: CreateRehearsalSongDto[]) => {
+    setFormData((prev) => ({
+      ...prev,
+      rehearsalSongs: songs,
+    }));
+
+    // Clear song validation errors when songs change
+    if (validationErrors.songs) {
+      setValidationErrors((prev) => ({
+        ...prev,
+        songs: '',
+      }));
+    }
+  };
+
+  // Helper function to add songs to an existing rehearsal
+  const addSongsToRehearsal = async (
+    rehearsalId: number,
+    songs: CreateRehearsalSongDto[],
+  ) => {
+    const results = await RehearsalService.addMultipleSongsToRehearsal(
+      rehearsalId,
+      songs,
+    );
+    return results;
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!(await validateForm())) {
+      return;
+    }
+
+    if (isEditing) {
+      if (!rehearsal || !rehearsal.id) {
+        return;
+      }
+
+      const updateData: UpdateRehearsalDto = {
+        title: formData.title,
+        date: formData.date,
+        type: formData.type,
+        location: formData.location,
+        duration: formData.duration,
+        rehearsalLeadId: formData.rehearsalLeadId,
+        shiftLeadId: formData.shiftLeadId,
+        notes: formData.notes,
+        objectives: formData.objectives,
+        musicians: formData.musicians,
+      };
+
+      const success = await updateRehearsal(rehearsal.id, updateData);
+      if (success) {
+        onSuccess?.();
+      } else {
+        // console.error('❌ Failed to update rehearsal');
+      }
+    } else if (isRehearsalSaved && savedRehearsalId) {
+      if (formData.rehearsalSongs && formData.rehearsalSongs.length > 0) {
+        await addSongsToRehearsal(savedRehearsalId, formData.rehearsalSongs);
+      }
+
+      onSuccess?.();
+    } else {
+      const rehearsalDataWithoutSongs = {
+        ...formData,
+        rehearsalSongs: undefined, // Remove songs from initial creation
+      };
+
+      const createdRehearsal = await createRehearsal(rehearsalDataWithoutSongs);
+
+      if (createdRehearsal && createdRehearsal.id) {
+        // Set the saved rehearsal ID so songs can be added
+        setSavedRehearsalId(createdRehearsal.id);
+        setIsRehearsalSaved(true);
+
+        if (formData.rehearsalSongs && formData.rehearsalSongs.length > 0) {
+          await addSongsToRehearsal(
+            createdRehearsal.id,
+            formData.rehearsalSongs,
+          );
+        }
+
+        onSuccess?.();
+      }
+    }
+  };
+
+  const handleCancel = () => {
+    onCancel?.();
+  };
+
+  const getSelectedRehearsalTypeName = (type: RehearsalType) => {
+    const typeMap: Record<string, string> = {
+      'General Practice': 'Pratique Générale',
+      'Performance Preparation': 'Préparation de Performance',
+      'Song Learning': 'Apprentissage de Chansons',
+      'Sectional Practice': 'Répétition par Section',
+      'Full Ensemble': 'Ensemble Complet',
+      'Dress Rehearsal': 'Répétition Générale',
+      Other: 'Autre',
+    };
+    return typeMap[type] || type;
+  };
+
+  const mapEnglishToEnum = (englishValue: string): RehearsalType | null => {
+    const englishToEnumMap: Record<string, RehearsalType> = {
+      'General Practice': RehearsalType.GENERAL_PRACTICE,
+      'Performance Preparation': RehearsalType.PERFORMANCE_PREPARATION,
+      'Song Learning': RehearsalType.SONG_LEARNING,
+      'Sectional Practice': RehearsalType.SECTIONAL_PRACTICE,
+      'Full Ensemble': RehearsalType.FULL_ENSEMBLE,
+      'Dress Rehearsal': RehearsalType.DRESS_REHEARSAL,
+      Other: RehearsalType.OTHER,
+    };
+    return englishToEnumMap[englishValue] || null;
+  };
+
+  if (!user || !user.role) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg bg-white shadow-xl">
+          <div className="p-6">
+            <p className="text-red-600">Authentification requise</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!show) {
+    return null;
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <div className="h-[98vh] w-full overflow-y-auto rounded-lg bg-white shadow-xl md:w-[80%]">
+        <div className="flex items-center justify-between border-b border-gray-400 p-6 ">
+          <h2 className="text-xl font-semibold text-gray-900">
+            {(() => {
+              if (isEditing) return 'Modifier la répétition';
+              if (isTemplateMode)
+                return 'Créer une répétition à partir du modèle';
+              return 'Créer une nouvelle répétition';
+            })()}
+          </h2>
+          <button
+            onClick={onCancel}
+            className="rounded-md bg-red-500 px-4 py-2 text-gray-400 transition-colors hover:text-gray-600"
+          >
+            <FaTimes className="text-lg text-white" />
+          </button>
+        </div>
+
+        <div className="space-y-6 p-6">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {validationErrors.general && (
+              <div className="rounded-md border border-red-200 bg-red-50 p-4">
+                <p className="text-sm text-red-600">
+                  {validationErrors.general}
+                </p>
+              </div>
+            )}
+
+            <div className="mb-4 grid grid-cols-1  gap-4 rounded-lg border border-gray-400 bg-white p-6 md:grid-cols-3">
+              <h4 className="text-md col-span-3 mb-4 font-medium text-gray-900">
+                Informations générales
+              </h4>
+
+              <div className="mb-4">
+                <label
+                  htmlFor="title"
+                  className="mb-2 block text-sm font-medium text-gray-700"
+                >
+                  Titre *
+                </label>
+                <input
+                  type="text"
+                  id="title"
+                  name="title"
+                  value={formData.title}
+                  onChange={handleInputChange}
+                  className={`w-full rounded-md border px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    validationErrors.title
+                      ? 'border-red-300'
+                      : 'border-gray-300'
+                  }`}
+                  placeholder="Entrez le titre de la répétition"
+                />
+                {validationErrors.title && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {validationErrors.title}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label
+                  htmlFor="date"
+                  className="mb-2 block text-sm font-medium text-gray-700"
+                >
+                  Date *
+                </label>
+                <input
+                  type="date"
+                  id="date"
+                  name="date"
+                  value={formData.date}
+                  onChange={handleInputChange}
+                  className={`w-full rounded-md border px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    validationErrors.date ? 'border-red-300' : 'border-gray-300'
+                  }`}
+                />
+                {validationErrors.date && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {validationErrors.date}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label
+                  htmlFor="duration"
+                  className="mb-2 block text-sm font-medium text-gray-700"
+                >
+                  Durée (minutes) *
+                </label>
+                <input
+                  type="number"
+                  id="duration"
+                  name="duration"
+                  value={formData.duration}
+                  onChange={handleInputChange}
+                  min="15"
+                  step="15"
+                  className={`w-full rounded-md border px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    validationErrors.duration
+                      ? 'border-red-300'
+                      : 'border-gray-300'
+                  }`}
+                />
+                {validationErrors.duration && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {validationErrors.duration}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label
+                  htmlFor="type"
+                  className="mb-2 block text-sm font-medium text-gray-700"
+                >
+                  Type de répétition *
+                </label>
+                <div className="relative" ref={typeDropdownRef}>
+                  <input
+                    type="text"
+                    id="type"
+                    name="type"
+                    value={getSelectedRehearsalTypeName(formData.type)}
+                    onChange={(e) => {
+                      const searchTerm = e.target.value;
+                      const foundType = getRehearsalTypeOptions().find(
+                        (option) =>
+                          option.label
+                            .toLowerCase()
+                            .includes(searchTerm.toLowerCase()),
+                      );
+                      if (foundType) {
+                        const enumValue = mapEnglishToEnum(foundType.value);
+                        if (enumValue) {
+                          setFormData((prev) => ({ ...prev, type: enumValue }));
+                        }
+                      }
+                    }}
+                    placeholder="Tapez pour rechercher un type..."
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    onFocus={() => setShowTypeDropdown(true)}
+                    onBlur={() =>
+                      setTimeout(() => setShowTypeDropdown(false), 200)
+                    }
+                  />
+                  {showTypeDropdown && (
+                    <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
+                      {getRehearsalTypeOptions().map((option) => (
+                        <div
+                          key={option.value}
+                          className="cursor-pointer px-3 py-2 hover:bg-blue-50"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            const enumValue = mapEnglishToEnum(option.value);
+                            if (enumValue) {
+                              setFormData((prev) => ({
+                                ...prev,
+                                type: enumValue,
+                              }));
+                            }
+                            setShowTypeDropdown(false);
+                          }}
+                        >
+                          {option.label}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="location"
+                  className="mb-2 block text-sm font-medium text-gray-700"
+                >
+                  Lieu *
+                </label>
+                <input
+                  type="text"
+                  id="location"
+                  name="location"
+                  value={formData.location}
+                  onChange={handleInputChange}
+                  className={`w-full rounded-md border px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    validationErrors.location
+                      ? 'border-red-300'
+                      : 'border-gray-300'
+                  }`}
+                  placeholder="Entrez le lieu de la répétition"
+                />
+                {validationErrors.location && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {validationErrors.location}
+                  </p>
+                )}
+              </div>
+
+              {/* Performance Selector - Only show if no performanceId is provided */}
+              {!performanceId ? (
+                <div>
+                  <label
+                    htmlFor="performanceId"
+                    className="mb-2 block text-sm font-medium text-gray-700"
+                  >
+                    Performance associée *
+                  </label>
+                  <select
+                    id="performanceId"
+                    name="performanceId"
+                    value={formData.performanceId}
+                    onChange={(e) => {
+                      const perfId = parseInt(e.target.value, 10);
+                      setFormData((prev) => ({
+                        ...prev,
+                        performanceId: perfId,
+                      }));
+
+                      // Clear validation error when performance is selected
+                      if (validationErrors.performanceId) {
+                        setValidationErrors((prev) => ({
+                          ...prev,
+                          performanceId: '',
+                        }));
+                      }
+                    }}
+                    className={`w-full rounded-md border px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                      validationErrors.performanceId
+                        ? 'border-red-300'
+                        : 'border-gray-300'
+                    }`}
+                  >
+                    <option value={0}>Sélectionnez une performance...</option>
+                    {performances.map((performance) => (
+                      <option key={performance.id} value={performance.id}>
+                        {performance.type} -{' '}
+                        {new Date(performance.date).toLocaleDateString('fr-FR')}{' '}
+                        ({performance.location || 'Lieu non spécifié'})
+                      </option>
+                    ))}
+                  </select>
+                  {validationErrors.performanceId && (
+                    <p className="mt-1 text-sm text-red-600">
+                      {validationErrors.performanceId}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-gray-700">
+                    Performance associée
+                  </label>
+                </div>
+              )}
+              <div>
+                <label
+                  htmlFor="rehearsalLeadId"
+                  className="mb-2 block text-sm font-medium text-gray-700"
+                >
+                  Chef de répétition *
+                </label>
+                <select
+                  id="rehearsalLeadId"
+                  name="rehearsalLeadId"
+                  value={formData.rehearsalLeadId}
+                  onChange={(e) => {
+                    const leaderId = parseInt(e.target.value, 10);
+                    setFormData((prev) => ({
+                      ...prev,
+                      rehearsalLeadId: leaderId,
+                    }));
+                  }}
+                  className={`w-full rounded-md border px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    validationErrors.rehearsalLeadId
+                      ? 'border-red-300'
+                      : 'border-gray-300'
+                  }`}
+                >
+                  <option value={0}>
+                    Sélectionnez un chef de répétition...
+                  </option>
+                  {leaders.map((leader) => (
+                    <option key={leader.id} value={leader.id}>
+                      {leader.lastName} {leader.firstName}
+                    </option>
+                  ))}
+                </select>
+                {validationErrors.rehearsalLeadId && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {validationErrors.rehearsalLeadId}
+                  </p>
+                )}
+              </div>
+
+              {/* Template Checkbox */}
+              <div className="flex items-center">
+                <input
+                  type="checkbox"
+                  id="isTemplate"
+                  name="isTemplate"
+                  checked={formData.isTemplate}
+                  onChange={handleInputChange}
+                  className="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                />
+                <label
+                  htmlFor="isTemplate"
+                  className="ml-2 block text-sm text-gray-900"
+                >
+                  Sauvegarder comme modèle réutilisable
+                </label>
+              </div>
+            </div>
+
+            {/* Planning Section */}
+            <div className="rounded-lg border border-gray-400  bg-white p-4">
+              <h4 className="text-md mb-4 font-medium text-gray-900">
+                Planification
+              </h4>
+
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                {/* Objectives */}
+                <div className="">
+                  <label
+                    htmlFor="objectives"
+                    className="mb-2 block text-sm font-medium text-gray-700"
+                  >
+                    Objectifs
+                  </label>
+                  <textarea
+                    id="objectives"
+                    name="objectives"
+                    value={formData.objectives || ''}
+                    onChange={handleInputChange}
+                    rows={3}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Décrivez les objectifs de cette répétition..."
+                  />
+                </div>
+
+                {/* Notes */}
+                <div>
+                  <label
+                    htmlFor="notes"
+                    className="mb-2 block text-sm font-medium text-gray-700"
+                  >
+                    Notes
+                  </label>
+                  <textarea
+                    id="notes"
+                    name="notes"
+                    value={formData.notes || ''}
+                    onChange={handleInputChange}
+                    rows={3}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    placeholder="Ajoutez des notes supplémentaires..."
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Song Management Section */}
+            <div className="rounded-lg border border-gray-400  bg-white p-6">
+              <h4 className="text-md mb-4 font-medium text-gray-900">
+                Gestion des chansons
+              </h4>
+
+              {validationErrors.songs && (
+                <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3">
+                  <p className="text-sm text-red-600">
+                    {validationErrors.songs}
+                  </p>
+                </div>
+              )}
+
+              <RehearsalSongManager
+                songs={formData.rehearsalSongs || []}
+                onSongsChange={handleSongsChange}
+                performanceId={performanceId || 0} // Pass performanceId or 0
+                rehearsalData={formData}
+                onRehearsalSave={async (data) => {
+                  if (isEditing && rehearsal?.id) {
+                    // For editing, update the existing rehearsal
+                    const success = await updateRehearsal(rehearsal.id, data);
+                    if (success) {
+                      setIsRehearsalSaved(true);
+                      setSavedRehearsalId(rehearsal.id);
+                      return { id: rehearsal.id, ...data };
+                    }
+                    throw new Error('Failed to update rehearsal');
+                  } else {
+                    const rehearsalDataWithoutSongs = {
+                      ...data,
+                      rehearsalSongs: undefined,
+                    };
+                    const savedRehearsal = await createRehearsal(
+                      rehearsalDataWithoutSongs,
+                    );
+                    if (savedRehearsal && savedRehearsal.id) {
+                      setIsRehearsalSaved(true);
+                      setSavedRehearsalId(savedRehearsal.id);
+                    }
+                    return savedRehearsal;
+                  }
+                }}
+                isRehearsalSaved={isRehearsalSaved || isEditing}
+                rehearsalId={savedRehearsalId || rehearsal?.id}
+              />
+            </div>
+
+            <div className="flex justify-end space-x-3 border-t border-gray-400 pt-6 ">
+              <button
+                type="button"
+                onClick={handleCancel}
+                className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                Annuler
+              </button>
+
+              {isEditing && (
+                <button
+                  type="submit"
+                  className="rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  Mettre à jour
+                </button>
+              )}
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default RehearsalForm;

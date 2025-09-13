@@ -33,7 +33,8 @@ export const exportToPDF = async (
     });
     pdfDoc.addImage(base64, 'PNG', margin, margin, 35, 20);
   } catch (error) {
-    // Remove console.warn
+    // Silently ignore logo loading errors - PDF will still be generated without logo
+    console.warn('Failed to add logo to PDF:', error);
   }
 
   // Add title
@@ -149,9 +150,7 @@ export const exportToPDF = async (
     'Noms',
     ...allDates.map((date) => {
       const d = new Date(date);
-      return `${d.getDate().toString().padStart(2, '0')}/${(d.getMonth() + 1)
-        .toString()
-        .padStart(2, '0')}`;
+      return d.getDate().toString().padStart(2, '0');
     }),
     'Total',
   ];
@@ -283,8 +282,8 @@ export const exportToPDF = async (
       cellPadding: 4,
     },
     bodyStyles: {
-      fontSize: 8,
-      halign: 'right',
+      fontSize: 10,
+      halign: 'left',
       cellPadding: 4,
     },
     alternateRowStyles: {

@@ -13,6 +13,7 @@ export const translateCategory = (category: string): string => {
     WORSHIPPER: 'LOUADO',
     COMMITTEE: 'COMITE',
     NORMAL: 'NORMAL',
+    LEAD: 'LEAD',
   };
   return translations[category] || category;
 };
