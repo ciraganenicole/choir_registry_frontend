@@ -1,5 +1,6 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import console from 'console';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 import { jsPDF as JSPDF } from 'jspdf';
@@ -423,8 +424,6 @@ export function useDailyContributions(
 
 // Get transaction statistics
 export const useTransactionStats = (filters?: TransactionFilters) => {
-  const queryClient = useQueryClient();
-
   return useQuery({
     queryKey: ['transactionStats', filters],
     queryFn: async () => {
@@ -449,6 +448,29 @@ export const useTransactionStats = (filters?: TransactionFilters) => {
 
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
       return stats;
+    },
+    staleTime: 1000 * 60 * 5,
+    refetchInterval: 1000 * 60 * 5,
+  });
+};
+
+// Get total balance without any filters (complete balance)
+export const useTotalBalance = () => {
+  return useQuery({
+    queryKey: ['totalBalance'],
+    queryFn: async () => {
+      try {
+        // Use the backend stats endpoint with no filters to get the true total balance
+        const { data: responseData } = await api.get('/transactions/stats');
+        const totalBalance = {
+          usd: responseData.totals?.solde?.usd || 0,
+          fc: responseData.totals?.solde?.fc || 0,
+        };
+        return totalBalance;
+      } catch (error) {
+        logError(error);
+        throw error;
+      }
     },
     staleTime: 1000 * 60 * 5,
     refetchInterval: 1000 * 60 * 5,

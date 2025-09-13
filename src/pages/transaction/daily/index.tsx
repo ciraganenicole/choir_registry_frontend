@@ -17,10 +17,6 @@ import type { User } from '@/lib/user/type';
 import { FetchUsers } from '@/lib/user/user_actions';
 import { logger } from '@/utils/logger';
 
-const formatDate = (dateString: string) => {
-  return format(parseISO(dateString), 'dd/MM/yyyy');
-};
-
 const DailyContributions = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [conversionRate, setConversionRate] = useState<number>(2800);
@@ -42,12 +38,12 @@ const DailyContributions = () => {
       queryKey: [
         'daily-contributions',
         filters,
-        { page: currentPage, limit: 10 },
+        { page: currentPage, limit: 1000 },
       ],
       queryFn: () =>
         TransactionService.fetchDailyContributions(filters, {
           page: currentPage,
-          limit: 10,
+          limit: 1000,
         }),
       staleTime: 0,
     });
@@ -589,7 +585,6 @@ const DailyContributions = () => {
                         </div>
                       </div>
                     </div>
-
                     {hasContributions && (
                       <div className="p-6">
                         <h4 className="mb-4 text-sm font-medium text-gray-700">

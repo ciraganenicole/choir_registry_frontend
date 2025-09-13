@@ -11,6 +11,7 @@ import {
   useCreateTransaction,
   useExportTransactions,
   useExportTransactionsPDF,
+  useTotalBalance,
   useTransactions,
   useTransactionStats,
 } from '@/lib/transaction/logics';
@@ -122,6 +123,9 @@ const Transactions = () => {
     endDate: filters.endDate,
     // type: filters.type, // <-- removed so cards always show both totals
   });
+
+  // Get total balance without any filters (complete balance)
+  const { data: totalBalance } = useTotalBalance();
 
   const handleCreateTransaction = async (
     transactionData: CreateTransactionDto,
@@ -384,7 +388,6 @@ const Transactions = () => {
             </div>
           </div>
         </div>
-
         {/* Filters Section */}
         <div className="mb-6">
           <Filters
@@ -590,7 +593,6 @@ const Transactions = () => {
           </Card>
         </div>
 
-        {/* Transactions Table */}
         <div className="hidden md:block">
           <Card className="overflow-hidden border-0 shadow-xl">
             <div className="overflow-x-auto">
