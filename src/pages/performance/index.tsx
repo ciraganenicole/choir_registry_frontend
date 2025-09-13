@@ -32,8 +32,11 @@ import type {
   UpdatePerformanceDto,
 } from '@/lib/performance/types';
 import { PerformanceStatus } from '@/lib/performance/types';
+import { UserCategory } from '@/lib/user/type';
+import { useAuth } from '@/providers/AuthProvider';
 
 const PerformancePage = () => {
+  const { user } = useAuth();
   const [showPerformanceDetail, setShowPerformanceDetail] = useState(false);
   const [showPerformanceForm, setShowPerformanceForm] = useState(false);
   const [selectedPerformance, setSelectedPerformance] =
@@ -42,6 +45,9 @@ const PerformancePage = () => {
     useState<Performance | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const performancesPerPage = 8;
+
+  // Check if user can manage performances (only lead category users)
+  const canManagePerformances = user?.categories?.includes(UserCategory.LEAD);
 
   const {
     performances,
@@ -194,7 +200,12 @@ const PerformancePage = () => {
   };
 
   const getWorkflowActions = (performance: Performance) => {
-    const actions = [];
+    const actions: React.ReactElement[] = [];
+
+    // Only show workflow actions for lead users
+    if (!canManagePerformances) {
+      return actions;
+    }
 
     switch (performance.status) {
       case 'upcoming':
@@ -297,12 +308,14 @@ const PerformancePage = () => {
               Exécution → Achèvement
             </p>
           </div>
-          <button
-            onClick={handleCreatePerformance}
-            className="flex items-center gap-2 self-start rounded-md bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 sm:px-6 sm:text-base md:self-auto"
-          >
-            + Créer Performance
-          </button>
+          {canManagePerformances && (
+            <button
+              onClick={handleCreatePerformance}
+              className="flex items-center gap-2 self-start rounded-md bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 sm:px-6 sm:text-base md:self-auto"
+            >
+              + Créer Performance
+            </button>
+          )}
         </div>
 
         <div className="mb-4 grid grid-cols-3 gap-2 md:mb-8 md:grid-cols-5 md:gap-4">
@@ -385,14 +398,16 @@ const PerformancePage = () => {
                       <span className="hidden sm:inline">Détails</span>
                       <span className="sm:hidden">Détails</span>
                     </button>
-                    <button
-                      onClick={() => handleEditPerformance(perf)}
-                      className="flex items-center gap-1 rounded-md border border-gray-400 px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-100 sm:gap-2 sm:px-4"
-                    >
-                      <FaEdit className="text-gray-400" />
-                      <span className="hidden sm:inline">Modifier</span>
-                      <span className="sm:hidden">Modifier</span>
-                    </button>
+                    {canManagePerformances && (
+                      <button
+                        onClick={() => handleEditPerformance(perf)}
+                        className="flex items-center gap-1 rounded-md border border-gray-400 px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-100 sm:gap-2 sm:px-4"
+                      >
+                        <FaEdit className="text-gray-400" />
+                        <span className="hidden sm:inline">Modifier</span>
+                        <span className="sm:hidden">Modifier</span>
+                      </button>
+                    )}
                   </div>
                 </div>
               ))}

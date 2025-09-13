@@ -165,6 +165,11 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
 
       // Initialize form data when initialData changes
       useEffect(() => {
+        console.log('UpdateRehearsalSongForm Debug:', {
+          initialData,
+          leadSingerIds: initialData.leadSingerIds,
+        });
+
         setFormData({
           difficulty: initialData.difficulty || SongDifficulty.INTERMEDIATE,
           needsWork: initialData.needsWork || false,

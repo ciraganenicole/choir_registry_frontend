@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   FaCalendarAlt,
   FaChevronRight,
@@ -31,6 +31,7 @@ import {
   useShiftStats,
   useUpcomingShifts,
 } from '@/lib/shift/logic';
+import { UserCategory } from '@/lib/user/type';
 import { useAuth } from '@/providers/AuthProvider';
 
 const statusBadge = (shift: LeadershipShift) => {
@@ -86,7 +87,9 @@ const ShiftPage = () => {
     page: 1,
     limit: 10,
   });
-  const [showMyShifts, setShowMyShifts] = useState(true);
+  // Only show "My Shifts" filter for users with lead category, admins see all shifts by default
+  const isLeadUser = user?.categories?.includes(UserCategory.LEAD);
+  const [showMyShifts, setShowMyShifts] = useState(isLeadUser);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
   const [selectedShift, setSelectedShift] = useState<LeadershipShift | null>(
@@ -113,22 +116,77 @@ const ShiftPage = () => {
     error: historyError,
     refetch: refetchHistory,
   } = useLeaderHistory();
-  const {
-    currentShift,
-    isLoading: currentShiftLoading,
-    refetch: refetchCurrentShift,
-  } = useCurrentShift();
-  const {
-    upcomingShifts,
-    isLoading: upcomingLoading,
-    refetch: refetchUpcoming,
-  } = useUpcomingShifts(3);
+  const { currentShift, refetch: refetchCurrentShift } = useCurrentShift();
+  const { upcomingShifts, refetch: refetchUpcoming } = useUpcomingShifts(3);
   const { count: leadUsersCount, isLoading: leadUsersLoading } =
     useLeadUsersCount();
 
   // Check permissions
   const canCreate = user && user.role ? canCreateShifts(user.role) : false;
   const canEdit = user && user.role ? canUpdateShifts(user.role) : false;
+
+  // Memoize performance calculations to avoid recalculating on every render
+  const leaderHistoryWithPerformance = useMemo(() => {
+    if (!leaderHistory.length) return [];
+
+    // Pre-calculate max performances once
+    const maxPerformances = Math.max(
+      ...leaderHistory.map((l) => l.totalEvents || 0),
+    );
+
+    return leaderHistory.map((leader, index) => {
+      // Calculate real performance metrics based on actual LeaderHistory data
+      const totalPerformances = leader.totalEvents || 0;
+      const completedPerformances = leader.totalEventsCompleted || 0;
+
+      // Calculate completion rate
+      const completionRate =
+        totalPerformances > 0
+          ? (completedPerformances / totalPerformances) * 100
+          : 0;
+
+      // Calculate performance volume
+      const performanceVolume =
+        maxPerformances > 0 ? (totalPerformances / maxPerformances) * 100 : 0;
+
+      // Calculate reliability score (completion rate + performance volume)
+      const reliabilityScore = completionRate * 0.7 + performanceVolume * 0.3;
+
+      // Calculate performance level based on multiple factors
+      let level = 'Débutant';
+      let color = 'text-gray-600';
+      let bg = 'bg-gray-50';
+
+      if (reliabilityScore >= 80 && totalPerformances >= 8) {
+        level = 'Expert';
+        color = 'text-green-600';
+        bg = 'bg-green-50';
+      } else if (reliabilityScore >= 65 && totalPerformances >= 5) {
+        level = 'Expérimenté';
+        color = 'text-blue-600';
+        bg = 'bg-blue-50';
+      } else if (reliabilityScore >= 50 && totalPerformances >= 2) {
+        level = 'Intermédiaire';
+        color = 'text-yellow-600';
+        bg = 'bg-yellow-50';
+      }
+
+      return {
+        ...leader,
+        performance: {
+          level,
+          color,
+          bg,
+          completionRate: Math.round(completionRate),
+          reliabilityScore: Math.round(reliabilityScore),
+          totalPerformances,
+          completedPerformances,
+          performanceVolume: Math.round(performanceVolume),
+        },
+        isTopPerformer: index < 3 && reliabilityScore > 50,
+      };
+    });
+  }, [leaderHistory]);
 
   // Handle form actions
   const handleCreateSuccess = () => {
@@ -216,14 +274,8 @@ const ShiftPage = () => {
     },
   ];
 
-  // Handle loading states
-  const isLoading =
-    shiftsLoading ||
-    statsLoading ||
-    historyLoading ||
-    currentShiftLoading ||
-    upcomingLoading ||
-    leadUsersLoading;
+  // Handle loading states - prioritize main content
+  const isLoading = shiftsLoading || statsLoading;
 
   // Handle errors
   const hasError = shiftsError || statsError || historyError;
@@ -282,29 +334,31 @@ const ShiftPage = () => {
             </p>
           </div>
           <div className="flex items-center gap-4">
-            {/* Filter Toggle */}
-            <div className="flex items-center rounded-lg bg-gray-100 p-1">
-              <button
-                onClick={() => handleFilterToggle(false)}
-                className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
-                  !showMyShifts
-                    ? 'bg-white text-orange-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Tous les horaires
-              </button>
-              <button
-                onClick={() => handleFilterToggle(true)}
-                className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
-                  showMyShifts
-                    ? 'bg-white text-orange-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
-                }`}
-              >
-                Mes horaires
-              </button>
-            </div>
+            {/* Filter Toggle - Only show for lead users */}
+            {isLeadUser && (
+              <div className="flex items-center rounded-lg bg-gray-100 p-1">
+                <button
+                  onClick={() => handleFilterToggle(false)}
+                  className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+                    !showMyShifts
+                      ? 'bg-white text-orange-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Tous les horaires
+                </button>
+                <button
+                  onClick={() => handleFilterToggle(true)}
+                  className={`rounded-md px-3 py-1 text-sm font-medium transition-colors ${
+                    showMyShifts
+                      ? 'bg-white text-orange-600 shadow-sm'
+                      : 'text-gray-600 hover:text-gray-900'
+                  }`}
+                >
+                  Mes horaires
+                </button>
+              </div>
+            )}
             {canCreate && (
               <button
                 onClick={() => setShowCreateForm(true)}
@@ -342,7 +396,11 @@ const ShiftPage = () => {
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <h2 className="text-lg font-semibold text-gray-900">
-                  {showMyShifts ? 'Mes horaires' : 'Tous les horaires'}
+                  {isLeadUser
+                    ? showMyShifts
+                      ? 'Mes horaires'
+                      : 'Tous les horaires'
+                    : 'Tous les horaires'}
                 </h2>
                 <span className="rounded-full bg-orange-100 px-2 py-1 text-xs font-medium text-orange-800">
                   {shifts.length} {shifts.length === 1 ? 'horaire' : 'horaires'}
@@ -354,12 +412,12 @@ const ShiftPage = () => {
               <div className="py-8 text-center">
                 <FaCalendarAlt className="mx-auto mb-4 text-4xl text-gray-300" />
                 <h3 className="mb-2 text-lg font-semibold text-gray-900">
-                  {showMyShifts
+                  {isLeadUser && showMyShifts
                     ? 'Aucun de vos horaires'
                     : 'Aucun horaire disponible'}
                 </h3>
                 <p className="mb-4 text-gray-600">
-                  {showMyShifts
+                  {isLeadUser && showMyShifts
                     ? "Vous n'avez pas encore d'horaires assignés"
                     : 'Cliquez sur le bouton pour créer un nouvel horaire'}
                 </p>
@@ -485,48 +543,129 @@ const ShiftPage = () => {
           </div>
 
           <div className="w-full rounded-xl border border-gray-200 bg-white p-4 shadow-sm md:w-[30%] md:p-6">
-            <div className="mb-2 flex items-center">
-              <FaUser className="mr-2 text-xl text-gray-700" />
-              <h2 className="mr-2 text-xl font-bold text-gray-900">
-                Historique des conducteurs
-              </h2>
+            <div className="mb-4 flex items-center justify-between">
+              <div className="flex items-center">
+                <FaUser className="mr-2 text-xl text-gray-700" />
+                <h2 className="text-xl font-bold text-gray-900">
+                  Historique des conducteurs
+                </h2>
+              </div>
+              {historyLoading && (
+                <div className="size-4 animate-spin rounded-full border-b-2 border-orange-500"></div>
+              )}
             </div>
-            <p className="mb-4 text-gray-500">
-              Historique des performances des conducteurs
+            <p className="mb-4 text-sm text-gray-500">
+              Performance et historique des conducteurs
             </p>
 
-            {leaderHistory.length === 0 ? (
+            {historyLoading ? (
+              <div className="py-8 text-center">
+                <div className="mx-auto size-8 animate-spin rounded-full border-b-2 border-orange-500"></div>
+                <p className="mt-2 text-sm text-gray-600">Chargement...</p>
+              </div>
+            ) : leaderHistory.length === 0 ? (
               <div className="py-8 text-center">
                 <FaUser className="mx-auto mb-4 text-4xl text-gray-300" />
-                <p className="text-gray-600">Aucun historique disponible</p>
+                <h3 className="mb-2 text-lg font-semibold text-gray-900">
+                  Aucun historique
+                </h3>
+                <p className="text-gray-600">
+                  Aucun conducteur n&apos;a encore dirigé
+                </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-left">
-                  <thead>
-                    <tr className="border-b">
-                      <th className="py-2 pr-4 font-semibold text-gray-700">
-                        Conducteur
-                      </th>
-                      <th className="py-2 font-semibold text-gray-700">
-                        Nombre de perf.
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {leaderHistory.map((leader) => (
-                      <tr
-                        key={leader.leaderId}
-                        className="border-b last:border-0"
-                      >
-                        <td className="py-2 pr-4 font-medium text-gray-900">
-                          {leader.leaderName}
-                        </td>
-                        <td className="py-2">{leader.totalEvents}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="space-y-3">
+                {leaderHistoryWithPerformance.map((leader, index) => {
+                  const { performance, isTopPerformer } = leader;
+
+                  return (
+                    <div
+                      key={leader.leaderId}
+                      className={`rounded-lg border p-3 transition-all duration-200 hover:shadow-md ${
+                        isTopPerformer
+                          ? 'border-orange-200 bg-gradient-to-r from-orange-50 to-orange-100'
+                          : 'border-gray-200 bg-white hover:border-gray-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div
+                            className={`flex size-8 items-center justify-center rounded-full text-sm font-bold ${
+                              isTopPerformer
+                                ? 'bg-orange-500 text-white'
+                                : 'bg-gray-200 text-gray-700'
+                            }`}
+                          >
+                            {isTopPerformer
+                              ? `#${index + 1}`
+                              : leader.leaderName.charAt(0).toUpperCase()}
+                          </div>
+                          <div>
+                            <div className="font-medium text-gray-900">
+                              {leader.leaderName}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {performance.totalPerformances} performance
+                              {performance.totalPerformances > 1
+                                ? 's'
+                                : ''} • {performance.completionRate}% complété
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div
+                            className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${performance.bg} ${performance.color}`}
+                          >
+                            {performance.level}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Performance Metrics */}
+                      <div className="mt-3 space-y-2">
+                        {/* Reliability Score */}
+                        <div>
+                          <div className="mb-1 flex items-center justify-between text-xs text-gray-500">
+                            <span>Score de fiabilité</span>
+                            <span>{performance.reliabilityScore}/100</span>
+                          </div>
+                          <div className="h-2 w-full rounded-full bg-gray-200">
+                            <div
+                              className={`h-2 rounded-full transition-all duration-300 ${
+                                performance.reliabilityScore >= 80
+                                  ? 'bg-green-500'
+                                  : performance.reliabilityScore >= 65
+                                    ? 'bg-blue-500'
+                                    : performance.reliabilityScore >= 50
+                                      ? 'bg-yellow-500'
+                                      : 'bg-gray-400'
+                              }`}
+                              style={{
+                                width: `${Math.min(performance.reliabilityScore, 100)}%`,
+                              }}
+                            ></div>
+                          </div>
+                        </div>
+
+                        {/* Additional Metrics */}
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="text-center">
+                            <div className="font-medium text-gray-900">
+                              {performance.completionRate}%
+                            </div>
+                            <div className="text-gray-500">Complétion</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="font-medium text-gray-900">
+                              {performance.completedPerformances}
+                            </div>
+                            <div className="text-gray-500">Complétées</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import {
   FaCalendar,
@@ -20,6 +20,8 @@ import type {
   RehearsalStatus,
   RehearsalType,
 } from '@/lib/rehearsal/types';
+import { UserCategory } from '@/lib/user/type';
+import { useAuth } from '@/providers/AuthProvider';
 
 import { RehearsalDetail } from './RehearsalDetail';
 import { RehearsalForm } from './RehearsalForm';
@@ -35,6 +37,7 @@ export const RehearsalDashboard: React.FC<RehearsalDashboardProps> = ({
   performanceId,
   showCreateButton = true,
 }) => {
+  const { user } = useAuth();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showTemplateModal, setShowTemplateModal] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
@@ -177,6 +180,67 @@ export const RehearsalDashboard: React.FC<RehearsalDashboardProps> = ({
     }
   };
 
+  // Memoize rehearsal list with formatted data to avoid recalculating on every render
+  const rehearsalsWithFormattedData = useMemo(() => {
+    return (rehearsals || []).map((rehearsal) => {
+      const rehearsalDate = new Date(rehearsal.date);
+
+      return {
+        ...rehearsal,
+        formattedDate: rehearsalDate.toLocaleDateString('fr-FR', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        }),
+        formattedTime: rehearsalDate.toLocaleTimeString('fr-FR', {
+          hour: '2-digit',
+          minute: '2-digit',
+        }),
+        formattedDuration: rehearsal.duration
+          ? `${rehearsal.duration} minutes`
+          : 'Non spécifié',
+        statusLabel: getStatusLabel(rehearsal.status),
+        typeLabel: getTypeLabel(rehearsal.type),
+      };
+    });
+  }, [rehearsals]);
+
+  // Memoize filter reset handler
+  const handleResetFilters = useCallback(() => {
+    setFilters({
+      search: '',
+      type: '',
+      status: '',
+      page: 1,
+      limit: 10,
+    });
+  }, []);
+
+  // Memoize filter change handlers
+  const handleSearchChange = useCallback((value: string) => {
+    setFilters((prev) => ({ ...prev, search: value, page: 1 }));
+  }, []);
+
+  const handleTypeChange = useCallback((value: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      type: value as RehearsalType | '',
+      page: 1,
+    }));
+  }, []);
+
+  const handleStatusFilterChange = useCallback((value: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      status: value as RehearsalStatus | '',
+      page: 1,
+    }));
+  }, []);
+
+  // Check if user can create/edit rehearsals (only lead category users)
+  const canManageRehearsals = user?.categories?.includes(UserCategory.LEAD);
+
   if (showCreateForm) {
     return (
       <div className="">
@@ -266,7 +330,7 @@ export const RehearsalDashboard: React.FC<RehearsalDashboardProps> = ({
           </p>
         </div>
 
-        {showCreateButton && (
+        {showCreateButton && canManageRehearsals && (
           <div className="flex gap-2">
             {/* <button
               onClick={() => setShowTemplateModal(true)}
@@ -298,13 +362,7 @@ export const RehearsalDashboard: React.FC<RehearsalDashboardProps> = ({
             type="text"
             placeholder="Rechercher une répétition..."
             value={filters.search}
-            onChange={(e) =>
-              setFilters((prev) => ({
-                ...prev,
-                search: e.target.value,
-                page: 1,
-              }))
-            }
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="w-full rounded-xl border border-gray-400 bg-gray-50 py-3 pl-12 pr-4 transition-all duration-200 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500"
           />
         </div>
@@ -315,13 +373,7 @@ export const RehearsalDashboard: React.FC<RehearsalDashboardProps> = ({
           <div className="flex-1">
             <select
               value={filters.type}
-              onChange={(e) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  type: e.target.value as RehearsalType | '',
-                  page: 1,
-                }))
-              }
+              onChange={(e) => handleTypeChange(e.target.value)}
               className="w-full rounded-md border border-gray-400 bg-gray-50 px-2 py-1 transition-all duration-200 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500 md:rounded-xl md:px-4 md:py-3"
             >
               <option value="">Types</option>
@@ -342,13 +394,7 @@ export const RehearsalDashboard: React.FC<RehearsalDashboardProps> = ({
           <div className="flex-1">
             <select
               value={filters.status}
-              onChange={(e) =>
-                setFilters((prev) => ({
-                  ...prev,
-                  status: e.target.value as RehearsalStatus | '',
-                  page: 1,
-                }))
-              }
+              onChange={(e) => handleStatusFilterChange(e.target.value)}
               className="w-full rounded-md border border-gray-400 bg-gray-50 px-2 py-1 transition-all duration-200 focus:border-blue-500 focus:bg-white focus:ring-2 focus:ring-blue-500 md:rounded-xl md:px-4 md:py-3"
             >
               <option value="">Statuts</option>
@@ -362,15 +408,7 @@ export const RehearsalDashboard: React.FC<RehearsalDashboardProps> = ({
           {/* Reset Button */}
           <div className="flex items-end">
             <button
-              onClick={() =>
-                setFilters({
-                  search: '',
-                  type: '',
-                  status: '',
-                  page: 1,
-                  limit: 10,
-                })
-              }
+              onClick={handleResetFilters}
               className="flex items-center gap-2 rounded-md bg-gray-100 px-2 py-1 text-[14px] font-medium text-gray-600 transition-all duration-200 hover:bg-gray-200 md:rounded-xl md:px-6 md:py-3 md:text-[16px]"
             >
               <FaFilter className="text-sm" />
@@ -500,7 +538,7 @@ export const RehearsalDashboard: React.FC<RehearsalDashboardProps> = ({
 
           return (
             <div className="space-y-2 text-sm md:space-y-4 md:text-base">
-              {(rehearsals || []).map((rehearsal) => (
+              {rehearsalsWithFormattedData.map((rehearsal) => (
                 <div
                   key={rehearsal.id}
                   className="overflow-hidden rounded-xl border border-gray-400 bg-white shadow-sm transition-all duration-200 hover:shadow-md"
@@ -532,24 +570,10 @@ export const RehearsalDashboard: React.FC<RehearsalDashboardProps> = ({
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-gray-900 md:text-base">
-                            {new Date(rehearsal.date).toLocaleDateString(
-                              'fr-FR',
-                              {
-                                weekday: 'long',
-                                year: 'numeric',
-                                month: 'long',
-                                day: 'numeric',
-                              },
-                            )}
+                            {rehearsal.formattedDate}
                           </p>
                           <p className="text-xs text-gray-500 md:text-sm">
-                            {new Date(rehearsal.date).toLocaleTimeString(
-                              'fr-FR',
-                              {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              },
-                            )}
+                            {rehearsal.formattedTime}
                           </p>
                         </div>
                       </div>
@@ -576,7 +600,7 @@ export const RehearsalDashboard: React.FC<RehearsalDashboardProps> = ({
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-gray-900 md:text-base">
-                            {getTypeLabel(rehearsal.type)}
+                            {rehearsal.typeLabel}
                           </p>
                           <p className="text-xs text-gray-500">
                             {(() => {
@@ -602,23 +626,27 @@ export const RehearsalDashboard: React.FC<RehearsalDashboardProps> = ({
                           <FaEye className="text-sm" />
                           <span className="hidden sm:inline">Voir</span>
                         </button>
-                        <button
-                          onClick={() => handleEditRehearsal(rehearsal)}
-                          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100"
-                          title="Modifier"
-                        >
-                          <FaEdit className="text-sm" />
-                          <span className="hidden sm:inline">Modifier</span>
-                        </button>
+                        {canManageRehearsals && (
+                          <button
+                            onClick={() => handleEditRehearsal(rehearsal)}
+                            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100"
+                            title="Modifier"
+                          >
+                            <FaEdit className="text-sm" />
+                            <span className="hidden sm:inline">Modifier</span>
+                          </button>
+                        )}
                       </div>
-                      <button
-                        onClick={() => handleDeleteRehearsal(rehearsal)}
-                        className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
-                        title="Supprimer"
-                      >
-                        <FaTrash className="text-sm" />
-                        <span className="hidden sm:inline">Supprimer</span>
-                      </button>
+                      {canManageRehearsals && (
+                        <button
+                          onClick={() => handleDeleteRehearsal(rehearsal)}
+                          className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-red-600 transition-colors hover:bg-red-50"
+                          title="Supprimer"
+                        >
+                          <FaTrash className="text-sm" />
+                          <span className="hidden sm:inline">Supprimer</span>
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>

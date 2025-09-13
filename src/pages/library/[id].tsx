@@ -17,7 +17,6 @@ import SongDetail from '@/components/library/SongDetail';
 import SongForm from '@/lib/library/form';
 import type { Song } from '@/lib/library/logic';
 import {
-  canCreateSongs,
   difficultyOptions,
   filterSongs,
   genreSuggestions,
@@ -29,6 +28,7 @@ import {
   useSongs,
   useSongStats,
 } from '@/lib/library/logic';
+import { UserCategory } from '@/lib/user/type';
 import { useAuth } from '@/providers/AuthProvider';
 
 const SongDetailPage = () => {
@@ -58,8 +58,8 @@ const SongDetailPage = () => {
   } = useSongs();
   const { stats } = useSongStats();
 
-  // Check if user has access to library
-  const canCreate = user ? canCreateSongs(user.role, user.categories) : false;
+  // Check if user can manage songs (only lead category users)
+  const canManageSongs = user?.categories?.includes(UserCategory.LEAD);
 
   const handleBack = () => {
     router.push('/library');
@@ -221,7 +221,7 @@ const SongDetailPage = () => {
             Gérez la bibliothèque musicale et les arrangements de votre chorale
           </p>
         </div>
-        {canCreate && (
+        {canManageSongs && (
           <button
             className="flex items-center gap-2 self-start rounded-md bg-orange-500 px-6 py-2 font-semibold text-white hover:bg-orange-600 md:self-auto"
             onClick={() => setShowForm(true)}
@@ -488,15 +488,17 @@ const SongDetailPage = () => {
                       >
                         <FaEye /> Voir les Détails
                       </button>
-                      <button
-                        onClick={() => {
-                          setSelectedSongForEdit(songItem);
-                          setShowEditForm(true);
-                        }}
-                        className="flex items-center gap-1 rounded-md border border-gray-300 px-4 py-1 font-medium text-gray-700 hover:bg-gray-100"
-                      >
-                        <FaEdit /> Modifier
-                      </button>
+                      {canManageSongs && (
+                        <button
+                          onClick={() => {
+                            setSelectedSongForEdit(songItem);
+                            setShowEditForm(true);
+                          }}
+                          className="flex items-center gap-1 rounded-md border border-gray-300 px-4 py-1 font-medium text-gray-700 hover:bg-gray-100"
+                        >
+                          <FaEdit /> Modifier
+                        </button>
+                      )}
                       <button className="rounded-md border border-gray-300 px-4 py-1 font-medium text-gray-700 hover:bg-gray-100">
                         Partition
                       </button>

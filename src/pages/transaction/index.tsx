@@ -237,8 +237,13 @@ const Transactions = () => {
     if (isLoading) {
       return (
         <tr>
-          <td colSpan={8} className="px-6 py-1 text-center">
-            Chargement des transactions...
+          <td colSpan={8} className="px-6 py-12 text-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="size-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+              <p className="text-sm text-gray-500">
+                Chargement des transactions...
+              </p>
+            </div>
           </td>
         </tr>
       );
@@ -247,8 +252,27 @@ const Transactions = () => {
     if (!data?.data?.length) {
       return (
         <tr>
-          <td colSpan={8} className="px-6 py-1 text-center">
-            Aucune transaction trouvée
+          <td colSpan={8} className="px-6 py-12 text-center">
+            <div className="flex flex-col items-center gap-3">
+              <div className="rounded-full bg-gray-100 p-4">
+                <svg
+                  className="size-8 text-gray-400"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+              </div>
+              <p className="text-sm text-gray-500">
+                Aucune transaction trouvée
+              </p>
+            </div>
           </td>
         </tr>
       );
@@ -257,66 +281,86 @@ const Transactions = () => {
     return data.data.map((transaction: Transaction, index: number) => (
       <tr
         key={transaction.id}
-        className={`${
-          transaction.type === TransactionType.INCOME
-            ? 'bg-green-50'
-            : 'bg-red-50'
-        }`}
+        className="group transition-colors hover:bg-gray-50"
       >
-        <td className="whitespace-nowrap px-3 py-1 text-xs">{index + 1}</td>
-        <td className="whitespace-nowrap px-6 py-1">
-          <div className="text-xs font-medium text-gray-900">
-            {getContributorName(transaction)}
+        <td className="whitespace-nowrap px-6 py-4">
+          <div className="flex items-center">
+            <div className="flex size-8 items-center justify-center rounded-full bg-gray-100 text-xs font-medium text-gray-600 group-hover:bg-gray-200">
+              {index + 1}
+            </div>
           </div>
         </td>
-        <td className="whitespace-nowrap px-6 py-1">
-          <div
-            className={`text-xs font-medium ${
+        <td className="whitespace-nowrap px-6 py-4">
+          <div className="flex items-center gap-3">
+            <div className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-blue-600">
+              <span className="text-xs font-medium text-white">
+                {getContributorName(transaction).charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div>
+              <div className="text-sm font-medium text-gray-900">
+                {getContributorName(transaction)}
+              </div>
+            </div>
+          </div>
+        </td>
+        <td className="whitespace-nowrap px-6 py-4">
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
               transaction.type === TransactionType.INCOME
-                ? 'text-green-600'
-                : 'text-red-600'
+                ? 'bg-green-100 text-green-800'
+                : 'bg-red-100 text-red-800'
             }`}
           >
+            <div
+              className={`size-2 rounded-full ${
+                transaction.type === TransactionType.INCOME
+                  ? 'bg-green-500'
+                  : 'bg-red-500'
+              }`}
+            ></div>
             {transaction.type === TransactionType.INCOME ? 'Revenu' : 'Dépense'}
-          </div>
+          </span>
         </td>
-        <td className="whitespace-nowrap px-6 py-1">
-          <div className="text-xs text-gray-900">
+        <td className="whitespace-nowrap px-6 py-4">
+          <div className="text-sm text-gray-900">
             {translateCategoryToFrench(transaction.category)}
           </div>
         </td>
-        <td className="whitespace-nowrap px-6 py-1">
-          <div className="text-xs text-gray-900">
+        <td className="whitespace-nowrap px-6 py-4">
+          <div className="text-sm text-gray-500">
             {transaction.subcategory
               ? translateCategoryToFrench(transaction.subcategory)
               : '-'}
           </div>
         </td>
-        <td className="whitespace-nowrap px-6 py-1">
+        <td className="whitespace-nowrap px-6 py-4">
           <div
-            className={`text-xs font-medium ${
+            className={`text-sm font-semibold ${
               transaction.type === TransactionType.INCOME
                 ? 'text-green-600'
                 : 'text-red-600'
             }`}
           >
             {formatAmount(transaction.amount)}{' '}
-            {transaction.currency === Currency.USD ? '$' : 'FC'}
+            <span className="text-xs text-gray-500">
+              {transaction.currency === Currency.USD ? 'USD' : 'FC'}
+            </span>
           </div>
         </td>
-        <td className="whitespace-nowrap px-6 py-1">
-          <div className="text-xs text-gray-900">
+        <td className="whitespace-nowrap px-6 py-4">
+          <div className="text-sm text-gray-900">
             {format(parseISO(transaction.transactionDate), 'dd/MM/yyyy')}
           </div>
         </td>
         {canUpdateUsers(currentUser?.role) && (
-          <td className="whitespace-nowrap px-6 py-1">
+          <td className="whitespace-nowrap px-6 py-4 text-center">
             <button
               onClick={() => handleUpdate(transaction)}
-              className="rounded-full bg-blue-500 p-1 text-white hover:bg-blue-600"
+              className="rounded-lg bg-blue-50 p-2 text-blue-600 transition-colors hover:bg-blue-100"
               title="Modifier"
             >
-              <FaEdit className="size-3" />
+              <FaEdit className="size-4" />
             </button>
           </td>
         )}
@@ -326,55 +370,108 @@ const Transactions = () => {
 
   return (
     <Layout>
-      <div className="p-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between py-2 md:mb-2">
-          <h2 className="mr-2 text-[18px] font-semibold md:mr-0 md:text-2xl">
-            Transactions
-          </h2>
-          <SearchInput onSearch={handleSearch} />
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-4 sm:px-6 lg:px-8">
+        {/* Header Section */}
+        <div className="mb-8">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between md:gap-4">
+            <div>
+              <h1 className="mt-6 text-xl font-bold text-gray-900 sm:text-4xl md:mt-0 md:text-3xl">
+                Historique des Transactions
+              </h1>
+            </div>
+            <div className="flex items-center gap-3">
+              <SearchInput onSearch={handleSearch} />
+            </div>
+          </div>
         </div>
 
-        <Filters
-          onFilterChange={handleFilterChange}
-          onExport={handleExport}
-          currentFilters={filters}
-          conversionRate={conversionRate}
-          setConversionRate={setConversionRate}
-        />
+        {/* Filters Section */}
+        <div className="mb-6">
+          <Filters
+            onFilterChange={handleFilterChange}
+            onExport={handleExport}
+            currentFilters={filters}
+            conversionRate={conversionRate}
+            setConversionRate={setConversionRate}
+          />
+        </div>
 
-        <div className="grid grid-cols-2 gap-2 md:grid-cols-2 md:gap-4 lg:grid-cols-4">
-          <Card className="border-l-4 border-green-500">
+        {/* Financial Overview Cards */}
+        <div className="mb-8 grid grid-cols-2 gap-6 md:grid-cols-4">
+          {/* Income Card */}
+          <Card className="group overflow-hidden border-0 bg-gradient-to-br from-green-50 to-green-100 shadow-lg transition-all duration-300 hover:shadow-xl">
             <CardContent>
-              <h3 className="font-regular mb-[1px] text-[12px] text-green-600  md:text-[14px]">
-                Revenu Total ({filters.startDate ? 'Période filtrée' : 'Tout'})
-              </h3>
               <div className="flex items-center justify-between">
-                <div className="text-[12px] font-bold md:text-[16px]">
-                  <p>
-                    {formatCurrencyStats({
-                      USD: stats?.usd?.totalIncome || 0,
-                      FC: stats?.fc?.totalIncome || 0,
-                    })}
-                  </p>
+                <div className="flex items-center gap-3">
+                  <div className="rounded-full bg-green-500 p-2 md:p-3">
+                    <svg
+                      className="size-4 text-white md:size-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-green-700">
+                      Revenus
+                    </h3>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 flex items-center justify-between">
+                <div className="text-2xl font-bold text-green-800">
+                  {formatCurrencyStats({
+                    USD: stats?.usd?.totalIncome || 0,
+                    FC: stats?.fc?.totalIncome || 0,
+                  })}
                 </div>
                 <button
                   onClick={() => handleAddTransaction(TransactionType.INCOME)}
-                  className="rounded-full bg-green-500 p-2 text-white hover:bg-green-600"
+                  className="flex items-center gap-2 rounded-md bg-green-600 px-1.5 py-1 text-sm font-medium text-white shadow-sm transition-colors hover:bg-green-700 md:rounded-lg md:px-4 md:py-2"
                 >
-                  <FaPlus className="size-2 md:size-4" />
+                  <FaPlus className="size-3 md:size-4" />
+                  <span className="hidden sm:inline">Revenu</span>
                 </button>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-red-500">
+          {/* Expense Card */}
+          <Card className="group overflow-hidden border-0 bg-gradient-to-br from-red-50 to-red-100 shadow-lg transition-all duration-300 hover:shadow-xl">
             <CardContent>
-              <h3 className="font-regular mb-[1px] text-[12px] text-red-600  md:text-[14px]">
-                Dépense Totale ({filters.startDate ? 'Période filtrée' : 'Tout'}
-                )
-              </h3>
               <div className="flex items-center justify-between">
-                <div className="text-[12px] font-bold md:text-[16px]">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-full bg-red-500 p-2 md:p-3">
+                    <svg
+                      className="size-4 text-white md:size-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-red-700">
+                      Dépenses
+                    </h3>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 flex items-center justify-between">
+                <div className="text-2xl font-bold text-red-800">
                   {formatCurrencyStats({
                     USD: stats?.usd?.totalExpense || 0,
                     FC: stats?.fc?.totalExpense || 0,
@@ -382,112 +479,205 @@ const Transactions = () => {
                 </div>
                 <button
                   onClick={() => handleAddTransaction(TransactionType.EXPENSE)}
-                  className="rounded-full bg-red-500 p-2 text-white hover:bg-red-600"
+                  className="flex items-center gap-2 rounded-md bg-red-600 px-1.5 py-1 text-sm font-medium text-white shadow-sm transition-colors hover:bg-red-700 md:rounded-lg md:px-4 md:py-2"
                 >
-                  <FaPlus className="size-2 md:size-4" />
+                  <FaPlus className="size-3 md:size-4" />
+                  <span className="hidden sm:inline">Dépense</span>
                 </button>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-blue-500">
+          {/* Balance Card */}
+          <Card className="group overflow-hidden border-0 bg-gradient-to-br from-blue-50 to-blue-100 shadow-lg transition-all duration-300 hover:shadow-xl">
             <CardContent>
-              <h3 className="font-regular mb-[1px] text-[12px] text-blue-500  md:text-[14px]">
-                Solde ({filters.startDate ? 'Période filtrée' : 'Tout'})
-              </h3>
-              <span className="text-2xl font-bold">
-                {formatCurrencyStats({
-                  USD:
-                    (stats?.usd?.totalIncome || 0) -
-                    (stats?.usd?.totalExpense || 0),
-                  FC:
-                    (stats?.fc?.totalIncome || 0) -
-                    (stats?.fc?.totalExpense || 0),
-                })}
-              </span>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-full bg-blue-500 p-2 md:p-3">
+                    <svg
+                      className="size-4 text-white md:size-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-blue-700">
+                      Solde Net
+                    </h3>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4">
+                <div className="text-2xl font-bold text-blue-800">
+                  {formatCurrencyStats({
+                    USD:
+                      (stats?.usd?.totalIncome || 0) -
+                      (stats?.usd?.totalExpense || 0),
+                    FC:
+                      (stats?.fc?.totalIncome || 0) -
+                      (stats?.fc?.totalExpense || 0),
+                  })}
+                </div>
+              </div>
             </CardContent>
           </Card>
 
-          <Card className="border-l-4 border-orange-500">
+          {/* Daily Income Card */}
+          <Card className="group overflow-hidden border-0 bg-gradient-to-br from-orange-50 to-orange-100 shadow-lg transition-all duration-300 hover:shadow-xl">
             <CardContent>
-              <div className="mb-[4px] flex flex-row items-center justify-between ">
-                <h3 className="font-regular text-[12px] text-orange-500 md:text-[14px]">
-                  Revenu Quotidien
-                </h3>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="rounded-full bg-orange-500 p-2 md:p-3">
+                    <svg
+                      className="size-4 text-white md:size-6"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
+                    </svg>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-medium text-orange-700">
+                      Quotidiens
+                    </h3>
+                  </div>
+                </div>
               </div>
-              <div className="flex flex-row items-center justify-between">
-                <span className="text-2xl font-bold">
+              <div className="mt-4 flex items-center justify-between">
+                <div className="text-2xl font-bold text-orange-800">
                   {formatCurrencyStats({
                     USD: stats?.dailyTotalUSD || 0,
                     FC: stats?.dailyTotalFC || 0,
                   })}
-                </span>
-                <Link
-                  className="rounded-sm bg-gray-900 p-1 text-[10px] font-medium text-white md:rounded-md md:px-3 md:py-1 md:text-[12px]"
-                  href={'/transaction/daily'}
-                >
-                  Voir
-                </Link>
+                </div>
+                <div className="mt-3">
+                  <Link
+                    className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-1.5 py-1 text-xs font-medium text-white transition-colors hover:bg-orange-700 md:px-3 md:py-1.5"
+                    href={'/transaction/daily'}
+                  >
+                    <svg
+                      className="hidden size-3 sm:inline"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
+                    </svg>
+                    Voir <span className="hidden sm:inline">Détails</span>
+                  </Link>
+                </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
+        {/* Transactions Table */}
         <div className="hidden md:block">
-          <div className="mt-4 overflow-hidden rounded-lg border border-gray-300 bg-white shadow">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="p-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    #
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Contributeur
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Type
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Catégorie
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Sous-catégorie
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Montant
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                    Date
-                  </th>
-                  {canUpdateUsers(currentUser?.role) && (
-                    <th className="px-4 py-3 text-left text-xs font-semibold text-gray-900">
-                      Action
+          <Card className="overflow-hidden border-0 shadow-xl">
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-200">
+                  <tr>
+                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                      #
                     </th>
-                  )}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-300 bg-white">
-                {renderTableContent()}
-              </tbody>
-            </table>
-          </div>
+                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                      Contributeur
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                      Type
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                      Catégorie
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                      Sous-catégorie
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                      Montant
+                    </th>
+                    <th className="px-6 py-4 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                      Date
+                    </th>
+                    {canUpdateUsers(currentUser?.role) && (
+                      <th className="px-6 py-4 text-center text-xs font-semibold uppercase tracking-wider text-gray-600">
+                        Actions
+                      </th>
+                    )}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-300 bg-white">
+                  {renderTableContent()}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         </div>
 
-        <div className="mt-4 space-y-4 md:hidden">
+        {/* Mobile Transactions View */}
+        <div className="space-y-4 md:hidden">
           {(() => {
             if (isLoading) {
               return (
-                <div className="flex h-32 items-center justify-center">
-                  <p className="text-gray-500">Chargement...</p>
-                </div>
+                <Card className="p-8">
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="size-12 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+                    <p className="text-gray-500">
+                      Chargement des transactions...
+                    </p>
+                  </div>
+                </Card>
               );
             }
 
             if (!data?.data?.length) {
               return (
-                <div className="flex h-32 items-center justify-center">
-                  <p className="text-gray-500">Aucune transaction trouvée</p>
-                </div>
+                <Card className="p-8">
+                  <div className="flex flex-col items-center gap-4">
+                    <div className="rounded-full bg-gray-100 p-6">
+                      <svg
+                        className="size-12 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                        />
+                      </svg>
+                    </div>
+                    <div className="text-center">
+                      <h3 className="text-lg font-medium text-gray-900">
+                        Aucune transaction
+                      </h3>
+                      <p className="text-sm text-gray-500">
+                        Aucune transaction trouvée pour cette période
+                      </p>
+                    </div>
+                  </div>
+                </Card>
               );
             }
 
@@ -511,49 +701,94 @@ const Transactions = () => {
 
             return Object.entries(groupedTransactions).map(
               ([userId, { name, transactions }]) => (
-                <div key={userId} className="rounded-[10px] bg-white shadow">
-                  <div className="border-b border-gray-200 bg-gray-50 px-4 py-2">
-                    <h3 className="text-[14px] font-medium text-gray-900">
-                      {name}
-                    </h3>
+                <Card
+                  key={userId}
+                  className="overflow-hidden border-0 shadow-lg"
+                >
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex size-10 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-blue-600">
+                        <span className="text-sm font-medium text-white">
+                          {name.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">
+                          {name}
+                        </h3>
+                        <p className="text-sm text-gray-600">
+                          {transactions.length} transaction
+                          {transactions.length > 1 ? 's' : ''}
+                        </p>
+                      </div>
+                    </div>
                   </div>
-                  <div className="divide-y divide-gray-300">
+                  <div className="divide-y divide-gray-100">
                     {transactions.map((transaction) => (
                       <div
                         key={transaction.id}
-                        className={`px-4 py-2 ${
-                          transaction.type === TransactionType.INCOME
-                            ? 'bg-green-50'
-                            : 'bg-red-50'
-                        }`}
+                        className="px-6 py-2 transition-colors hover:bg-gray-50 md:py-4"
                       >
-                        <div className="flex justify-between">
-                          <div>
-                            <div className="text-[12px] font-medium text-gray-900">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <div className="mb-1 flex items-center gap-2">
+                              <span
+                                className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-medium ${
+                                  transaction.type === TransactionType.INCOME
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-red-100 text-red-800'
+                                }`}
+                              >
+                                <div
+                                  className={`size-1.5 rounded-full ${
+                                    transaction.type === TransactionType.INCOME
+                                      ? 'bg-green-500'
+                                      : 'bg-red-500'
+                                  }`}
+                                ></div>
+                                {transaction.type === TransactionType.INCOME
+                                  ? 'Revenu'
+                                  : 'Dépense'}
+                              </span>
+                            </div>
+                            <div className="mb-1 text-sm font-medium text-gray-900">
                               {translateCategoryToFrench(transaction.category)}
                             </div>
-                            <div className="text-[10px] text-gray-500">
+                            {transaction.subcategory && (
+                              <div className="mb-1 text-xs text-gray-500">
+                                {translateCategoryToFrench(
+                                  transaction.subcategory,
+                                )}
+                              </div>
+                            )}
+                            <div className="text-xs text-gray-500">
                               {format(
                                 parseISO(transaction.transactionDate),
                                 'dd/MM/yyyy',
                               )}
                             </div>
                           </div>
-                          <div
-                            className={`text-[12px] font-medium ${
-                              transaction.type === TransactionType.INCOME
-                                ? 'text-green-600'
-                                : 'text-red-600'
-                            }`}
-                          >
-                            {formatAmount(transaction.amount)}{' '}
-                            {transaction.currency === Currency.USD ? '$' : 'FC'}
+                          <div className="text-right">
+                            <div
+                              className={`text-base font-bold md:text-lg ${
+                                transaction.type === TransactionType.INCOME
+                                  ? 'text-green-600'
+                                  : 'text-red-600'
+                              }`}
+                            >
+                              {formatAmount(transaction.amount)}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {transaction.currency === Currency.USD
+                                ? 'USD'
+                                : 'FC'}
+                            </div>
                           </div>
                         </div>
                       </div>
                     ))}
                   </div>
-                </div>
+                </Card>
               ),
             );
           })()}

@@ -15,7 +15,6 @@ import Pagination from '@/components/pagination';
 import SongForm from '@/lib/library/form';
 import type { Song } from '@/lib/library/logic';
 import {
-  canCreateSongs,
   difficultyOptions,
   filterSongs,
   searchSongs,
@@ -25,6 +24,7 @@ import {
   useSongs,
   useSongStats,
 } from '@/lib/library/logic';
+import { UserCategory } from '@/lib/user/type';
 import { useAuth } from '@/providers/AuthProvider';
 
 const LibraryPage = () => {
@@ -48,7 +48,8 @@ const LibraryPage = () => {
   const { songs, isLoading, error, refetch } = useSongs();
   const { stats } = useSongStats();
 
-  const canCreate = user ? canCreateSongs(user.role, user.categories) : false;
+  // Check if user can manage songs (only lead category users)
+  const canManageSongs = user?.categories?.includes(UserCategory.LEAD);
 
   // Filter and search songs
   const filteredSongs = React.useMemo(() => {
@@ -216,7 +217,7 @@ const LibraryPage = () => {
               chorale
             </p>
           </div>
-          {canCreate && (
+          {canManageSongs && (
             <button
               className="flex items-center gap-2 self-start rounded-md bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 md:self-auto md:px-6 md:text-base"
               onClick={() => setShowForm(true)}
@@ -443,17 +444,19 @@ const LibraryPage = () => {
                           </span>
                           <span className="sm:hidden">Détails</span>
                         </button>
-                        <button
-                          onClick={() => {
-                            setSelectedSongForEdit(song);
-                            setShowEditForm(true);
-                          }}
-                          className="flex w-full items-center justify-center gap-1 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 sm:w-auto"
-                        >
-                          <FaEdit />{' '}
-                          <span className="hidden sm:inline">Modifier</span>
-                          <span className="sm:hidden">Modifier</span>
-                        </button>
+                        {canManageSongs && (
+                          <button
+                            onClick={() => {
+                              setSelectedSongForEdit(song);
+                              setShowEditForm(true);
+                            }}
+                            className="flex w-full items-center justify-center gap-1 rounded-md border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 sm:w-auto"
+                          >
+                            <FaEdit />{' '}
+                            <span className="hidden sm:inline">Modifier</span>
+                            <span className="sm:hidden">Modifier</span>
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

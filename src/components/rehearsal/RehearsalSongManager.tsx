@@ -3,11 +3,9 @@ import toast from 'react-hot-toast';
 import {
   FaClock,
   FaEdit,
-  FaGripVertical,
   FaMicrophone,
   FaMusic,
   FaPlus,
-  FaSort,
   FaTrash,
   FaUsers,
 } from 'react-icons/fa';
@@ -33,7 +31,9 @@ import {
   MusicalKey,
   SongDifficulty,
 } from '@/lib/rehearsal/types';
+import { UserCategory } from '@/lib/user/type';
 import { useUsers } from '@/lib/user/useUsers';
+import { useAuth } from '@/providers/AuthProvider';
 
 import { UpdateRehearsalSongForm } from './UpdateRehearsalSongForm';
 
@@ -64,9 +64,13 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
   isRehearsalSaved = false,
   rehearsalId,
 }) => {
+  const { user } = useAuth();
   const [showAddSong, setShowAddSong] = useState(false);
   const [editingSongIndex, setEditingSongIndex] = useState<number | null>(null);
   const { users } = useUsers();
+
+  // Check if user can manage songs (only lead category users)
+  const canManageSongs = user?.categories?.includes(UserCategory.LEAD);
 
   const { songs: availableSongs, error: songsError } = useSongs();
 
@@ -282,9 +286,6 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
   );
   const [leadSingerSearchTerm, setLeadSingerSearchTerm] = useState('');
 
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
-
   const [showUpdateForm, setShowUpdateForm] = useState(false);
   const [songToUpdate, setSongToUpdate] =
     useState<CreateRehearsalSongDto | null>(null);
@@ -309,7 +310,17 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
       chorusMemberIds: [],
     };
     setNewSong(initialSong);
+    setSelectedLeadSingerIds([]); // Reset selected lead singers
   };
+
+  // Synchronize selectedLeadSingerIds with newSong.leadSingerIds
+  useEffect(() => {
+    console.log('Lead Singer Sync Debug:', {
+      newSongLeadSingerIds: newSong.leadSingerIds,
+      currentSelectedLeadSingerIds: selectedLeadSingerIds,
+    });
+    setSelectedLeadSingerIds(newSong.leadSingerIds || []);
+  }, [newSong.leadSingerIds]);
 
   const getSelectedSongTitle = (songId: number) => {
     const song = availableSongs.find((s) => parseInt(s.id, 10) === songId);
@@ -339,13 +350,21 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
   };
 
   const handleLeadSingerToggle = (userId: number) => {
+    console.log('Lead Singer Toggle Debug:', {
+      userId,
+      currentSelectedIds: selectedLeadSingerIds,
+      currentNewSongLeadSingerIds: newSong.leadSingerIds,
+    });
+
     setSelectedLeadSingerIds((prev) => {
       if (prev.includes(userId)) {
         const newIds = prev.filter((id) => id !== userId);
+        console.log('Removing lead singer:', { userId, newIds });
         setNewSong((prevSong) => ({ ...prevSong, leadSingerIds: newIds }));
         return newIds;
       }
       const newIds = [...prev, userId];
+      console.log('Adding lead singer:', { userId, newIds });
       setNewSong((prevSong) => ({ ...prevSong, leadSingerIds: newIds }));
       return newIds;
     });
@@ -357,67 +376,6 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
       setNewSong((prevSong) => ({ ...prevSong, leadSingerIds: newIds }));
       return newIds;
     });
-  };
-
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    setDraggedIndex(index);
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('text/html', e.currentTarget.outerHTML);
-  };
-
-  const handleDragOver = (e: React.DragEvent, index: number) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-    setDragOverIndex(index);
-  };
-
-  const handleDragLeave = () => {
-    setDragOverIndex(null);
-  };
-
-  const handleDrop = async (e: React.DragEvent, dropIndex: number) => {
-    e.preventDefault();
-
-    if (draggedIndex === null || draggedIndex === dropIndex) {
-      setDraggedIndex(null);
-      setDragOverIndex(null);
-      return;
-    }
-
-    const currentSongs = convertedSongs.length > 0 ? convertedSongs : songs;
-    const newSongs = [...currentSongs];
-    const draggedSong = newSongs[draggedIndex];
-
-    if (!draggedSong) {
-      setDraggedIndex(null);
-      setDragOverIndex(null);
-      return;
-    }
-
-    newSongs.splice(draggedIndex, 1);
-
-    newSongs.splice(dropIndex, 0, draggedSong);
-
-    const reorderedSongs = newSongs.map((song, index) => ({
-      ...song,
-      order: index + 1,
-    }));
-
-    onSongsChange(reorderedSongs);
-
-    if (rehearsalId && rehearsalId > 0) {
-      await Promise.all(
-        reorderedSongs.map((song, index) =>
-          RehearsalService.updateRehearsalSong(rehearsalId, song.songId, {
-            ...song,
-            order: index + 1,
-          }),
-        ),
-      );
-    }
-
-    setDraggedIndex(null);
-    setDragOverIndex(null);
   };
 
   const handleUpdateSuccess = async () => {
@@ -532,10 +490,8 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
   }, [rehearsalSongs, rehearsalInfo, rehearsalId, songs]);
 
   const handleAddSong = async () => {
-    if (!newSong.songId || newSong.leadSingerIds.length === 0) {
-      toast.error(
-        'Veuillez sélectionner une chanson et au moins un chanteur principal',
-      );
+    if (!newSong.songId) {
+      toast.error('Veuillez sélectionner une chanson');
       return;
     }
 
@@ -550,6 +506,12 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
       ...newSong,
       order: songs.length + 1,
     };
+
+    console.log('Adding Song Debug:', {
+      songToAdd,
+      leadSingerIds: songToAdd.leadSingerIds,
+      selectedLeadSingerIds,
+    });
 
     await RehearsalService.addSongToRehearsal(rehearsalId, songToAdd);
 
@@ -580,6 +542,7 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
 
       const sanitizedSong = {
         ...songToEdit,
+        leadSingerIds: songToEdit.leadSingerIds || [], // Ensure leadSingerIds are preserved
         voiceParts: songToEdit.voiceParts?.map((voicePart) => ({
           ...voicePart,
           voicePartType: rehearsalVoicePartOptions.includes(
@@ -589,6 +552,12 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
             : 'Soprano',
         })),
       };
+      console.log('Edit Song Debug:', {
+        originalSong: songToEdit,
+        sanitizedSong,
+        leadSingerIds: sanitizedSong.leadSingerIds,
+      });
+
       setSongToUpdate(sanitizedSong);
       setSongTitle(title);
       setSongComposer(composer);
@@ -844,9 +813,9 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
   };
 
   const getSelectedUserName = (userId: number) => {
-    const user = users.find((u) => u.id === userId);
-    if (user) {
-      return `${user.firstName} ${user.lastName}`;
+    const selectedUser = users.find((u) => u.id === userId);
+    if (selectedUser) {
+      return `${selectedUser.firstName} ${selectedUser.lastName}`;
     }
     return 'Utilisateur inconnu';
   };
@@ -916,50 +885,45 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={async (event) => {
-              try {
-                // Show loading state
-                const button = event.target as HTMLButtonElement;
-                button.disabled = true;
-                button.textContent = 'Sauvegarde...';
+          {canManageSongs && (
+            <button
+              type="button"
+              onClick={async (event) => {
+                try {
+                  // Show loading state
+                  const button = event.target as HTMLButtonElement;
+                  button.disabled = true;
+                  button.textContent = 'Sauvegarde...';
 
-                // Save rehearsal first
-                const rehearsalSaved = await ensureRehearsalSaved();
+                  // Save rehearsal first
+                  const rehearsalSaved = await ensureRehearsalSaved();
 
-                if (rehearsalSaved) {
-                  // Open add song popup after successful save
-                  setShowAddSong(true);
-                } else {
-                  // Show error if save failed
+                  if (rehearsalSaved) {
+                    // Open add song popup after successful save
+                    setShowAddSong(true);
+                  } else {
+                    // Show error if save failed
+                    toast.error(
+                      'Erreur lors de la sauvegarde de la répétition. Veuillez réessayer.',
+                    );
+                  }
+                } catch (error) {
+                  // Error logging removed for production
                   toast.error(
                     'Erreur lors de la sauvegarde de la répétition. Veuillez réessayer.',
                   );
+                } finally {
+                  // Restore button state
+                  const button = event.target as HTMLButtonElement;
+                  button.disabled = false;
+                  button.textContent = 'Ajouter une chanson';
                 }
-              } catch (error) {
-                // Error logging removed for production
-                toast.error(
-                  'Erreur lors de la sauvegarde de la répétition. Veuillez réessayer.',
-                );
-              } finally {
-                // Restore button state
-                const button = event.target as HTMLButtonElement;
-                button.disabled = false;
-                button.textContent = 'Ajouter une chanson';
-              }
-            }}
-            className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            <FaPlus />
-            Ajouter une chanson
-          </button>
-
-          {(convertedSongs.length > 0 || songs.length > 0) && (
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <FaSort className="text-gray-400" />
-              <span>Glissez-déposez pour réorganiser</span>
-            </div>
+              }}
+              className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <FaPlus />
+              Ajouter une chanson
+            </button>
           )}
 
           {canPromote() && (
@@ -1020,22 +984,10 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                 (song, index) => (
                   <div
                     key={index}
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, index)}
-                    onDragOver={(e) => handleDragOver(e, index)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, index)}
-                    className={`rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200 hover:shadow-md ${
-                      draggedIndex === index ? 'scale-95 opacity-50' : ''
-                    } ${
-                      dragOverIndex === index
-                        ? 'border-blue-400 bg-blue-50'
-                        : ''
-                    }`}
+                    className="rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200 hover:shadow-md"
                   >
                     <div className="mb-3 flex items-center justify-between">
                       <div className="flex items-center gap-3">
-                        <FaGripVertical className="cursor-move text-gray-400 hover:text-gray-600" />
                         <span className="text-sm font-medium text-gray-500">
                           #{song.order}
                         </span>
@@ -1277,16 +1229,14 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                     The same song can have different lead singers in different rehearsals
                   */}
                   <label className="block text-sm font-medium text-gray-700">
-                    Chanteur(s) principal(aux) pour cette répétition *
+                    Chanteur(s) principal(aux) pour cette répétition
                   </label>
 
                   {/* Selected Lead Singers Display */}
                   <div className="mb-2">
                     <div className="flex flex-wrap gap-2">
                       {selectedLeadSingerIds.map((singerId) => {
-                        const singer = users.find(
-                          (user) => user.id === singerId,
-                        );
+                        const singer = users.find((u) => u.id === singerId);
                         return singer ? (
                           <span
                             key={singerId}
@@ -1324,14 +1274,11 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                     />
                     {showLeadSingerDropdown && (
                       <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
-                        {/* <div className="p-2 text-xs text-gray-500 border-b border-gray-200">
-                          Sélectionnez plusieurs chanteurs principaux
-                        </div> */}
                         {users
                           .filter(
-                            (user) =>
-                              !selectedLeadSingerIds.includes(user.id) &&
-                              `${user.firstName} ${user.lastName}`
+                            (u) =>
+                              !selectedLeadSingerIds.includes(u.id) &&
+                              `${u.firstName} ${u.lastName}`
                                 .toLowerCase()
                                 .includes(leadSingerSearchTerm.toLowerCase()),
                           )
@@ -1340,25 +1287,25 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                               `${b.firstName} ${b.lastName}`,
                             ),
                           )
-                          .map((user) => (
+                          .map((u) => (
                             <div
-                              key={user.id}
+                              key={u.id}
                               className="flex cursor-pointer items-center px-3 py-2 hover:bg-blue-50"
                               onMouseDown={(e) => {
                                 e.preventDefault();
-                                handleLeadSingerToggle(user.id);
+                                handleLeadSingerToggle(u.id);
                                 setLeadSingerSearchTerm('');
                               }}
                             >
                               <span className="text-sm text-gray-700">
-                                {user.firstName} {user.lastName}
+                                {u.firstName} {u.lastName}
                               </span>
                             </div>
                           ))}
                         {users.filter(
-                          (user) =>
-                            !selectedLeadSingerIds.includes(user.id) &&
-                            `${user.firstName} ${user.lastName}`
+                          (u) =>
+                            !selectedLeadSingerIds.includes(u.id) &&
+                            `${u.firstName} ${u.lastName}`
                               .toLowerCase()
                               .includes(leadSingerSearchTerm.toLowerCase()),
                         ).length === 0 && (
@@ -1581,7 +1528,7 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                           <div className="flex flex-wrap gap-2">
                             {voicePart.memberIds.map((memberId) => {
                               const member = users.find(
-                                (user) => user.id === memberId,
+                                (u) => u.id === memberId,
                               );
                               return member ? (
                                 <span
@@ -1632,17 +1579,9 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                           />
                           {getVoicePartDropdownState(index).showDropdown && (
                             <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
-                              <div className="border-b border-gray-200 p-2 text-xs text-gray-500">
-                                Sélectionnez plusieurs membres pour cette partie
-                                vocale
-                              </div>
                               {users
-                                .filter(
-                                  (user) =>
-                                    !voicePart.memberIds?.includes(user.id),
-                                )
-                                .filter((user) =>
-                                  `${user.firstName} ${user.lastName}`
+                                .filter((u) =>
+                                  `${u.firstName} ${u.lastName}`
                                     .toLowerCase()
                                     .includes(
                                       getVoicePartDropdownState(
@@ -1655,40 +1594,63 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                                     `${b.firstName} ${b.lastName}`,
                                   ),
                                 )
-                                .map((user) => (
+                                .map((u) => (
                                   <div
-                                    key={user.id}
-                                    className="flex cursor-pointer items-center px-3 py-2 hover:bg-blue-50"
+                                    key={u.id}
+                                    className={`flex cursor-pointer items-center px-3 py-2 ${
+                                      voicePart.memberIds?.includes(u.id)
+                                        ? 'bg-blue-100 hover:bg-blue-200'
+                                        : 'hover:bg-blue-50'
+                                    }`}
                                     onMouseDown={(e) => {
                                       e.preventDefault();
-                                      const updatedMemberIds = [
-                                        ...(voicePart.memberIds || []),
-                                        user.id,
-                                      ];
+                                      const currentMemberIds =
+                                        voicePart.memberIds || [];
+                                      const isAlreadySelected =
+                                        currentMemberIds.includes(u.id);
+
+                                      let updatedMemberIds;
+                                      if (isAlreadySelected) {
+                                        // Remove member if already selected
+                                        updatedMemberIds =
+                                          currentMemberIds.filter(
+                                            (id) => id !== u.id,
+                                          );
+                                      } else {
+                                        // Add member if not selected
+                                        updatedMemberIds = [
+                                          ...currentMemberIds,
+                                          u.id,
+                                        ];
+                                      }
+
                                       updateVoicePart(
                                         index,
                                         'memberIds',
                                         updatedMemberIds,
                                       );
                                       updateVoicePartSearchTerm(index, '');
-                                      closeVoicePartDropdown(index);
+                                      // Don't close dropdown to allow multiple selections
                                     }}
                                   >
                                     <input
                                       type="checkbox"
-                                      checked={false}
+                                      checked={
+                                        voicePart.memberIds?.includes(u.id) ||
+                                        false
+                                      }
                                       readOnly
                                       className="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                                     />
                                     <span className="text-sm text-gray-700">
-                                      {user.firstName} {user.lastName}
+                                      {u.firstName} {u.lastName}
                                     </span>
                                   </div>
                                 ))}
                               {users.filter(
-                                (user) =>
-                                  !voicePart.memberIds?.includes(user.id) &&
-                                  `${user.firstName} ${user.lastName}`
+                                (u) =>
+                                  !voicePart.memberIds?.includes(u.id) &&
+                                  `${u.firstName} ${u.lastName}`
                                     .toLowerCase()
                                     .includes(
                                       getVoicePartDropdownState(
@@ -1821,18 +1783,18 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                                     `${b.firstName} ${b.lastName}`,
                                   ),
                                 )
-                                .map((user) => (
+                                .map((u) => (
                                   <div
-                                    key={user.id}
+                                    key={u.id}
                                     className="cursor-pointer px-3 py-2 hover:bg-blue-50"
                                     onMouseDown={(e) => {
                                       e.preventDefault();
-                                      updateMusician(index, 'userId', user.id);
+                                      updateMusician(index, 'userId', u.id);
                                       closeDropdown('musicianUser');
                                     }}
                                   >
                                     <span className="text-sm text-gray-700">
-                                      {user.firstName} {user.lastName}
+                                      {u.firstName} {u.lastName}
                                     </span>
                                   </div>
                                 ))}

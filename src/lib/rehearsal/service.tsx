@@ -97,9 +97,21 @@ export const RehearsalService = {
     rehearsalId: number,
     songData: CreateRehearsalSongDto,
   ): Promise<any> => {
+    // Transform leadSingerIds to leadSingers format expected by backend
+    const transformedSongData = {
+      ...songData,
+      leadSingers: songData.leadSingerIds?.map((id) => ({ id })) || [],
+      leadSingerIds: undefined, // Remove the array field
+    };
+
+    console.log('API Call Debug:', {
+      originalData: songData,
+      transformedData: transformedSongData,
+    });
+
     const response = await api.post(
       `/rehearsals/${rehearsalId}/songs`,
-      songData,
+      transformedSongData,
     );
     return response.data;
   },

@@ -365,9 +365,15 @@ export const useExportTransactions = () => {
               newStyles.halign = 'right';
             }
           } else if (hookData.section === 'foot') {
-            // Right align all footer cells except the last row
-            if (hookData.row.index < 9) {
+            // Right align amount column (index 4) for all footer rows except the last row
+            if (hookData.column.index === 4 && hookData.row.index < 9) {
               newStyles.halign = 'right';
+            } else if (hookData.column.index === 5 && hookData.row.index < 9) {
+              // Left align currency column (index 5) for all footer rows except the last row
+              newStyles.halign = 'left';
+            } else if (hookData.row.index === 9) {
+              // Last row (conversion rate) - left align
+              newStyles.halign = 'left';
             } else {
               newStyles.halign = 'left';
             }

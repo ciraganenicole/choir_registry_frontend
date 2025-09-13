@@ -85,12 +85,17 @@ export const canAccessLibrary = (
 
 export const canCreateSongs = (
   userRole: UserRole,
-  _userCategories?: string[],
+  userCategories?: string[],
 ): boolean => {
+  // Check if user has lead category (same as rehearsal permissions)
+  if (userCategories?.includes('lead')) {
+    return true;
+  }
+
+  // Also allow super admin and attendance admin roles
   if (
     userRole === UserRole.SUPER_ADMIN ||
-    userRole === UserRole.ATTENDANCE_ADMIN ||
-    userRole === UserRole.LEAD
+    userRole === UserRole.ATTENDANCE_ADMIN
   ) {
     return true;
   }
@@ -461,12 +466,17 @@ export const filterSongs = (songs: Song[], filters: SongFilter): Song[] => {
 
 export const canUpdateSongs = (
   userRole: UserRole,
-  _userCategories?: string[],
+  userCategories?: string[],
 ): boolean => {
+  // Check if user has lead category (same as rehearsal permissions)
+  if (userCategories?.includes('lead')) {
+    return true;
+  }
+
+  // Also allow super admin and attendance admin roles
   if (
     userRole === UserRole.SUPER_ADMIN ||
-    userRole === UserRole.ATTENDANCE_ADMIN ||
-    userRole === UserRole.LEAD
+    userRole === UserRole.ATTENDANCE_ADMIN
   ) {
     return true;
   }
