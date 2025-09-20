@@ -135,6 +135,7 @@ export interface Rehearsal {
     title: string;
     date: string | Date;
     type: string;
+    status: string;
   };
   rehearsalLead?: {
     id: number;

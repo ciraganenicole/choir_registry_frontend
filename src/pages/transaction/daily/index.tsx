@@ -603,7 +603,7 @@ const DailyContributions = () => {
                               >
                                 <div className="flex items-center gap-3">
                                   <div className="text-sm font-medium text-gray-900">
-                                    {formatDate(date)}
+                                    {format(new Date(date), 'dd/MM/yyyy')}
                                   </div>
                                 </div>
                                 <div className="text-right">

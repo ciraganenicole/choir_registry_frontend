@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { FaTimes } from 'react-icons/fa';
+import Select from 'react-select';
 
 import { usePerformances } from '@/lib/performance/logic';
 import {
@@ -79,16 +80,20 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
   const typeDropdownRef = useRef<HTMLDivElement>(null);
   const [isRehearsalSaved, setIsRehearsalSaved] = useState(false);
   const [savedRehearsalId, setSavedRehearsalId] = useState<number | null>(null);
-  const { performances, fetchPerformances } = usePerformances();
+  const {
+    performances,
+    fetchPerformances,
+    loading: performancesLoading,
+    error: performancesError,
+  } = usePerformances();
 
   // Fetch performances when component mounts (only if no performanceId is provided)
   useEffect(() => {
     if (!performanceId) {
-      fetchPerformances();
+      fetchPerformances({}, { page: 1, limit: 100 });
     }
   }, [performanceId, fetchPerformances]);
 
-  // Handle click outside to close dropdowns
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -97,7 +102,6 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
       ) {
         setShowTypeDropdown(false);
       }
-      // Instrument dropdown handling removed as it's not used
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -109,7 +113,6 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
   // Initialize form data when editing
   useEffect(() => {
     if (rehearsal) {
-      // If editing an existing rehearsal, mark it as saved
       setIsRehearsalSaved(true);
       setSavedRehearsalId(rehearsal.id);
 
@@ -120,7 +123,6 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
         } else if (rehearsal.date instanceof Date) {
           dateString = rehearsal.date.toISOString().split('T')[0] || '';
         } else {
-          // Handle other date formats
           dateString =
             new Date(rehearsal.date).toISOString().split('T')[0] || '';
         }
@@ -187,24 +189,20 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
       setFormData((prev) => ({
         ...prev,
         shiftLeadId: currentShift.leaderId,
-        rehearsalLeadId: currentShift.leaderId, // Set rehearsal lead to shift lead by default
+        rehearsalLeadId: currentShift.leaderId,
       }));
     } else if (currentShift?.leaderId && rehearsal) {
-      // When editing, use current shift leader ID if no shiftLeadId is set
       setFormData((prev) => ({
         ...prev,
         shiftLeadId: prev.shiftLeadId || currentShift.leaderId,
-        rehearsalLeadId: prev.rehearsalLeadId || currentShift.leaderId, // Set rehearsal lead to shift lead if not already set
+        rehearsalLeadId: prev.rehearsalLeadId || currentShift.leaderId,
       }));
     }
   }, [currentShift?.leaderId, rehearsal]);
 
-  // Leaders are now fetched via the centralized useUsers hook
-
   const validateForm = async (): Promise<boolean> => {
     const errors: Record<string, string> = {};
 
-    // Enhanced shift validation - only validate if we have shifts data
     if (currentShift) {
       const shiftValidation = validateShiftForPerformance([currentShift]);
 
@@ -213,17 +211,13 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
         setValidationErrors(errors);
         return false;
       }
-
-      // Warning handling removed as it's not used
     }
 
     // Make shift validation more flexible - allow creation without active shift but with warning
     if (!currentShift) {
-      // Warning handling removed as it's not used
-      // Don't block creation, just show warning
     } else {
       if (!currentShift.leaderId) {
-        errors.general = 'Aucun chef de service assigné au shift';
+        errors.general = 'Aucun conducteur de service assigné au shift';
         setValidationErrors(errors);
         return false;
       }
@@ -250,12 +244,13 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
     }
 
     if (!formData.rehearsalLeadId) {
-      errors.rehearsalLeadId = 'Veuillez sélectionner un chef de répétition';
+      errors.rehearsalLeadId =
+        'Veuillez sélectionner un conducteur de répétition';
     }
 
     // Only require shiftLeadId if there's an active shift
     if (currentShift && !formData.shiftLeadId) {
-      errors.shiftLeadId = 'Veuillez sélectionner un chef de service';
+      errors.shiftLeadId = 'Veuillez sélectionner un conducteur de service';
     }
 
     // Validate performanceId if no performanceId is provided in props
@@ -263,7 +258,6 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
       errors.performanceId = 'Veuillez sélectionner une performance';
     }
 
-    // Validate song time allocation - only when rehearsal is not yet saved
     if (!isRehearsalSaved && !isEditing) {
       const totalSongTime = (formData.rehearsalSongs || []).reduce(
         (total, song) => total + (song.timeAllocated || 0),
@@ -274,7 +268,6 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
       }
     }
 
-    // Validate that songs have required fields - only when rehearsal is not yet saved
     if (!isRehearsalSaved && !isEditing) {
       const songsWithErrors = (formData.rehearsalSongs || []).filter(
         (song) =>
@@ -311,7 +304,6 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
       [name]: parsedValue,
     }));
 
-    // Clear validation error when user starts typing
     if (validationErrors[name]) {
       setValidationErrors((prev) => ({
         ...prev,
@@ -326,7 +318,6 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
       rehearsalSongs: songs,
     }));
 
-    // Clear song validation errors when songs change
     if (validationErrors.songs) {
       setValidationErrors((prev) => ({
         ...prev,
@@ -335,7 +326,6 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
     }
   };
 
-  // Helper function to add songs to an existing rehearsal
   const addSongsToRehearsal = async (
     rehearsalId: number,
     songs: CreateRehearsalSongDto[],
@@ -375,8 +365,6 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
       const success = await updateRehearsal(rehearsal.id, updateData);
       if (success) {
         onSuccess?.();
-      } else {
-        // console.error('❌ Failed to update rehearsal');
       }
     } else if (isRehearsalSaved && savedRehearsalId) {
       if (formData.rehearsalSongs && formData.rehearsalSongs.length > 0) {
@@ -387,13 +375,12 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
     } else {
       const rehearsalDataWithoutSongs = {
         ...formData,
-        rehearsalSongs: undefined, // Remove songs from initial creation
+        rehearsalSongs: undefined,
       };
 
       const createdRehearsal = await createRehearsal(rehearsalDataWithoutSongs);
 
       if (createdRehearsal && createdRehearsal.id) {
-        // Set the saved rehearsal ID so songs can be added
         setSavedRehearsalId(createdRehearsal.id);
         setIsRehearsalSaved(true);
 
@@ -666,40 +653,100 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
                   >
                     Performance associée *
                   </label>
-                  <select
-                    id="performanceId"
-                    name="performanceId"
-                    value={formData.performanceId}
-                    onChange={(e) => {
-                      const perfId = parseInt(e.target.value, 10);
-                      setFormData((prev) => ({
-                        ...prev,
-                        performanceId: perfId,
-                      }));
-
-                      // Clear validation error when performance is selected
-                      if (validationErrors.performanceId) {
-                        setValidationErrors((prev) => ({
-                          ...prev,
-                          performanceId: '',
-                        }));
+                  {performancesLoading ? (
+                    <div className="w-full rounded-md border border-gray-300 bg-gray-50 px-3 py-2">
+                      <span className="text-gray-500">
+                        Chargement des performances...
+                      </span>
+                    </div>
+                  ) : performancesError ? (
+                    <div className="w-full rounded-md border border-red-300 bg-red-50 px-3 py-2">
+                      <span className="text-red-600">
+                        Erreur lors du chargement: {performancesError}
+                      </span>
+                    </div>
+                  ) : (
+                    <Select
+                      id="performanceId"
+                      name="performanceId"
+                      value={
+                        performances.find(
+                          (p) => p.id === formData.performanceId,
+                        )
+                          ? {
+                              value: formData.performanceId,
+                              label: `${performances.find((p) => p.id === formData.performanceId)?.type} - ${new Date(performances.find((p) => p.id === formData.performanceId)?.date || '').toLocaleDateString('fr-FR')} (${performances.find((p) => p.id === formData.performanceId)?.location || 'Lieu non spécifié'})`,
+                            }
+                          : null
                       }
-                    }}
-                    className={`w-full rounded-md border px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                      validationErrors.performanceId
-                        ? 'border-red-300'
-                        : 'border-gray-300'
-                    }`}
-                  >
-                    <option value={0}>Sélectionnez une performance...</option>
-                    {performances.map((performance) => (
-                      <option key={performance.id} value={performance.id}>
-                        {performance.type} -{' '}
-                        {new Date(performance.date).toLocaleDateString('fr-FR')}{' '}
-                        ({performance.location || 'Lieu non spécifié'})
-                      </option>
-                    ))}
-                  </select>
+                      onChange={(selectedOption) => {
+                        const perfId = selectedOption
+                          ? selectedOption.value
+                          : 0;
+                        setFormData((prev) => ({
+                          ...prev,
+                          performanceId: perfId,
+                        }));
+
+                        if (validationErrors.performanceId) {
+                          setValidationErrors((prev) => ({
+                            ...prev,
+                            performanceId: '',
+                          }));
+                        }
+                      }}
+                      options={(() => {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+
+                        const futurePerformances = performances.filter(
+                          (performance) => {
+                            const performanceDate = new Date(performance.date);
+                            performanceDate.setHours(0, 0, 0, 0);
+                            return performanceDate >= today;
+                          },
+                        );
+
+                        const sortedPerformances = futurePerformances.sort(
+                          (a, b) => {
+                            const dateA = new Date(a.date);
+                            const dateB = new Date(b.date);
+                            return dateA.getTime() - dateB.getTime();
+                          },
+                        );
+
+                        const options = sortedPerformances.map(
+                          (performance) => ({
+                            value: performance.id,
+                            label: `${performance.type} - ${new Date(performance.date).toLocaleDateString('fr-FR')} (${performance.location || 'Lieu non spécifié'})`,
+                          }),
+                        );
+                        return options;
+                      })()}
+                      placeholder="Sélectionnez une performance..."
+                      isSearchable
+                      isClearable
+                      className={`w-full ${validationErrors.performanceId ? 'border-red-300' : ''}`}
+                      styles={{
+                        control: (provided, state) => ({
+                          ...provided,
+                          borderColor: validationErrors.performanceId
+                            ? '#fca5a5'
+                            : state.isFocused
+                              ? '#3b82f6'
+                              : '#d1d5db',
+                          boxShadow: state.isFocused
+                            ? '0 0 0 2px rgba(59, 130, 246, 0.5)'
+                            : 'none',
+                          '&:hover': {
+                            borderColor: validationErrors.performanceId
+                              ? '#fca5a5'
+                              : '#9ca3af',
+                          },
+                        }),
+                      }}
+                    />
+                  )}
                   {validationErrors.performanceId && (
                     <p className="mt-1 text-sm text-red-600">
                       {validationErrors.performanceId}
@@ -718,7 +765,7 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
                   htmlFor="rehearsalLeadId"
                   className="mb-2 block text-sm font-medium text-gray-700"
                 >
-                  Chef de répétition *
+                  Conducteur *
                 </label>
                 <select
                   id="rehearsalLeadId"
@@ -737,9 +784,7 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
                       : 'border-gray-300'
                   }`}
                 >
-                  <option value={0}>
-                    Sélectionnez un chef de répétition...
-                  </option>
+                  <option value={0}>Sélectionnez un conducteur ...</option>
                   {leaders.map((leader) => (
                     <option key={leader.id} value={leader.id}>
                       {leader.lastName} {leader.firstName}

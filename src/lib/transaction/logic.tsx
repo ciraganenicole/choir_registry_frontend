@@ -15,14 +15,14 @@ export const useTransactionStats = (filters?: TransactionFilters) => {
 
       const stats: TransactionStats = {
         usd: {
-          totalIncome: Number(responseData.totals?.usd || 0),
-          totalExpense: 0,
-          netRevenue: 0,
+          totalIncome: Number(responseData.totals?.income?.usd || 0),
+          totalExpense: Number(responseData.totals?.expense?.usd || 0),
+          netRevenue: Number(responseData.totals?.solde?.usd || 0),
         },
         fc: {
-          totalIncome: Number(responseData.totals?.fc || 0),
-          totalExpense: 0,
-          netRevenue: 0,
+          totalIncome: Number(responseData.totals?.income?.fc || 0),
+          totalExpense: Number(responseData.totals?.expense?.fc || 0),
+          netRevenue: Number(responseData.totals?.solde?.fc || 0),
         },
         dailyTotalUSD: Number(responseData.dailyTotalUSD || 0),
         dailyTotalFC: Number(responseData.dailyTotalFC || 0),

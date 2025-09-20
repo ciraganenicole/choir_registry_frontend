@@ -81,7 +81,9 @@ export const RehearsalService = {
     id: number,
     data: UpdateRehearsalDto,
   ): Promise<Rehearsal> => {
+    console.log('RehearsalService: updateRehearsal called with:', { id, data });
     const response = await api.patch(`/rehearsals/${id}`, data);
+    console.log('RehearsalService: updateRehearsal response:', response.data);
     return response.data;
   },
 

@@ -171,9 +171,11 @@ export const useUpdateRehearsal = () => {
       setError(null);
 
       try {
-        await RehearsalService.updateRehearsal(id, data);
+        const result = await RehearsalService.updateRehearsal(id, data);
+        console.log('useUpdateRehearsal: Service response:', result);
         return true;
       } catch (err: any) {
+        console.error('useUpdateRehearsal: Update error:', err);
         setError(err.response?.data?.message || 'Failed to update rehearsal');
         return false;
       } finally {

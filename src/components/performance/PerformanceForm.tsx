@@ -16,11 +16,9 @@ import type {
   UpdatePerformanceDto,
 } from '@/lib/performance/types';
 import { PerformanceType } from '@/lib/performance/types';
-import {
-  getActualShiftStatus,
-  useCurrentShift,
-  validateShiftForPerformance,
-} from '@/lib/shift/logic';
+import { getActualShiftStatus, useCurrentShift } from '@/lib/shift/logic';
+import { UserCategory, UserRole } from '@/lib/user/type';
+import { useAuth } from '@/providers/AuthProvider';
 
 interface PerformanceFormProps {
   performance?: Performance;
@@ -37,6 +35,14 @@ const PerformanceForm: React.FC<PerformanceFormProps> = ({
   onCancel,
   loading = false,
 }) => {
+  const { user } = useAuth();
+
+  // Check if user can manage performances (admin roles and lead category users)
+  const canManagePerformances =
+    user?.categories?.includes(UserCategory.LEAD) ||
+    user?.role === UserRole.SUPER_ADMIN ||
+    user?.role === UserRole.ATTENDANCE_ADMIN ||
+    user?.role === UserRole.FINANCE_ADMIN;
   const {
     currentShift,
     isLoading: shiftLoading,
@@ -46,7 +52,7 @@ const PerformanceForm: React.FC<PerformanceFormProps> = ({
   const [formData, setFormData] = useState<CreatePerformanceDto>({
     date: '',
     type: PerformanceType.SUNDAY_SERVICE,
-    shiftLeadId: currentShift?.leaderId || 0, // Use current shift leader ID
+    shiftLeadId: currentShift?.leaderId || undefined, // Optional - can be assigned later
     location: '',
     expectedAudience: 0,
     notes: '',
@@ -86,49 +92,22 @@ const PerformanceForm: React.FC<PerformanceFormProps> = ({
     const newErrors: Record<string, string> = {};
     setShiftValidationWarning(null);
 
-    // Enhanced shift validation
-    try {
-      const shiftValidation = validateShiftForPerformance([]);
-
-      if (!shiftValidation.canProceed) {
-        newErrors.general =
-          shiftValidation.warning || 'Shift validation failed';
+    // Shift validation removed - performances can be created without active shifts
+    // Shift validation is now optional - performances can be created without assignment
+    if (currentShift) {
+      if (!currentShift.leaderId) {
+        newErrors.general = 'Aucun chef de service assigné au shift';
         setErrors(newErrors);
         return false;
       }
 
-      // Set warning if there are validation issues but we can proceed
-      if (shiftValidation.warning) {
-        setShiftValidationWarning(shiftValidation.warning);
+      const actualStatus = getActualShiftStatus(currentShift);
+      if (actualStatus === 'Completed' || actualStatus === 'Cancelled') {
+        newErrors.general =
+          'Ce shift est terminé ou annulé, impossible de créer une performance';
+        setErrors(newErrors);
+        return false;
       }
-
-      // Update currentShift if validation provided it
-      if (shiftValidation.currentShift && !currentShift) {
-        // This would need to be handled by the parent component
-        // For now, we'll just use the existing currentShift logic
-      }
-    } catch (validationErr) {
-      // Fall back to existing validation logic
-    }
-
-    if (!currentShift) {
-      newErrors.general = 'Aucun shift de leadership disponible';
-      setErrors(newErrors);
-      return false;
-    }
-
-    if (!currentShift.leaderId) {
-      newErrors.general = 'Aucun chef de service assigné au shift';
-      setErrors(newErrors);
-      return false;
-    }
-
-    const actualStatus = getActualShiftStatus(currentShift);
-    if (actualStatus === 'Completed' || actualStatus === 'Cancelled') {
-      newErrors.general =
-        'Ce shift est terminé ou annulé, impossible de créer une performance';
-      setErrors(newErrors);
-      return false;
     }
 
     if (!formData.date) {
@@ -173,6 +152,46 @@ const PerformanceForm: React.FC<PerformanceFormProps> = ({
     ? 'Modifier la Performance'
     : 'Créer une Nouvelle Performance';
   const submitButtonText = isEditing ? 'Mettre à jour' : 'Créer';
+
+  // Permission check - only admin or LEAD users can create/edit performances
+  if (!canManagePerformances) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+        <div className="max-h-[90vh] w-[98%] overflow-y-auto rounded-lg bg-white p-6 shadow-xl md:w-[80%]">
+          <div className="py-12 text-center">
+            <div className="mb-4 text-red-500">
+              <svg
+                className="mx-auto size-16"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
+                />
+              </svg>
+            </div>
+            <h3 className="mb-2 text-lg font-medium text-gray-900">
+              Accès Refusé
+            </h3>
+            <p className="mb-4 text-gray-600">
+              Seuls les administrateurs et les utilisateurs avec le rôle LEAD
+              peuvent créer ou modifier des performances.
+            </p>
+            <button
+              onClick={onCancel}
+              className="rounded-md bg-gray-600 px-4 py-2 text-white transition-colors hover:bg-gray-700"
+            >
+              Fermer
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -289,41 +308,17 @@ const PerformanceForm: React.FC<PerformanceFormProps> = ({
           {/* Current Shift Information */}
           {currentShift && (
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-              <h3 className="mb-2 font-semibold text-blue-900">
-                Shift de Leadership
+              <h3 className="mb-2 text-blue-900">
+                Conducteur actif :{' '}
+                <span className="font-semibold text-green-600">
+                  {currentShift.leader.firstName} {currentShift.leader.lastName}
+                </span>
               </h3>
               <div className="text-sm text-blue-700">
-                <p>
-                  <strong>Chef de Service :</strong>{' '}
-                  {currentShift.leader.firstName} {currentShift.leader.lastName}
-                </p>
                 <p>
                   <strong>Période :</strong>{' '}
                   {new Date(currentShift.startDate).toLocaleDateString('fr-FR')}{' '}
                   - {new Date(currentShift.endDate).toLocaleDateString('fr-FR')}
-                </p>
-                <p>
-                  <strong>Statut :</strong>
-                  <span
-                    className={`ml-2 inline-block rounded-full px-2 py-1 text-xs font-medium ${(() => {
-                      const status = getActualShiftStatus(currentShift);
-                      if (status === 'Active')
-                        return 'bg-green-100 text-green-800';
-                      if (status === 'Upcoming')
-                        return 'bg-blue-100 text-blue-800';
-                      if (status === 'Completed')
-                        return 'bg-gray-100 text-gray-800';
-                      return 'bg-red-100 text-red-800';
-                    })()}`}
-                  >
-                    {(() => {
-                      const status = getActualShiftStatus(currentShift);
-                      if (status === 'Active') return 'Actif';
-                      if (status === 'Upcoming') return 'À venir';
-                      if (status === 'Completed') return 'Terminé';
-                      return 'Annulé';
-                    })()}
-                  </span>
                 </p>
               </div>
             </div>
@@ -441,37 +436,6 @@ const PerformanceForm: React.FC<PerformanceFormProps> = ({
             </div>
           </div>
 
-          {/* Workflow Information */}
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-4">
-            <h3 className="mb-2 font-semibold text-blue-900">
-              Workflow de Performance
-            </h3>
-            <div className="text-sm text-blue-700">
-              <p className="mb-2">
-                <strong>1. Création :</strong> Cette performance sera créée avec
-                le statut &quot;À venir&quot; et vous serez automatiquement
-                assigné comme chef de service
-              </p>
-              <p className="mb-2">
-                <strong>2. Préparation :</strong> Vous pourrez ensuite marquer
-                la performance comme &quot;En préparation&quot; pour commencer
-                les répétitions
-              </p>
-              <p className="mb-2">
-                <strong>3. Répétitions :</strong> Créez des répétitions
-                détaillées avec chansons, musiciens et parties vocales
-              </p>
-              <p className="mb-2">
-                <strong>4. Promotion :</strong> Promouvez une répétition pour
-                remplir la performance avec tous les détails
-              </p>
-              <p>
-                <strong>5. Exécution :</strong> Marquez la performance comme
-                &quot;Terminée&quot; après l&apos;événement
-              </p>
-            </div>
-          </div>
-
           {/* Submit Button */}
           <div className="flex justify-end gap-3 border-t border-gray-200 pt-6">
             <button
@@ -510,7 +474,7 @@ const PerformanceForm: React.FC<PerformanceFormProps> = ({
                   );
                 }
                 if (!currentShift?.leaderId) {
-                  return 'Aucun chef assigné';
+                  return 'Aucun conducteur assigné';
                 }
                 if (getActualShiftStatus(currentShift) === 'Completed') {
                   return 'Shift terminé';

@@ -315,10 +315,6 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
 
   // Synchronize selectedLeadSingerIds with newSong.leadSingerIds
   useEffect(() => {
-    console.log('Lead Singer Sync Debug:', {
-      newSongLeadSingerIds: newSong.leadSingerIds,
-      currentSelectedLeadSingerIds: selectedLeadSingerIds,
-    });
     setSelectedLeadSingerIds(newSong.leadSingerIds || []);
   }, [newSong.leadSingerIds]);
 
@@ -350,21 +346,13 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
   };
 
   const handleLeadSingerToggle = (userId: number) => {
-    console.log('Lead Singer Toggle Debug:', {
-      userId,
-      currentSelectedIds: selectedLeadSingerIds,
-      currentNewSongLeadSingerIds: newSong.leadSingerIds,
-    });
-
     setSelectedLeadSingerIds((prev) => {
       if (prev.includes(userId)) {
         const newIds = prev.filter((id) => id !== userId);
-        console.log('Removing lead singer:', { userId, newIds });
         setNewSong((prevSong) => ({ ...prevSong, leadSingerIds: newIds }));
         return newIds;
       }
       const newIds = [...prev, userId];
-      console.log('Adding lead singer:', { userId, newIds });
       setNewSong((prevSong) => ({ ...prevSong, leadSingerIds: newIds }));
       return newIds;
     });
@@ -507,12 +495,6 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
       order: songs.length + 1,
     };
 
-    console.log('Adding Song Debug:', {
-      songToAdd,
-      leadSingerIds: songToAdd.leadSingerIds,
-      selectedLeadSingerIds,
-    });
-
     await RehearsalService.addSongToRehearsal(rehearsalId, songToAdd);
 
     const validatedSongs = validateVoiceParts([...songs, songToAdd]);
@@ -528,12 +510,10 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
   };
 
   const handleEditSong = (index: number) => {
-    // Use the actual API data (convertedSongs) instead of local songs array
     const songToEdit =
       convertedSongs.length > 0 ? convertedSongs[index] : songs[index];
 
     if (songToEdit) {
-      // Get song details from available songs
       const songDetails = availableSongs.find(
         (s) => parseInt(s.id, 10) === songToEdit.songId,
       );
@@ -542,7 +522,7 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
 
       const sanitizedSong = {
         ...songToEdit,
-        leadSingerIds: songToEdit.leadSingerIds || [], // Ensure leadSingerIds are preserved
+        leadSingerIds: songToEdit.leadSingerIds || [],
         voiceParts: songToEdit.voiceParts?.map((voicePart) => ({
           ...voicePart,
           voicePartType: rehearsalVoicePartOptions.includes(
@@ -552,11 +532,6 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
             : 'Soprano',
         })),
       };
-      console.log('Edit Song Debug:', {
-        originalSong: songToEdit,
-        sanitizedSong,
-        leadSingerIds: sanitizedSong.leadSingerIds,
-      });
 
       setSongToUpdate(sanitizedSong);
       setSongTitle(title);
@@ -581,7 +556,6 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
         return;
       }
 
-      // Prepare update data
       const updateData = {
         leadSingerIds: newSong.leadSingerIds,
         difficulty: newSong.difficulty,
@@ -596,21 +570,18 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
         chorusMemberIds: newSong.chorusMemberIds,
       };
 
-      // Call API to update the song
       await RehearsalService.updateRehearsalSong(
         rehearsalId,
         songToUpdateData.songId,
         updateData,
       );
 
-      // Update local state
       const updatedSongs = [...songs];
       updatedSongs[editingSongIndex] = { ...songToUpdateData, ...updateData };
 
       const validatedSongs = validateVoiceParts(updatedSongs);
       onSongsChange(validatedSongs);
 
-      // Refresh data from API
       if (fetchRehearsalSongs) {
         await fetchRehearsalSongs();
       }
@@ -637,9 +608,7 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
       return;
     }
 
-    // Use toast for confirmation instead of window.confirm
     const confirmed = await new Promise<boolean>((resolve) => {
-      // Create a custom confirmation toast
       toast.custom(
         (t) => (
           <div className="max-w-sm rounded-lg border border-gray-200 bg-white p-4 shadow-lg">

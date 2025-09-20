@@ -33,14 +33,12 @@ import PerformanceForm from './PerformanceForm';
 interface PerformanceDetailProps {
   performance: Performance;
   onClose: () => void;
-  onEdit?: () => void;
   onSuccess?: () => void;
 }
 
 const PerformanceDetail: React.FC<PerformanceDetailProps> = ({
   performance,
   onClose,
-  onEdit,
   onSuccess,
 }) => {
   const [showAddSong, setShowAddSong] = useState(false);
@@ -175,23 +173,12 @@ const PerformanceDetail: React.FC<PerformanceDetailProps> = ({
               Performance {currentPerformance.type}
             </h2>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            {onEdit && (
-              <button
-                onClick={onEdit}
-                className="flex items-center gap-1 rounded-md bg-orange-500 px-3 py-2 text-sm text-white hover:bg-orange-600 md:gap-2 md:px-4 md:text-base"
-              >
-                <FaEdit className="text-sm" />{' '}
-                <span className="hidden sm:inline">Modifier</span>
-              </button>
-            )}
-            <button
-              onClick={onClose}
-              className="flex items-center gap-1 rounded-md bg-red-500 p-2 text-sm text-white hover:bg-red-600 md:gap-2 md:px-4 md:text-base"
-            >
-              <FaTimes className="text-sm" />
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="flex items-center gap-1 rounded-md bg-red-500 p-2 text-sm text-white hover:bg-red-600 md:gap-2 md:px-4 md:text-base"
+          >
+            <FaTimes className="text-sm" />
+          </button>
         </div>
 
         {/* Feedback Messages */}

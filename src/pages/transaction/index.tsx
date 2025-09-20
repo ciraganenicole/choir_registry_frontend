@@ -11,7 +11,6 @@ import {
   useCreateTransaction,
   useExportTransactions,
   useExportTransactionsPDF,
-  useTotalBalance,
   useTransactions,
   useTransactionStats,
 } from '@/lib/transaction/logics';
@@ -124,8 +123,31 @@ const Transactions = () => {
     // type: filters.type, // <-- removed so cards always show both totals
   });
 
-  // Get total balance without any filters (complete balance)
-  const { data: totalBalance } = useTotalBalance();
+  // Check for logical inconsistencies
+  const hasLogicalInconsistency =
+    stats &&
+    (stats.dailyTotalUSD > stats.usd.totalIncome ||
+      stats.dailyTotalFC > stats.fc.totalIncome);
+
+  if (hasLogicalInconsistency) {
+    console.warn('🚨 LOGICAL INCONSISTENCY DETECTED:');
+    console.warn('Daily totals are greater than total income!');
+    console.warn(
+      'Daily USD:',
+      stats.dailyTotalUSD,
+      '> Total Income USD:',
+      stats.usd.totalIncome,
+    );
+    console.warn(
+      'Daily FC:',
+      stats.dailyTotalFC,
+      '> Total Income FC:',
+      stats.fc.totalIncome,
+    );
+  }
+
+  // Get total balance without any filters (complete balance) - currently not used
+  // const { data: totalBalance } = useTotalBalance();
 
   const handleCreateTransaction = async (
     transactionData: CreateTransactionDto,
@@ -192,11 +214,12 @@ const Transactions = () => {
         ...newFilters,
       };
 
+      // Ensure dates are in yyyy-MM-dd format for API compatibility
       if (updated.startDate) {
-        updated.startDate = new Date(updated.startDate).toISOString();
+        updated.startDate = format(new Date(updated.startDate), 'yyyy-MM-dd');
       }
       if (updated.endDate) {
-        updated.endDate = new Date(updated.endDate).toISOString();
+        updated.endDate = format(new Date(updated.endDate), 'yyyy-MM-dd');
       }
 
       Object.keys(updated).forEach((key) => {

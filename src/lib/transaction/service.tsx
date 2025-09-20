@@ -100,14 +100,14 @@ export const TransactionService = {
 
     return {
       usd: {
-        totalIncome: Number(data.usd?.totalIncome || 0),
-        totalExpense: Number(data.usd?.totalExpense || 0),
-        netRevenue: Number(data.usd?.netRevenue || 0),
+        totalIncome: Number(data.totals?.income?.usd || 0),
+        totalExpense: Number(data.totals?.expense?.usd || 0),
+        netRevenue: Number(data.totals?.solde?.usd || 0),
       },
       fc: {
-        totalIncome: Number(data.fc?.totalIncome || 0),
-        totalExpense: Number(data.fc?.totalExpense || 0),
-        netRevenue: Number(data.fc?.netRevenue || 0),
+        totalIncome: Number(data.totals?.income?.fc || 0),
+        totalExpense: Number(data.totals?.expense?.fc || 0),
+        netRevenue: Number(data.totals?.solde?.fc || 0),
       },
       dailyTotalUSD: Number(data.dailyTotalUSD || 0),
       dailyTotalFC: Number(data.dailyTotalFC || 0),

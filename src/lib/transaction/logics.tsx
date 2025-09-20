@@ -1,12 +1,12 @@
 /* eslint-disable import/no-extraneous-dependencies */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import console from 'console';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale/fr';
 import { jsPDF as JSPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 import { api } from '@/config/api';
+import { logError } from '@/utils/logger';
 
 import { TransactionService } from './service';
 import type {
@@ -424,6 +424,8 @@ export function useDailyContributions(
 
 // Get transaction statistics
 export const useTransactionStats = (filters?: TransactionFilters) => {
+  const queryClient = useQueryClient();
+
   return useQuery({
     queryKey: ['transactionStats', filters],
     queryFn: async () => {
@@ -433,17 +435,17 @@ export const useTransactionStats = (filters?: TransactionFilters) => {
 
       const stats: TransactionStats = {
         usd: {
-          totalIncome: responseData.totals?.income?.usd || 0,
-          totalExpense: responseData.totals?.expense?.usd || 0,
-          netRevenue: responseData.totals?.solde?.usd || 0,
+          totalIncome: Number(responseData.totals?.income?.usd || 0),
+          totalExpense: Number(responseData.totals?.expense?.usd || 0),
+          netRevenue: Number(responseData.totals?.solde?.usd || 0),
         },
         fc: {
-          totalIncome: responseData.totals?.income?.fc || 0,
-          totalExpense: responseData.totals?.expense?.fc || 0,
-          netRevenue: responseData.totals?.solde?.fc || 0,
+          totalIncome: Number(responseData.totals?.income?.fc || 0),
+          totalExpense: Number(responseData.totals?.expense?.fc || 0),
+          netRevenue: Number(responseData.totals?.solde?.fc || 0),
         },
-        dailyTotalUSD: responseData.dailyTotalUSD || 0,
-        dailyTotalFC: responseData.dailyTotalFC || 0,
+        dailyTotalUSD: Number(responseData.dailyTotalUSD || 0),
+        dailyTotalFC: Number(responseData.dailyTotalFC || 0),
       };
 
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
@@ -463,12 +465,12 @@ export const useTotalBalance = () => {
         // Use the backend stats endpoint with no filters to get the true total balance
         const { data: responseData } = await api.get('/transactions/stats');
         const totalBalance = {
-          usd: responseData.totals?.solde?.usd || 0,
-          fc: responseData.totals?.solde?.fc || 0,
+          usd: Number(responseData.totals?.solde?.usd || 0),
+          fc: Number(responseData.totals?.solde?.fc || 0),
         };
         return totalBalance;
       } catch (error) {
-        logError(error);
+        logError(error instanceof Error ? error.message : 'Unknown error');
         throw error;
       }
     },

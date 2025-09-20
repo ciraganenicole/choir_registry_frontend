@@ -1,6 +1,9 @@
 import { api } from '@/config/api';
 
 import type {
+  AssignmentStats,
+  BulkAssignmentDto,
+  BulkCreatePerformanceDto,
   CreatePerformanceDto,
   Performance,
   PerformanceFilterDto,
@@ -9,6 +12,7 @@ import type {
   PerformanceType,
   PromotableRehearsal,
   PromotionResult,
+  UnassignedPerformance,
   UpdatePerformanceDto,
 } from './types';
 
@@ -37,10 +41,8 @@ export const PerformanceService = {
           delete queryParams[key as keyof QueryParams];
         }
       });
-
       const { data } = await api.get('/performances', { params: queryParams });
 
-      // ✅ FIXED: Consistent response handling like rehearsal service
       let performances;
       let total;
       if (Array.isArray(data) && data.length === 2) {
@@ -69,7 +71,6 @@ export const PerformanceService = {
         hasPrev,
       };
     } catch (error: any) {
-      console.error('Error fetching performances:', error);
       throw new Error(
         error.response?.data?.message || 'Failed to fetch performances',
       );
@@ -81,7 +82,6 @@ export const PerformanceService = {
       const { data } = await api.get(`/performances/${id}`);
       return data;
     } catch (error: any) {
-      console.error('Error fetching performance:', error);
       throw new Error(
         error.response?.data?.message || 'Failed to fetch performance',
       );
@@ -95,7 +95,6 @@ export const PerformanceService = {
       const response = await api.post('/performances', data);
       return response.data;
     } catch (error: any) {
-      console.error('Error creating performance:', error);
       throw new Error(
         error.response?.data?.message || 'Failed to create performance',
       );
@@ -110,7 +109,6 @@ export const PerformanceService = {
       const response = await api.patch(`/performances/${id}`, data);
       return response.data;
     } catch (error: any) {
-      console.error('Error updating performance:', error);
       throw new Error(
         error.response?.data?.message || 'Failed to update performance',
       );
@@ -121,7 +119,6 @@ export const PerformanceService = {
     try {
       await api.delete(`/performances/${id}`);
     } catch (error: any) {
-      console.error('Error deleting performance:', error);
       throw new Error(
         error.response?.data?.message || 'Failed to delete performance',
       );
@@ -143,6 +140,154 @@ export const PerformanceService = {
     return data;
   },
 
+  fetchUnassignedPerformances: async (): Promise<UnassignedPerformance[]> => {
+    try {
+      const { data } = await api.get('/performances', {
+        params: { limit: 1000 },
+      });
+
+      const unassignedPerformances = data.data
+        .filter((perf: Performance) => !perf.shiftLeadId)
+        .map((perf: Performance) => {
+          const daysUntil = Math.ceil(
+            (new Date(perf.date).getTime() - new Date().getTime()) /
+              (1000 * 60 * 60 * 24),
+          );
+          let urgencyLevel: 'low' | 'medium' | 'high' = 'low';
+
+          if (daysUntil <= 3) urgencyLevel = 'high';
+          else if (daysUntil <= 7) urgencyLevel = 'medium';
+
+          return {
+            ...perf,
+            daysUntilPerformance: daysUntil,
+            urgencyLevel,
+          };
+        });
+
+      return unassignedPerformances;
+    } catch (error: any) {
+      throw new Error(
+        error.response?.data?.message ||
+          'Failed to fetch unassigned performances',
+      );
+    }
+  },
+
+  bulkCreatePerformances: async (
+    data: BulkCreatePerformanceDto,
+  ): Promise<Performance[]> => {
+    try {
+      const promises = data.performances.map(async (performance) => {
+        try {
+          const response = await api.post('/performances', performance);
+          return response.data;
+        } catch (error: any) {
+          return null;
+        }
+      });
+
+      const results = await Promise.all(promises);
+      return results.filter((result): result is Performance => result !== null);
+    } catch (error: any) {
+      throw new Error(
+        error.response?.data?.message || 'Failed to create bulk performances',
+      );
+    }
+  },
+
+  bulkAssignPerformances: async (
+    data: BulkAssignmentDto,
+  ): Promise<Performance[]> => {
+    try {
+      const promises = data.performanceIds.map(async (performanceId) => {
+        try {
+          const response = await api.patch(`/performances/${performanceId}`, {
+            shiftLeadId: data.shiftLeadId,
+          });
+          return response.data;
+        } catch (error: any) {
+          return null;
+        }
+      });
+
+      const results = await Promise.all(promises);
+      return results.filter((result): result is Performance => result !== null);
+    } catch (error: any) {
+      throw new Error(
+        error.response?.data?.message || 'Failed to bulk assign performances',
+      );
+    }
+  },
+
+  assignShiftLead: async (
+    performanceId: number,
+    shiftLeadId: number,
+  ): Promise<Performance> => {
+    try {
+      const response = await api.patch(`/performances/${performanceId}`, {
+        shiftLeadId,
+      });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(
+        error.response?.data?.message || 'Failed to assign shift lead',
+      );
+    }
+  },
+
+  unassignShiftLead: async (performanceId: number): Promise<Performance> => {
+    try {
+      const response = await api.patch(`/performances/${performanceId}`, {
+        shiftLeadId: null,
+      });
+      return response.data;
+    } catch (error: any) {
+      throw new Error(
+        error.response?.data?.message || 'Failed to unassign shift lead',
+      );
+    }
+  },
+
+  getAssignmentStats: async (): Promise<AssignmentStats> => {
+    try {
+      const { data } = await api.get('/performances', {
+        params: { limit: 1000 },
+      });
+
+      const performances = data.data;
+      const unassigned = performances.filter(
+        (perf: Performance) => !perf.shiftLeadId,
+      );
+      const urgent = unassigned.filter((perf: Performance) => {
+        const daysUntil = Math.ceil(
+          (new Date(perf.date).getTime() - new Date().getTime()) /
+            (1000 * 60 * 60 * 24),
+        );
+        return daysUntil <= 7;
+      });
+
+      const byType = unassigned.reduce(
+        (acc: Record<string, number>, perf: Performance) => {
+          acc[perf.type] = (acc[perf.type] || 0) + 1;
+          return acc;
+        },
+        {},
+      );
+
+      return {
+        totalUnassigned: unassigned.length,
+        urgentCount: urgent.length,
+        overdueCount: 0,
+        byType,
+      };
+    } catch (error: any) {
+      throw new Error(
+        error.response?.data?.message || 'Failed to fetch assignment stats',
+      );
+    }
+  },
+
   fetchMyPerformances: async (): Promise<Performance[]> => {
     const { data } = await api.get('/performances/my-performances');
     return data;
@@ -160,14 +305,26 @@ export const PerformanceService = {
 
   promoteRehearsal: async (rehearsalId: number): Promise<Performance> => {
     try {
-      // ✅ FIXED: Updated to new endpoint format - removed performanceId from URL
-      // This now ADDS songs instead of replacing them
       const response = await api.post(
         `/performances/promote-rehearsal/${rehearsalId}`,
       );
       return response.data;
     } catch (error: any) {
-      console.error('Error promoting rehearsal:', error);
+      if (error.response?.status === 401) {
+        throw new Error('Authentication required - please log in');
+      } else if (error.response?.status === 403) {
+        throw new Error(
+          'Permission denied - you need SUPER_ADMIN or LEAD role',
+        );
+      } else if (error.response?.status === 404) {
+        throw new Error('Rehearsal not found or endpoint not available');
+      } else if (error.response?.status === 400) {
+        throw new Error(
+          error.response?.data?.message ||
+            'Rehearsal cannot be promoted - check status and requirements',
+        );
+      }
+
       throw new Error(
         error.response?.data?.message || 'Failed to promote rehearsal',
       );
@@ -176,29 +333,22 @@ export const PerformanceService = {
 
   replaceRehearsal: async (rehearsalId: number): Promise<Performance> => {
     try {
-      // This REPLACES all existing songs with rehearsal songs
       const response = await api.post(
         `/performances/replace-rehearsal/${rehearsalId}`,
       );
       return response.data;
     } catch (error: any) {
-      console.error('Error replacing rehearsal:', error);
       throw new Error(
         error.response?.data?.message || 'Failed to replace rehearsal',
       );
     }
   },
 
-  // ============================================================================
-  // Bulk Rehearsal Promotion Functions
-  // ============================================================================
-
   getPromotableRehearsals: async (): Promise<PromotableRehearsal[]> => {
     try {
       const { data } = await api.get('/performances/promotable-rehearsals');
       return data;
     } catch (error: any) {
-      console.error('Error fetching promotable rehearsals:', error);
       throw new Error(
         error.response?.data?.message ||
           'Failed to fetch promotable rehearsals',
@@ -210,13 +360,11 @@ export const PerformanceService = {
     rehearsalIds: number[],
   ): Promise<PromotionResult> => {
     try {
-      // Bulk promotion uses ADD mode by default - adds songs without replacing
       const response = await api.post('/performances/promote-rehearsals', {
         rehearsalIds,
       });
       return response.data;
     } catch (error: any) {
-      console.error('Error promoting rehearsals:', error);
       throw new Error(
         error.response?.data?.message || 'Failed to promote rehearsals',
       );

@@ -673,14 +673,7 @@ export const validateShiftForPerformance = (
   );
   const currentShift = activeShifts.length > 0 ? activeShifts[0] : null;
 
-  if (!currentShift) {
-    return {
-      canProceed: false,
-      warning:
-        'No active leadership shift found. Please contact an administrator.',
-    };
-  }
-
+  // Always allow proceeding - performances can be created without active shifts
   if (activeShifts.length > 1) {
     return {
       canProceed: true,

@@ -32,7 +32,7 @@ export interface Performance {
   id: number;
   date: string | Date;
   type: PerformanceType;
-  shiftLeadId: number;
+  shiftLeadId?: number; // Now optional - can be assigned later
   location?: string;
   expectedAudience?: number;
   notes?: string;
@@ -155,6 +155,7 @@ export interface PerformanceFilterDto {
   status?: PerformanceStatus;
   startDate?: string;
   endDate?: string;
+  date?: string;
   shiftLeadId?: number;
 }
 
@@ -210,4 +211,36 @@ export interface BulkPromotionRequest {
 
 export interface PromotionOptions {
   mode: 'add' | 'replace';
+}
+
+// ============================================================================
+// New Performance Workflow Types
+// ============================================================================
+
+export interface UnassignedPerformance extends Performance {
+  // Additional fields for unassigned performances
+  daysUntilPerformance: number;
+  urgencyLevel: 'low' | 'medium' | 'high';
+}
+
+export interface BulkCreatePerformanceDto {
+  performances: CreatePerformanceDto[];
+}
+
+export interface BulkAssignmentDto {
+  performanceIds: number[];
+  shiftLeadId: number;
+}
+
+export interface YearlyPlanningData {
+  year: number;
+  performances: CreatePerformanceDto[];
+  totalCount: number;
+}
+
+export interface AssignmentStats {
+  totalUnassigned: number;
+  urgentCount: number; // Performances within 7 days
+  overdueCount: number; // Performances that should have been assigned
+  byType: Record<PerformanceType, number>;
 }

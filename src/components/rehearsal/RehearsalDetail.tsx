@@ -4,7 +4,6 @@ import {
   FaCalendarAlt,
   FaClock,
   FaExclamationTriangle,
-  FaLayerGroup,
   FaMapMarkerAlt,
   FaMicrophone,
   FaMusic,
@@ -24,7 +23,6 @@ import type { Rehearsal, RehearsalStatus } from '@/lib/rehearsal/types';
 
 import { usePromoteRehearsal } from '../../lib/performance/logic';
 import { useUsers } from '../../lib/user/useUsers';
-import { BulkRehearsalPromotion } from './BulkRehearsalPromotion';
 import { RehearsalStatusUpdater } from './RehearsalStatusUpdater';
 
 interface RehearsalDetailProps {
@@ -36,12 +34,29 @@ interface RehearsalDetailProps {
 
 export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
   ({ rehearsal, onClose, onStatusChange }) => {
-    const [showBulkPromotion, setShowBulkPromotion] = useState(false);
-
     const { getUserName, users } = useUsers();
     const { rehearsalSongs: rehearsalSongsData, isLoading: songsLoading } =
       useRehearsalSongs(rehearsal.id);
     const { promoteRehearsal, isLoading: isPromoting } = usePromoteRehearsal();
+
+    // Local state to track if rehearsal has been promoted
+    const [isPromoted, setIsPromoted] = useState(() => {
+      return (
+        rehearsal.isPromoted ||
+        (rehearsal.performance?.status &&
+          ['ready', 'completed'].includes(rehearsal.performance.status))
+      );
+    });
+
+    // Update local state when rehearsal prop changes
+    React.useEffect(() => {
+      const hasBeenPromoted =
+        rehearsal.isPromoted ||
+        (rehearsal.performance?.status &&
+          ['ready', 'completed'].includes(rehearsal.performance.status));
+
+      setIsPromoted(hasBeenPromoted);
+    }, [rehearsal.isPromoted, rehearsal.id, rehearsal.performance?.status]);
 
     // Add loading state for better UX
     const isLoading = songsLoading || isPromoting;
@@ -163,7 +178,7 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
         return false;
       if (!songs || songs.length === 0) return false;
       if (rehearsal.status !== 'Completed') return false; // ✅ Only completed rehearsals can be promoted
-      if (rehearsal.isPromoted) return false; // ✅ Already promoted rehearsals cannot be promoted again
+      if (isPromoted) return false; // ✅ Already promoted rehearsals cannot be promoted again
 
       return true;
     }, [
@@ -171,7 +186,7 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
       rehearsal.performanceId,
       songs,
       rehearsal.status,
-      rehearsal.isPromoted,
+      isPromoted,
     ]);
 
     const handlePromoteToPerformance = useCallback(async () => {
@@ -192,13 +207,13 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
         return;
       }
 
-      const promotedPerformance = await promoteRehearsal(
-        rehearsal.performanceId,
-      );
+      const promotedPerformance = await promoteRehearsal(rehearsal.id);
 
       if (promotedPerformance) {
         toast.success('Répétition promue avec succès vers la performance!');
-        window.location.reload();
+        // Update the local state to mark it as promoted
+        // This will automatically disable the promote button
+        setIsPromoted(true);
       }
     }, [
       canPromote,
@@ -206,7 +221,7 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
       rehearsal.performanceId,
       rehearsal.id,
       rehearsal.status,
-      rehearsal.isPromoted,
+      isPromoted,
     ]);
 
     const formatDate = useCallback((date: string | Date) => {
@@ -317,18 +332,6 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
                   >
                     <FaMicrophone />
                     Promouvoir
-                  </button>
-                )}
-
-                {/* Bulk Promotion Button - Only show if current rehearsal is completed and not promoted */}
-                {rehearsal.status === 'Completed' && !rehearsal.isPromoted && (
-                  <button
-                    onClick={() => setShowBulkPromotion(true)}
-                    className="inline-flex items-center gap-2 rounded-lg bg-blue-600 px-2 py-1 text-[12px] font-medium text-white transition-colors hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 md:px-3 md:text-sm"
-                    title="Promouvoir plusieurs répétitions en lot"
-                  >
-                    <FaLayerGroup />
-                    Promotion en lot
                   </button>
                 )}
               </div>
@@ -442,7 +445,7 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
                   <FaUser className="mt-1 text-gray-400" />
                   <div>
                     <label className="text-sm font-medium text-gray-600">
-                      Chef de répétition
+                      Conducteur
                     </label>
                     <p className="text-sm font-medium text-gray-900">
                       {rehearsal.rehearsalLead ? (
@@ -460,7 +463,7 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
                   <FaUser className="mt-1 text-gray-400" />
                   <div>
                     <label className="text-sm font-medium text-gray-600">
-                      Chef de service
+                      Conducteur
                     </label>
                     <p className="text-sm font-medium text-gray-900">
                       {(() => {
@@ -1044,18 +1047,6 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
             </div>
           )}
         </div>
-
-        {/* Bulk Promotion Modal */}
-        {showBulkPromotion && (
-          <BulkRehearsalPromotion
-            onClose={() => setShowBulkPromotion(false)}
-            onSuccess={() => {
-              setShowBulkPromotion(false);
-              // Optionally refresh the current rehearsal data
-              window.location.reload();
-            }}
-          />
-        )}
       </div>
     );
   },

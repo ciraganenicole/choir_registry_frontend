@@ -8,6 +8,7 @@ import type {
   PerformanceStats,
   PromotableRehearsal,
   PromotionResult,
+  UnassignedPerformance,
   UpdatePerformanceDto,
 } from './types';
 import { PerformanceStatus, PerformanceType } from './types';
@@ -28,18 +29,25 @@ export const usePerformances = () => {
   });
 
   const fetchPerformances = useCallback(
-    async (filters: PerformanceFilterDto = {}) => {
+    async (
+      filters: PerformanceFilterDto = {},
+      paginationParams?: { page?: number; limit?: number },
+    ) => {
       setLoading(true);
       setError(null);
 
       try {
+        const currentPage = paginationParams?.page || page;
+        const currentLimit = paginationParams?.limit || limit;
+
         const response = await PerformanceService.fetchPerformances(filters, {
-          page,
-          limit,
+          page: currentPage,
+          limit: currentLimit,
         });
 
         setPerformances(response.data);
         setTotal(response.total);
+        setPage(response.page);
         setPagination({
           page: response.page,
           limit: response.limit,
@@ -56,7 +64,7 @@ export const usePerformances = () => {
       }
     },
     [page, limit],
-  ); // ✅ FIXED: Removed 'filters' from dependencies since it's a parameter
+  );
 
   const createPerformance = useCallback(
     async (data: CreatePerformanceDto): Promise<Performance | null> => {
@@ -436,5 +444,128 @@ export const useBulkPromotion = () => {
     error,
     result,
     clearResult,
+  };
+};
+
+// New hook for unassigned performances
+export const useUnassignedPerformances = () => {
+  const [unassignedPerformances, setUnassignedPerformances] = useState<
+    UnassignedPerformance[]
+  >([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchUnassignedPerformances = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const performances =
+        await PerformanceService.fetchUnassignedPerformances();
+      setUnassignedPerformances(performances);
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to fetch unassigned performances',
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const assignShiftLead = useCallback(
+    async (performanceId: number, shiftLeadId: number): Promise<boolean> => {
+      setLoading(true);
+      setError(null);
+      try {
+        await PerformanceService.assignShiftLead(performanceId, shiftLeadId);
+        setUnassignedPerformances((prev) =>
+          prev.filter((perf) => perf.id !== performanceId),
+        );
+        return true;
+      } catch (err) {
+        setError(
+          err instanceof Error ? err.message : 'Failed to assign shift lead',
+        );
+        return false;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
+  const bulkAssignPerformances = useCallback(
+    async (performanceIds: number[], shiftLeadId: number): Promise<boolean> => {
+      setLoading(true);
+      setError(null);
+      try {
+        await PerformanceService.bulkAssignPerformances({
+          performanceIds,
+          shiftLeadId,
+        });
+        setUnassignedPerformances((prev) =>
+          prev.filter((perf) => !performanceIds.includes(perf.id)),
+        );
+        return true;
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Failed to bulk assign performances',
+        );
+        return false;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
+  return {
+    unassignedPerformances,
+    loading,
+    error,
+    fetchUnassignedPerformances,
+    assignShiftLead,
+    bulkAssignPerformances,
+  };
+};
+
+// New hook for yearly planning
+export const useYearlyPlanning = () => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const bulkCreatePerformances = useCallback(
+    async (
+      performances: CreatePerformanceDto[],
+    ): Promise<Performance[] | null> => {
+      setLoading(true);
+      setError(null);
+      try {
+        const createdPerformances =
+          await PerformanceService.bulkCreatePerformances({
+            performances,
+          });
+        return createdPerformances;
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : 'Failed to create bulk performances',
+        );
+        return null;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
+  return {
+    loading,
+    error,
+    bulkCreatePerformances,
   };
 };

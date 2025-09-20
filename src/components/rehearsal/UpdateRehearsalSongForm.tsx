@@ -154,7 +154,6 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
             voiceParts: transformedVoiceParts,
           }));
 
-          // Initialize search terms for voice parts
           const initialSearchTerms = new Array(
             transformedVoiceParts.length,
           ).fill('');
@@ -163,13 +162,7 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
       }, [initialData.musicians, initialData.voiceParts]);
       const [chorusMemberSearchTerm, setChorusMemberSearchTerm] = useState('');
 
-      // Initialize form data when initialData changes
       useEffect(() => {
-        console.log('UpdateRehearsalSongForm Debug:', {
-          initialData,
-          leadSingerIds: initialData.leadSingerIds,
-        });
-
         setFormData({
           difficulty: initialData.difficulty || SongDifficulty.INTERMEDIATE,
           needsWork: initialData.needsWork || false,
@@ -223,7 +216,6 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
           if (!voicePart.voicePartType) {
             errors[`voicePart_${index}_type`] = 'Voice part type is required';
           }
-          // Make member validation less strict - only validate if voice part exists
           if (
             voicePart.voicePartType &&
             (!voicePart.memberIds || voicePart.memberIds.length === 0)
@@ -265,7 +257,6 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
             updateData,
           );
 
-          // Return the API response data instead of form data
           onSuccess(updatedSong);
         } catch (error: any) {
           setFormData((prev) => ({
@@ -362,7 +353,6 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
           voiceParts: [...prev.voiceParts, newVoicePart],
         }));
 
-        // Add search term for the new voice part
         setVoicePartSearchTerms((prev) => [...prev, '']);
       };
 
@@ -381,14 +371,11 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
           voiceParts: prev.voiceParts.filter((_, i) => i !== index),
         }));
 
-        // Remove search term for the removed voice part
         setVoicePartSearchTerms((prev) => prev.filter((_, i) => i !== index));
 
-        // Remove dropdown state for the removed voice part
         setShowVoicePartDropdowns((prev) => {
           const newState = { ...prev };
           delete newState[index];
-          // Shift down the indices for voice parts after the removed one
           const shiftedState: Record<number, boolean> = {};
           Object.keys(newState).forEach((key) => {
             const idx = parseInt(key, 10);

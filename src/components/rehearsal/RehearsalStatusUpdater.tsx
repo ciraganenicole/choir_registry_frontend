@@ -66,6 +66,13 @@ export const RehearsalStatusUpdater: React.FC<RehearsalStatusUpdaterProps> = ({
   );
 
   const handleStatusChange = async (newStatus: RehearsalStatus) => {
+    // Check authentication
+    const user = localStorage.getItem('user');
+    if (!user) {
+      toast.error('Vous devez être connecté pour modifier le statut');
+      return;
+    }
+
     if (newStatus === currentStatus) {
       setIsOpen(false);
       return;
@@ -73,13 +80,17 @@ export const RehearsalStatusUpdater: React.FC<RehearsalStatusUpdaterProps> = ({
 
     setIsUpdating(true);
 
-    const success = await updateRehearsal(rehearsalId, { status: newStatus });
+    try {
+      const success = await updateRehearsal(rehearsalId, { status: newStatus });
 
-    if (success) {
-      toast.success('Statut mis à jour avec succès');
-      onStatusChange?.(newStatus);
-      setIsOpen(false);
-    } else {
+      if (success) {
+        toast.success('Statut mis à jour avec succès');
+        onStatusChange?.(newStatus);
+        setIsOpen(false);
+      } else {
+        toast.error('Erreur lors de la mise à jour du statut');
+      }
+    } catch (error) {
       toast.error('Erreur lors de la mise à jour du statut');
     }
 
@@ -101,7 +112,10 @@ export const RehearsalStatusUpdater: React.FC<RehearsalStatusUpdaterProps> = ({
     <div className={`relative ${className}`}>
       {/* Status Button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
+        type="button"
+        onClick={() => {
+          setIsOpen(!isOpen);
+        }}
         disabled={isUpdating}
         className={`
           inline-flex items-center gap-2 rounded-lg border border-gray-300 
@@ -125,12 +139,15 @@ export const RehearsalStatusUpdater: React.FC<RehearsalStatusUpdaterProps> = ({
 
       {/* Dropdown Menu */}
       {isOpen && (
-        <div className="z-80 absolute right-0 top-full mt-1 w-52 rounded-lg border border-gray-200 bg-white shadow-lg">
+        <div className="absolute right-0 top-full z-50 mt-1 w-52 rounded-lg border border-gray-200 bg-white shadow-lg">
           <div className="py-1">
             {statusOptions.map((option) => (
               <button
+                type="button"
                 key={option.value}
-                onClick={() => handleStatusChange(option.value)}
+                onClick={() => {
+                  handleStatusChange(option.value);
+                }}
                 disabled={isUpdating}
                 className={`
                   flex w-full items-center gap-3 px-2 py-1 text-left
@@ -162,7 +179,12 @@ export const RehearsalStatusUpdater: React.FC<RehearsalStatusUpdaterProps> = ({
 
       {/* Backdrop */}
       {isOpen && (
-        <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+        <div
+          className="fixed inset-0 z-40"
+          onClick={() => {
+            setIsOpen(false);
+          }}
+        />
       )}
     </div>
   );
