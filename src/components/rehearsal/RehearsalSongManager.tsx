@@ -1480,10 +1480,10 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                         >
                           <option value="Soprano">Soprano</option>
                           <option value="Alto">Alto</option>
-                          <option value="Tenor">Tenor</option>
-                          <option value="Bass">Bass</option>
+                          <option value="Ténor">Ténor</option>
+                          <option value="Basse">Basse</option>
                           <option value="Mezzo Soprano">Mezzo Soprano</option>
-                          <option value="Baritone">Baritone</option>
+                          <option value="Baryton">Baryton</option>
                         </select>
                       </div>
 

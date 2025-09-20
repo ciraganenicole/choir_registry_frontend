@@ -1,6 +1,6 @@
 export const AppConfig = {
   site_name: 'NJC',
   title: 'NJC',
-  description: 'Starter code for your Nextjs Boilerplate with Tailwind CSS',
-  locale: 'en',
+  description: 'Code de démarrage pour votre modèle Nextjs avec Tailwind CSS',
+  locale: 'fr',
 };

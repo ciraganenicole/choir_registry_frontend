@@ -10,7 +10,7 @@ const DailyFilters = ({ onFilterChange, currentFilters }: FiltersProps) => {
     <div className="mb-4 flex items-center justify-between md:flex-wrap md:justify-start md:space-x-2">
       <input
         type="date"
-        placeholder="Start Date"
+        placeholder="Date de début"
         className="rounded-md border-[1px] border-gray-900/50 p-1 text-[12px] text-gray-900 shadow-sm md:px-4 md:text-[14px]"
         value={currentFilters.startDate?.split('T')[0] || ''}
         onChange={(e) =>
@@ -21,10 +21,10 @@ const DailyFilters = ({ onFilterChange, currentFilters }: FiltersProps) => {
           })
         }
       />
-      <span className="text-gray-500">to</span>
+      <span className="text-gray-500">à</span>
       <input
         type="date"
-        placeholder="End Date"
+        placeholder="Date de fin"
         className="rounded-md border-[1px] border-gray-900/50 p-1 text-[12px] text-gray-900 shadow-sm md:px-4 md:text-[14px]"
         value={currentFilters.endDate?.split('T')[0] || ''}
         onChange={(e) =>

@@ -87,7 +87,7 @@ const ShiftPage = () => {
     page: 1,
     limit: 10,
   });
-  // Only show "My Shifts" filter for users with lead category, admins see all shifts by default
+  // Afficher uniquement le filtre "Mes Shifts" pour les utilisateurs avec catégorie lead, les admins voient tous les shifts par défaut
   const isLeadUser = user?.categories?.includes(UserCategory.LEAD);
   const [showMyShifts, setShowMyShifts] = useState(isLeadUser);
   const [showCreateForm, setShowCreateForm] = useState(false);

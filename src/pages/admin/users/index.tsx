@@ -457,7 +457,7 @@ const UsersManagement: React.FC = () => {
         <button
           onClick={() => handleView(viewedUser)}
           className={buttonClasses.view}
-          title="View Details"
+          title="Voir les détails"
         >
           <FaEye className={iconClasses} />
         </button>
@@ -465,7 +465,7 @@ const UsersManagement: React.FC = () => {
           <button
             onClick={() => handleUpdate(viewedUser)}
             className={buttonClasses.edit}
-            title="Edit"
+            title="Modifier"
           >
             <FaEdit className={iconClasses} />
           </button>
@@ -474,7 +474,7 @@ const UsersManagement: React.FC = () => {
           <button
             onClick={() => handleViewAttendance(viewedUser)}
             className={buttonClasses.attendance}
-            title="View Attendance"
+            title="Voir la présence"
           >
             <FaCalendarAlt className={iconClasses} />
           </button>
@@ -483,7 +483,7 @@ const UsersManagement: React.FC = () => {
           <button
             onClick={() => handleViewContributions(viewedUser)}
             className={buttonClasses.contributions}
-            title="View Contributions"
+            title="Voir les contributions"
           >
             <FaMoneyBill className={iconClasses} />
           </button>
@@ -493,7 +493,7 @@ const UsersManagement: React.FC = () => {
             <button
               onClick={() => handleDelete(viewedUser)}
               className={buttonClasses.delete}
-              title="Delete"
+              title="Supprimer"
             >
               <FaTrash className={iconClasses} />
             </button>
@@ -708,7 +708,7 @@ const UsersManagement: React.FC = () => {
                     <td className="flex flex-col gap-1 px-4 py-3 font-semibold">
                       {/* <img
                         src="https://res.cloudinary.com/dmkqwd4hm/image/upload/v1741798773/Choir/sample_odjx73.jpg"
-                        alt="Profile"
+                        alt="Profil"
                         className="size-6 rounded-full object-cover"
                       /> */}
                       {user.lastName} {user.firstName} <br />
@@ -769,7 +769,7 @@ const UsersManagement: React.FC = () => {
                   <div className="mb-3 flex items-center gap-4">
                     {/* <img
                       src="https://res.cloudinary.com/dmkqwd4hm/image/upload/v1741798773/Choir/sample_odjx73.jpg"
-                      alt="Profile"
+                      alt="Profil"
                       className="size-12 rounded-full object-cover"
                     /> */}
                     <div className="">

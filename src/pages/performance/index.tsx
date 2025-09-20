@@ -219,7 +219,7 @@ const PerformancePage = () => {
       handleCloseAssignModal();
       // No need to refetch - updatePerformance already updates local state
     } catch (err) {
-      toast.error('Failed to assign performance');
+      toast.error("Échec de l'assignation de la performance");
     }
   };
 
@@ -254,6 +254,20 @@ const PerformancePage = () => {
     );
   };
 
+  const getPerformanceTypeLabel = (type: string) => {
+    const typeTranslations: Record<string, string> = {
+      Concert: 'Concert',
+      'Worship Service': 'Service de Culte',
+      'Sunday Service': 'Service du Dimanche',
+      'Special Event': 'Événement Spécial',
+      Rehearsal: 'Répétition',
+      Wedding: 'Mariage',
+      Funeral: 'Funérailles',
+      Other: 'Autre',
+    };
+    return typeTranslations[type] || type;
+  };
+
   const getTypeBadge = (type: PerformanceType) => {
     const colorClass = getPerformanceTypeColor(type);
 
@@ -261,7 +275,7 @@ const PerformancePage = () => {
       <span
         className={`mr-2 rounded-full px-3 py-1 text-xs font-semibold ${colorClass}`}
       >
-        {type}
+        {getPerformanceTypeLabel(type)}
       </span>
     );
   };
@@ -386,7 +400,7 @@ const PerformancePage = () => {
         <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="mb-1 text-xl font-bold text-gray-900 md:text-2xl">
-              Liste des Performances
+              Gestion des Performances
             </h1>
             <p className="text-xs text-gray-500 md:text-sm">
               Suivez le workflow des performances : Création → Répétitions →
@@ -400,7 +414,7 @@ const PerformancePage = () => {
                 onClick={handleCreatePerformance}
                 className="flex items-center gap-2 self-start rounded-md bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 sm:px-6 sm:text-base md:self-auto"
               >
-                + Créer Performance
+                + Créer une Performance
               </button>
               {isAdmin && (
                 <button
@@ -526,6 +540,7 @@ const PerformancePage = () => {
                     date: undefined, // Clear date parameter
                   });
                 }}
+                placeholder="jj/mm/aaaa"
                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -548,7 +563,7 @@ const PerformancePage = () => {
                   <div className="min-w-0 flex-1">
                     <div className="mb-2 flex flex-col items-start gap-2 sm:flex-row sm:items-center">
                       <span className="text-lg font-bold text-gray-900 sm:text-xl">
-                        Performance {perf.type}
+                        {getPerformanceTypeLabel(perf.type)}
                       </span>
                       <div className="flex flex-wrap items-center gap-1">
                         {getStatusBadge(perf.status)}
@@ -685,7 +700,7 @@ const PerformancePage = () => {
             <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
               <div className="flex items-center justify-between border-b border-gray-200 p-6">
                 <h2 className="text-xl font-bold text-gray-900">
-                  Assigner Performance à un Conducteur
+                  Assigner une Performance à un Conducteur
                 </h2>
                 <button
                   onClick={handleCloseAssignModal}
@@ -710,7 +725,7 @@ const PerformancePage = () => {
               <div className="p-6">
                 <div className="mb-4">
                   <h3 className="mb-2 text-lg font-medium text-gray-900">
-                    {assigningPerformance.type}
+                    {getPerformanceTypeLabel(assigningPerformance.type)}
                   </h3>
                   <p className="text-sm text-gray-600">
                     {new Date(assigningPerformance.date).toLocaleDateString(
@@ -769,7 +784,7 @@ const PerformancePage = () => {
                     }}
                     className="rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
                   >
-                    Assigner à un Conducteur
+                    Assigner
                   </button>
                 </div>
               </div>

@@ -170,7 +170,7 @@ export interface RehearsalMusician {
     phone?: string;
   };
   instrument: InstrumentType;
-  customInstrument?: string; // For "Other" instruments
+  customInstrument?: string; // Pour les instruments "Autre"
   isAccompanist: boolean;
   isSoloist: boolean;
   soloStartTime?: number; // seconds from start of rehearsal
