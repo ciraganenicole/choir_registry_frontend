@@ -88,7 +88,7 @@ export const canCreateSongs = (
   userCategories?: string[],
 ): boolean => {
   // Check if user has lead category (same as rehearsal permissions)
-  if (userCategories?.includes('lead')) {
+  if (userCategories?.includes('LEAD')) {
     return true;
   }
 
@@ -469,7 +469,7 @@ export const canUpdateSongs = (
   userCategories?: string[],
 ): boolean => {
   // Check if user has lead category (same as rehearsal permissions)
-  if (userCategories?.includes('lead')) {
+  if (userCategories?.includes('LEAD')) {
     return true;
   }
 

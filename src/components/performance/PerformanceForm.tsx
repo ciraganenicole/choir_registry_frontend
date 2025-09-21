@@ -92,6 +92,15 @@ const PerformanceForm: React.FC<PerformanceFormProps> = ({
     const newErrors: Record<string, string> = {};
     setShiftValidationWarning(null);
 
+    // Basic validation for required fields
+    if (!formData.date) {
+      newErrors.date = 'La date est requise';
+    }
+
+    if (!formData.type) {
+      newErrors.type = 'Le type est requis';
+    }
+
     // Shift validation removed - performances can be created without active shifts
     // Shift validation is now optional - performances can be created without assignment
     if (currentShift) {
@@ -108,14 +117,6 @@ const PerformanceForm: React.FC<PerformanceFormProps> = ({
         setErrors(newErrors);
         return false;
       }
-    }
-
-    if (!formData.date) {
-      newErrors.date = 'La date est requise';
-    }
-
-    if (!formData.type) {
-      newErrors.type = 'Le type de performance est requis';
     }
 
     // Optional field validations
@@ -136,12 +137,15 @@ const PerformanceForm: React.FC<PerformanceFormProps> = ({
     }
 
     // Clean up optional fields - remove empty strings and 0 values
-    const cleanedData = {
+    const cleanedData: CreatePerformanceDto = {
       ...formData,
       location: formData.location?.trim() || undefined,
-      expectedAudience: formData.expectedAudience || undefined,
+      expectedAudience:
+        formData.expectedAudience && formData.expectedAudience > 0
+          ? formData.expectedAudience
+          : undefined,
       notes: formData.notes?.trim() || undefined,
-      shiftLeadId: currentShift?.leaderId, // Use current shift leader ID
+      shiftLeadId: currentShift?.leaderId || undefined, // Use current shift leader ID or undefined
     };
 
     await onSubmit(cleanedData);

@@ -11,13 +11,13 @@ import type { User } from '@/lib/user/type';
 
 export enum PerformanceType {
   CONCERT = 'Concert',
-  WORSHIP_SERVICE = 'Service de Culte',
-  SUNDAY_SERVICE = 'Service du Dimanche',
-  SPECIAL_EVENT = 'Événement Spécial',
-  REHEARSAL = 'Répétition',
-  WEDDING = 'Mariage',
-  FUNERAL = 'Funérailles',
-  OTHER = 'Autre',
+  WORSHIP_SERVICE = 'Worship Service',
+  SUNDAY_SERVICE = 'Sunday Service',
+  SPECIAL_EVENT = 'Special Event',
+  REHEARSAL = 'Rehearsal',
+  WEDDING = 'Wedding',
+  FUNERAL = 'Funeral',
+  OTHER = 'Other',
 }
 
 export enum PerformanceStatus {
