@@ -14,7 +14,6 @@ import { ProtectedRoute } from '../components/ProtectedRoute';
 import { RoleBasedRoute } from '../components/RoleBasedRoute';
 import { AuthProvider } from '../providers/AuthProvider';
 
-// Add paths that should be protected
 const protectedPaths = [
   '/dashboard',
   '/profile',
@@ -23,11 +22,13 @@ const protectedPaths = [
   '/transaction',
   '/admin/users',
   '/admin/users/leads',
+  '/admin/announcements',
   '/library',
   '/shift',
+  '/committee/reports',
+  // '/announcements',
 ];
 
-// Define role-based routes
 const roleBasedRoutes = {
   [UserRole.FINANCE_ADMIN]: ['/transaction', '/admin/users', '/shift'],
   [UserRole.ATTENDANCE_ADMIN]: ['/attendance', '/admin/users', '/shift'],
@@ -37,20 +38,17 @@ const roleBasedRoutes = {
     '/transaction',
     '/admin/users',
     '/admin/users/leads',
+    '/admin/announcements',
     '/library',
     '/shift',
+    '/committee/reports',
   ],
   [UserRole.USER]: ['/profile'],
   [UserRole.LEAD]: ['/library', '/performance', '/shift'], // Allow LEAD role to access library and shifts
 };
 
 export default function App({ Component, pageProps, router }: AppProps) {
-  // Ensure a stable QueryClient instance
   const [queryClient] = useState(() => new QueryClient());
-
-  // Debug logging removed for cleaner code
-
-  // Check if current route is protected
   const isProtectedRoute = protectedPaths.some((path) =>
     router.pathname.startsWith(path),
   );

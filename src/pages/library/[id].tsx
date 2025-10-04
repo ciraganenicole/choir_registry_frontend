@@ -8,6 +8,7 @@ import {
   FaMusic,
   FaPlus,
   FaRegCalendarAlt,
+  FaTimes,
   FaUsers,
 } from 'react-icons/fa';
 
@@ -24,6 +25,7 @@ import {
   SongDifficulty,
   SongStatus,
   statusOptions,
+  useDeleteSong,
   useSongById,
   useSongs,
   useSongStats,
@@ -40,6 +42,7 @@ const SongDetailPage = () => {
   // Library page state
   const [showForm, setShowForm] = useState(false);
   const [showEditForm, setShowEditForm] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [selectedSongForEdit, setSelectedSongForEdit] = useState<Song | null>(
     null,
   );
@@ -57,6 +60,11 @@ const SongDetailPage = () => {
     refetch,
   } = useSongs();
   const { stats } = useSongStats();
+  const {
+    deleteSong,
+    isLoading: isDeleting,
+    error: deleteError,
+  } = useDeleteSong();
 
   // Check if user can manage songs (only lead category users)
   const canManageSongs = user?.categories?.includes(UserCategory.LEAD);
@@ -65,15 +73,31 @@ const SongDetailPage = () => {
     router.push('/library');
   };
 
-  const handleEdit = () => {
-    setShowEditForm(true);
-  };
-
   const handleEditSuccess = () => {
     setShowEditForm(false);
     setSelectedSongForEdit(null);
     // Refresh the song data
     refetch();
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!song) return;
+
+    try {
+      const success = await deleteSong(song.id);
+      if (success) {
+        setShowDeleteConfirm(false);
+        // Redirect to library page after successful deletion
+        router.push('/library');
+      }
+    } catch (deleteErr) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to delete song:', deleteErr);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteConfirm(false);
   };
 
   // Library page helper functions
@@ -512,7 +536,55 @@ const SongDetailPage = () => {
       </div>
 
       {/* Song Detail Popup */}
-      <SongDetail song={song} onClose={handleBack} onEdit={handleEdit} />
+      <SongDetail song={song} onClose={handleBack} />
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && song && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
+            <div className="p-6">
+              <div className="mb-4 flex items-center">
+                <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-red-100">
+                  <FaTimes className="text-xl text-red-600" />
+                </div>
+              </div>
+              <h3 className="mb-2 text-center text-lg font-semibold text-gray-900">
+                Confirmer la suppression
+              </h3>
+              <p className="mb-6 text-center text-gray-600">
+                Êtes-vous sûr de vouloir supprimer le chant{' '}
+                <span className="font-semibold text-gray-900">
+                  &quot;{song.title}&quot;
+                </span>
+                ?
+              </p>
+              <p className="mb-6 text-center text-sm text-red-600">
+                Cette action est irréversible.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCancelDelete}
+                  className="flex-1 rounded-md border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  disabled={isDeleting}
+                  className="flex-1 rounded-md bg-red-600 px-4 py-2 font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                >
+                  {isDeleting ? 'Suppression...' : 'Supprimer'}
+                </button>
+              </div>
+              {deleteError && (
+                <div className="mt-4 rounded-md bg-red-50 p-3">
+                  <p className="text-sm text-red-700">{deleteError}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 };

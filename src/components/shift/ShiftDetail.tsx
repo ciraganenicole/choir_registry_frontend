@@ -6,6 +6,7 @@ import {
   FaEdit,
   FaExclamationTriangle,
   FaEye,
+  FaFilePdf,
   FaInfoCircle,
   FaMusic,
   FaTimes,
@@ -25,6 +26,7 @@ import {
   getStatusColor,
   ShiftStatus,
 } from '@/lib/shift/logic';
+import { exportShiftDetailToPDF } from '@/lib/shift/pdf-export';
 import { useAuth } from '@/providers/AuthProvider';
 
 interface ShiftDetailProps {
@@ -74,6 +76,15 @@ const ShiftDetail: React.FC<ShiftDetailProps> = ({
   const handleClosePerformanceDetail = () => {
     setShowPerformanceDetail(false);
     setSelectedPerformance(null);
+  };
+
+  const handleExportPDF = async () => {
+    try {
+      await exportShiftDetailToPDF(shift);
+    } catch (error) {
+      console.error('Error exporting shift to PDF:', error);
+      alert("Erreur lors de l'exportation du PDF");
+    }
   };
 
   const getStatusIcon = (status: ShiftStatus) => {
@@ -151,12 +162,21 @@ const ShiftDetail: React.FC<ShiftDetailProps> = ({
               </div>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="p-2 text-gray-400 transition-colors hover:text-gray-600"
-          >
-            <FaTimes className="text-xl" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportPDF}
+              className="flex items-center gap-1 rounded-lg bg-green-500 px-3 py-2 text-white transition-colors hover:bg-green-600"
+            >
+              <FaFilePdf className="text-sm" />
+              Exporter PDF
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 text-gray-400 transition-colors hover:text-gray-600"
+            >
+              <FaTimes className="text-xl" />
+            </button>
+          </div>
         </div>
 
         <div className="p-6">

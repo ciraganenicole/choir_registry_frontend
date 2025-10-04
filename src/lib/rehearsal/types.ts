@@ -273,6 +273,7 @@ export interface CreateRehearsalDto {
 export interface CreateRehearsalSongDto {
   songId: number;
   rehearsalSongId?: number; // The ID of the rehearsal song instance (for updates)
+  addedById?: number; // ID of the user who added the song to the rehearsal
   leadSingerIds: number[]; // Changed from leadSingerId to support multiple lead singers
   difficulty: SongDifficulty;
   needsWork?: boolean;

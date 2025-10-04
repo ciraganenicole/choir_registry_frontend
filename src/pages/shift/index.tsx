@@ -3,6 +3,7 @@ import {
   FaCalendarAlt,
   FaChevronRight,
   FaClock,
+  FaFilePdf,
   FaMusic,
   FaPlus,
   FaRegCalendarAlt,
@@ -19,18 +20,21 @@ import { ShiftForm } from '@/lib/shift/form';
 import type { LeadershipShift } from '@/lib/shift/logic';
 import {
   canCreateShifts,
+  canDeleteShifts,
   canUpdateShifts,
   formatShiftDate,
   getShiftDuration,
   getStatusColor,
   ShiftStatus,
   useCurrentShift,
+  useDeleteShift,
   useFilteredShifts,
   useLeaderHistory,
   useLeadUsersCount,
   useShiftStats,
   useUpcomingShifts,
 } from '@/lib/shift/logic';
+import { exportShiftListToPDF } from '@/lib/shift/pdf-export';
 import { UserCategory } from '@/lib/user/type';
 import { useAuth } from '@/providers/AuthProvider';
 
@@ -92,6 +96,7 @@ const ShiftPage = () => {
   const [showMyShifts, setShowMyShifts] = useState(isLeadUser);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [selectedShift, setSelectedShift] = useState<LeadershipShift | null>(
     null,
   );
@@ -120,10 +125,16 @@ const ShiftPage = () => {
   const { upcomingShifts, refetch: refetchUpcoming } = useUpcomingShifts(3);
   const { count: leadUsersCount, isLoading: leadUsersLoading } =
     useLeadUsersCount();
+  const {
+    deleteShift,
+    isLoading: deleteLoading,
+    error: deleteError,
+  } = useDeleteShift();
 
   // Check permissions
   const canCreate = user && user.role ? canCreateShifts(user.role) : false;
   const canEdit = user && user.role ? canUpdateShifts(user.role) : false;
+  const canDelete = user && user.role ? canDeleteShifts(user.role) : false;
 
   // Memoize performance calculations to avoid recalculating on every render
   const leaderHistoryWithPerformance = useMemo(() => {
@@ -133,6 +144,18 @@ const ShiftPage = () => {
     const maxPerformances = Math.max(
       ...leaderHistory.map((l) => l.totalEvents || 0),
     );
+
+    // Calculate average completion rate for comparison
+    const avgCompletionRate =
+      leaderHistory.length > 0
+        ? leaderHistory.reduce((sum, leader) => {
+            const rate =
+              leader.totalEvents > 0
+                ? (leader.totalEventsCompleted / leader.totalEvents) * 100
+                : 0;
+            return sum + rate;
+          }, 0) / leaderHistory.length
+        : 0;
 
     return leaderHistory.map((leader, index) => {
       // Calculate real performance metrics based on actual LeaderHistory data
@@ -149,26 +172,52 @@ const ShiftPage = () => {
       const performanceVolume =
         maxPerformances > 0 ? (totalPerformances / maxPerformances) * 100 : 0;
 
-      // Calculate reliability score (completion rate + performance volume)
-      const reliabilityScore = completionRate * 0.7 + performanceVolume * 0.3;
+      // Calculate reliability score with enhanced weighting
+      // 60% completion rate, 25% performance volume, 15% consistency bonus
+      const consistencyBonus = completionRate >= avgCompletionRate ? 10 : 0;
+      const reliabilityScore = Math.min(
+        100,
+        completionRate * 0.6 + performanceVolume * 0.25 + consistencyBonus,
+      );
 
-      // Calculate performance level based on multiple factors
+      // Calculate performance level based on enhanced criteria
       let level = 'Débutant';
       let color = 'text-gray-600';
       let bg = 'bg-gray-50';
+      let badgeIcon = '🆕';
 
-      if (reliabilityScore >= 80 && totalPerformances >= 8) {
+      if (
+        reliabilityScore >= 85 &&
+        totalPerformances >= 10 &&
+        completionRate >= 90
+      ) {
         level = 'Expert';
         color = 'text-green-600';
         bg = 'bg-green-50';
-      } else if (reliabilityScore >= 65 && totalPerformances >= 5) {
+        badgeIcon = '⭐';
+      } else if (
+        reliabilityScore >= 75 &&
+        totalPerformances >= 6 &&
+        completionRate >= 80
+      ) {
         level = 'Expérimenté';
         color = 'text-blue-600';
         bg = 'bg-blue-50';
-      } else if (reliabilityScore >= 50 && totalPerformances >= 2) {
+        badgeIcon = '🎯';
+      } else if (
+        reliabilityScore >= 60 &&
+        totalPerformances >= 3 &&
+        completionRate >= 70
+      ) {
         level = 'Intermédiaire';
         color = 'text-yellow-600';
         bg = 'bg-yellow-50';
+        badgeIcon = '📈';
+      } else if (totalPerformances >= 1) {
+        level = 'Débutant';
+        color = 'text-orange-600';
+        bg = 'bg-orange-50';
+        badgeIcon = '🌱';
       }
 
       return {
@@ -177,13 +226,16 @@ const ShiftPage = () => {
           level,
           color,
           bg,
+          badgeIcon,
           completionRate: Math.round(completionRate),
           reliabilityScore: Math.round(reliabilityScore),
           totalPerformances,
           completedPerformances,
           performanceVolume: Math.round(performanceVolume),
+          avgCompletionRate: Math.round(avgCompletionRate),
+          consistencyBonus: completionRate >= avgCompletionRate,
         },
-        isTopPerformer: index < 3 && reliabilityScore > 50,
+        isTopPerformer: index < 3 && reliabilityScore > 60,
       };
     });
   }, [leaderHistory]);
@@ -229,7 +281,32 @@ const ShiftPage = () => {
   };
 
   const handleDeleteShift = () => {
-    handleCloseDetails();
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedShift) return;
+
+    try {
+      const success = await deleteShift(selectedShift.id);
+      if (success) {
+        setShowDeleteConfirm(false);
+        handleCloseDetails();
+        // Refresh all data
+        refetchShifts();
+        refetchStats();
+        refetchHistory();
+        refetchCurrentShift();
+        refetchUpcoming();
+      }
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Failed to delete shift:', error);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteConfirm(false);
   };
 
   const handlePageChange = (page: number) => {
@@ -242,6 +319,17 @@ const ShiftPage = () => {
     setShowMyShifts(isMyShifts);
     // Reset to first page when changing filter
     setFilters((prev) => ({ ...prev, page: 1 }));
+  };
+
+  const handleExportList = async () => {
+    try {
+      await exportShiftListToPDF(shifts);
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('Error exporting shift list to PDF:', error);
+      // eslint-disable-next-line no-alert
+      alert("Erreur lors de l'exportation de la liste");
+    }
   };
 
   // Prepare stats data
@@ -359,14 +447,23 @@ const ShiftPage = () => {
                 </button>
               </div>
             )}
-            {canCreate && (
+            <div className="flex gap-2">
               <button
-                onClick={() => setShowCreateForm(true)}
-                className="flex items-center gap-2 self-start rounded-md bg-orange-500 px-6 py-2 font-semibold text-white hover:bg-orange-600 md:self-auto"
+                onClick={handleExportList}
+                disabled={shifts.length === 0}
+                className="flex items-center gap-2 self-start rounded-md bg-green-500 px-4 py-2 font-semibold text-white hover:bg-green-600 disabled:cursor-not-allowed disabled:bg-gray-400 md:self-auto"
               >
-                <FaPlus /> Créer
+                <FaFilePdf /> Exporter
               </button>
-            )}
+              {canCreate && (
+                <button
+                  onClick={() => setShowCreateForm(true)}
+                  className="flex items-center gap-2 self-start rounded-md bg-orange-500 px-6 py-2 font-semibold text-white hover:bg-orange-600 md:self-auto"
+                >
+                  <FaPlus /> Créer
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
@@ -418,7 +515,7 @@ const ShiftPage = () => {
                 </h3>
                 <p className="mb-4 text-gray-600">
                   {isLeadUser && showMyShifts
-                    ? "Vous n'avez pas encore d'horaires assignés"
+                    ? 'Vous n&apos;avez pas encore d&apos;horaires assignés'
                     : 'Cliquez sur le bouton pour créer un nouvel horaire'}
                 </p>
                 {canCreate && !showMyShifts && (
@@ -475,6 +572,17 @@ const ShiftPage = () => {
                                 className="rounded-md border border-gray-300 px-4 py-1 font-medium text-gray-700 hover:bg-gray-100"
                               >
                                 Modifier
+                              </button>
+                            )}
+                            {canDelete && (
+                              <button
+                                onClick={() => {
+                                  setSelectedShift(shift);
+                                  handleDeleteShift();
+                                }}
+                                className="rounded-md border border-red-300 bg-red-500 px-4 py-1 text-[12px] font-medium text-white transition-colors hover:bg-red-600 md:text-base"
+                              >
+                                Supprimer
                               </button>
                             )}
                             <button
@@ -546,13 +654,19 @@ const ShiftPage = () => {
             <div className="mb-4 flex items-center justify-between">
               <div className="flex items-center">
                 <FaUser className="mr-2 text-xl text-gray-700" />
-                <h2 className="text-xl font-bold text-gray-900">
-                  Historique des conducteurs
-                </h2>
+                <h2 className="text-xl font-bold text-gray-900">Historique</h2>
               </div>
-              {historyLoading && (
-                <div className="size-4 animate-spin rounded-full border-b-2 border-orange-500"></div>
-              )}
+              <div className="flex items-center gap-2">
+                {historyLoading && (
+                  <div className="size-4 animate-spin rounded-full border-b-2 border-orange-500"></div>
+                )}
+                {!historyLoading && leaderHistory.length > 0 && (
+                  <div className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-500">
+                    {leaderHistory.length} conducteur
+                    {leaderHistory.length > 1 ? 's' : ''}
+                  </div>
+                )}
+              </div>
             </div>
             <p className="mb-4 text-sm text-gray-500">
               Performance et historique des conducteurs
@@ -561,7 +675,23 @@ const ShiftPage = () => {
             {historyLoading ? (
               <div className="py-8 text-center">
                 <div className="mx-auto size-8 animate-spin rounded-full border-b-2 border-orange-500"></div>
-                <p className="mt-2 text-sm text-gray-600">Chargement...</p>
+                <p className="mt-2 text-sm text-gray-600">
+                  Chargement de l&apos;historique...
+                </p>
+              </div>
+            ) : historyError ? (
+              <div className="py-8 text-center">
+                <div className="mb-4 text-4xl text-red-500">⚠️</div>
+                <h3 className="mb-2 text-lg font-semibold text-gray-900">
+                  Erreur de chargement
+                </h3>
+                <p className="mb-4 text-sm text-gray-600">{historyError}</p>
+                <button
+                  onClick={() => refetchHistory()}
+                  className="rounded-md bg-orange-500 px-4 py-2 text-sm text-white hover:bg-orange-600"
+                >
+                  Réessayer
+                </button>
               </div>
             ) : leaderHistory.length === 0 ? (
               <div className="py-8 text-center">
@@ -605,18 +735,8 @@ const ShiftPage = () => {
                               {leader.leaderName}
                             </div>
                             <div className="text-xs text-gray-500">
-                              {performance.totalPerformances} performance
-                              {performance.totalPerformances > 1
-                                ? 's'
-                                : ''} • {performance.completionRate}% complété
+                              {performance.totalPerformances} performance(s)
                             </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div
-                            className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${performance.bg} ${performance.color}`}
-                          >
-                            {performance.level}
                           </div>
                         </div>
                       </div>
@@ -715,6 +835,54 @@ const ShiftPage = () => {
             onEdit={handleEditShift}
             onDelete={handleDeleteShift}
           />
+        )}
+
+        {/* Delete Confirmation Modal */}
+        {showDeleteConfirm && selectedShift && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+            <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
+              <div className="p-6">
+                <div className="mb-4 flex items-center">
+                  <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-red-100">
+                    <FaTimes className="text-xl text-red-600" />
+                  </div>
+                </div>
+                <h3 className="mb-2 text-center text-lg font-semibold text-gray-900">
+                  Confirmer la suppression
+                </h3>
+                <p className="mb-6 text-center text-gray-600">
+                  Êtes-vous sûr de vouloir supprimer l&apos;horaire{' '}
+                  <span className="font-semibold text-gray-900">
+                    &quot;{selectedShift.name}&quot;
+                  </span>
+                  ?
+                </p>
+                <p className="mb-6 text-center text-sm text-red-600">
+                  Cette action est irréversible.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleCancelDelete}
+                    className="flex-1 rounded-md border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={handleConfirmDelete}
+                    disabled={deleteLoading}
+                    className="flex-1 rounded-md bg-red-600 px-4 py-2 font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {deleteLoading ? 'Suppression...' : 'Supprimer'}
+                  </button>
+                </div>
+                {deleteError && (
+                  <div className="mt-4 rounded-md bg-red-50 p-3">
+                    <p className="text-sm text-red-700">{deleteError}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </Layout>

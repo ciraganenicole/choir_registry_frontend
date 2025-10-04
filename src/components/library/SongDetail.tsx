@@ -1,18 +1,38 @@
 import React from 'react';
-import { FaDownload, FaFilePdf, FaMusic, FaTimes } from 'react-icons/fa';
+import {
+  FaDownload,
+  FaFilePdf,
+  FaMusic,
+  FaTimes,
+  FaTrash,
+} from 'react-icons/fa';
 
 import type { Song } from '@/lib/library/logic';
+import { exportSongToPDF } from '@/lib/library/pdf-export';
 
 interface SongDetailProps {
   song: Song;
   onClose?: () => void;
-  onEdit?: () => void;
+  onDelete?: () => void;
+  canDelete?: boolean;
 }
 
-const SongDetail: React.FC<SongDetailProps> = ({ song, onClose }) => {
+const SongDetail: React.FC<SongDetailProps> = ({
+  song,
+  onClose,
+  onDelete,
+  canDelete,
+}) => {
+  const handleExportPDF = async () => {
+    try {
+      await exportSongToPDF(song);
+    } catch (error) {
+      alert("Erreur lors de l'exportation du PDF");
+    }
+  };
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="max-h-[95vh] w-full overflow-y-auto rounded-lg bg-white shadow-xl md:w-[70%]">
+      <div className="size-full overflow-y-auto rounded-lg bg-white shadow-xl md:w-[70%]">
         {/* Header */}
         <div className="flex items-center justify-between border-b p-6">
           <div className="flex items-center space-x-3">
@@ -21,14 +41,32 @@ const SongDetail: React.FC<SongDetailProps> = ({ song, onClose }) => {
               Détails du Chant
             </h2>
           </div>
-          {onClose && (
+          <div className="flex items-center gap-2">
             <button
-              onClick={onClose}
-              className="rounded-lg bg-red-500 p-2 text-white transition-colors hover:bg-red-600"
+              onClick={handleExportPDF}
+              className="flex items-center gap-1 rounded-lg bg-green-500 px-3 py-2 text-white transition-colors hover:bg-green-600"
             >
-              <FaTimes className="text-md text-white" />
+              <FaFilePdf className="text-sm" />
+              Exporter
             </button>
-          )}
+            {canDelete && onDelete && (
+              <button
+                onClick={onDelete}
+                className="flex items-center gap-1 rounded-lg bg-red-500 px-3 py-2 text-white transition-colors hover:bg-red-600"
+              >
+                <FaTrash className="text-sm" />
+                Supprimer
+              </button>
+            )}
+            {onClose && (
+              <button
+                onClick={onClose}
+                className="rounded-lg bg-gray-500 p-2 text-white transition-colors hover:bg-gray-600"
+              >
+                <FaTimes className="text-md text-white" />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Content */}
