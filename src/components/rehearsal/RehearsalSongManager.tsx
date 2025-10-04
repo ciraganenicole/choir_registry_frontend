@@ -107,12 +107,44 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
 
   const convertedSongs: CreateRehearsalSongDto[] = rehearsalSongs.map(
     (song) => {
+      // Try to get lead singers from multiple possible locations
+      let leadSingerIds: number[] = [];
+
+      // Check leadSingers array first
+      if (
+        song.rehearsalDetails.leadSingers &&
+        Array.isArray(song.rehearsalDetails.leadSingers)
+      ) {
+        leadSingerIds = song.rehearsalDetails.leadSingers.map(
+          (ls: any) => ls.id,
+        );
+      }
+      // Check leadSinger array (singular) - using any to bypass TypeScript
+      else if (
+        (song.rehearsalDetails as any).leadSinger &&
+        Array.isArray((song.rehearsalDetails as any).leadSinger)
+      ) {
+        leadSingerIds = (song.rehearsalDetails as any).leadSinger.map(
+          (ls: any) => ls.id,
+        );
+      }
+      // Check if there's a single leadSinger object
+      else if (
+        (song.rehearsalDetails as any).leadSinger &&
+        !Array.isArray((song.rehearsalDetails as any).leadSinger)
+      ) {
+        leadSingerIds = [(song.rehearsalDetails as any).leadSinger.id];
+      }
+      // Check if there's a leadSingerId field
+      else if ((song.rehearsalDetails as any).leadSingerId) {
+        leadSingerIds = [(song.rehearsalDetails as any).leadSingerId];
+      }
+
       const convertedSong = {
         songId: song.songLibrary.id,
         rehearsalSongId: song.rehearsalSongId,
         addedById: song.songLibrary.addedById || rehearsalInfo?.rehearsalLeadId,
-        leadSingerIds:
-          song.rehearsalDetails.leadSingers?.map((ls: any) => ls.id) || [],
+        leadSingerIds,
         difficulty: song.rehearsalDetails.difficulty as SongDifficulty,
         needsWork: song.rehearsalDetails.needsWork,
         order: song.rehearsalDetails.order,
@@ -296,6 +328,7 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
     [],
   );
   const [leadSingerSearchTerm, setLeadSingerSearchTerm] = useState('');
+  const [musicianUserSearchTerm, setMusicianUserSearchTerm] = useState('');
 
   const [showUpdateForm, setShowUpdateForm] = useState(false);
   const [songToUpdate, setSongToUpdate] =
@@ -1690,17 +1723,46 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                       <div>
                         <label className="mb-2 block text-sm font-medium text-gray-700">
                           Utilisateur
+                          {!musician.userId && (
+                            <span className="ml-2 rounded bg-orange-100 px-2 py-1 text-xs text-orange-600">
+                              Non assigné
+                            </span>
+                          )}
                         </label>
+
+                        {/* Selected User Display */}
+                        <div className="mb-3">
+                          {musician.userId && musician.userId > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-1 text-sm text-blue-800">
+                                {getSelectedUserName(musician.userId)}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    updateMusician(index, 'userId', 0);
+                                    setMusicianUserSearchTerm('');
+                                  }}
+                                  className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-500">
+                              Aucun utilisateur sélectionné
+                            </p>
+                          )}
+                        </div>
+
                         <div className="relative">
                           <input
                             type="text"
-                            value={(() => {
-                              if (musician.userId === 0) return '';
-                              if (musician.userId)
-                                return getSelectedUserName(musician.userId);
-                              return '';
-                            })()}
-                            onChange={() => openDropdown('musicianUser')}
+                            value={musicianUserSearchTerm}
+                            onChange={(e) => {
+                              setMusicianUserSearchTerm(e.target.value);
+                              openDropdown('musicianUser');
+                            }}
                             placeholder="Tapez pour rechercher un utilisateur..."
                             className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             onFocus={() => openDropdown('musicianUser')}
@@ -1717,6 +1779,13 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                                 Sélectionnez un musicien
                               </div>
                               {users
+                                .filter((u) =>
+                                  `${u.firstName} ${u.lastName}`
+                                    .toLowerCase()
+                                    .includes(
+                                      musicianUserSearchTerm.toLowerCase(),
+                                    ),
+                                )
                                 .sort((a, b) =>
                                   `${a.firstName} ${a.lastName}`.localeCompare(
                                     `${b.firstName} ${b.lastName}`,
@@ -1729,6 +1798,7 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                                     onMouseDown={(e) => {
                                       e.preventDefault();
                                       updateMusician(index, 'userId', u.id);
+                                      setMusicianUserSearchTerm('');
                                       closeDropdown('musicianUser');
                                     }}
                                   >
@@ -1737,6 +1807,17 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                                     </span>
                                   </div>
                                 ))}
+                              {users.filter((u) =>
+                                `${u.firstName} ${u.lastName}`
+                                  .toLowerCase()
+                                  .includes(
+                                    musicianUserSearchTerm.toLowerCase(),
+                                  ),
+                              ).length === 0 && (
+                                <div className="px-3 py-2 text-sm text-gray-500">
+                                  Aucun utilisateur trouvé
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>

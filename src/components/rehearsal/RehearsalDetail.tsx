@@ -617,44 +617,89 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
                               <p className="text-sm font-medium text-gray-900">
                                 {(() => {
                                   const leadSingers: string[] = [];
+                                  let leadSingerIds: number[] = [];
 
-                                  // Use only leadSingerIds array (converted from leadSingers API response)
+                                  // First try to get leadSingerIds from the converted data
                                   if (
                                     song.leadSingerIds &&
                                     Array.isArray(song.leadSingerIds)
                                   ) {
-                                    song.leadSingerIds.forEach((id: number) => {
-                                      if (id > 0) {
-                                        const name = getUserName(id);
-                                        if (
-                                          name &&
-                                          !leadSingers.includes(name)
-                                        ) {
-                                          leadSingers.push(name);
-                                        }
-                                      }
-                                    });
-                                  } else {
-                                    // Fallback: Check if leadSingers or leadSinger is directly available
-                                    const singersToCheck =
-                                      song.leadSingers || song.leadSinger;
-                                    if (
-                                      singersToCheck &&
-                                      Array.isArray(singersToCheck)
-                                    ) {
-                                      singersToCheck.forEach((singer: any) => {
-                                        if (singer && singer.id) {
-                                          const name = getUserName(singer.id);
-                                          if (
-                                            name &&
-                                            !leadSingers.includes(name)
-                                          ) {
-                                            leadSingers.push(name);
-                                          }
-                                        }
-                                      });
-                                    }
+                                    leadSingerIds = song.leadSingerIds;
                                   }
+                                  // Try to get from rehearsalDetails.leadSingers
+                                  else if (
+                                    song.rehearsalDetails?.leadSingers &&
+                                    Array.isArray(
+                                      song.rehearsalDetails.leadSingers,
+                                    )
+                                  ) {
+                                    leadSingerIds =
+                                      song.rehearsalDetails.leadSingers.map(
+                                        (ls: any) => ls.id,
+                                      );
+                                  }
+                                  // Try to get from rehearsalDetails.leadSinger
+                                  else if (
+                                    song.rehearsalDetails?.leadSinger &&
+                                    Array.isArray(
+                                      song.rehearsalDetails.leadSinger,
+                                    )
+                                  ) {
+                                    leadSingerIds =
+                                      song.rehearsalDetails.leadSinger.map(
+                                        (ls: any) => ls.id,
+                                      );
+                                  }
+                                  // Try single leadSinger object
+                                  else if (
+                                    song.rehearsalDetails?.leadSinger &&
+                                    !Array.isArray(
+                                      song.rehearsalDetails.leadSinger,
+                                    )
+                                  ) {
+                                    leadSingerIds = [
+                                      song.rehearsalDetails.leadSinger.id,
+                                    ];
+                                  }
+                                  // Try leadSingerId field
+                                  else if (
+                                    song.rehearsalDetails?.leadSingerId
+                                  ) {
+                                    leadSingerIds = [
+                                      song.rehearsalDetails.leadSingerId,
+                                    ];
+                                  }
+                                  // Fallback: Check if leadSingers or leadSinger is directly available
+                                  else if (
+                                    song.leadSingers &&
+                                    Array.isArray(song.leadSingers)
+                                  ) {
+                                    leadSingerIds = song.leadSingers.map(
+                                      (singer: any) => singer.id,
+                                    );
+                                  } else if (
+                                    song.leadSinger &&
+                                    Array.isArray(song.leadSinger)
+                                  ) {
+                                    leadSingerIds = song.leadSinger.map(
+                                      (singer: any) => singer.id,
+                                    );
+                                  } else if (
+                                    song.leadSinger &&
+                                    !Array.isArray(song.leadSinger)
+                                  ) {
+                                    leadSingerIds = [song.leadSinger.id];
+                                  }
+
+                                  // Now process the leadSingerIds to get names
+                                  leadSingerIds.forEach((id: number) => {
+                                    if (id > 0) {
+                                      const name = getUserName(id);
+                                      if (name && !leadSingers.includes(name)) {
+                                        leadSingers.push(name);
+                                      }
+                                    }
+                                  });
 
                                   // Return result
                                   if (leadSingers.length > 0) {
