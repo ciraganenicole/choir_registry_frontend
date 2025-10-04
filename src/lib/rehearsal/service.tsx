@@ -97,9 +97,7 @@ export const RehearsalService = {
     id: number,
     data: UpdateRehearsalDto,
   ): Promise<Rehearsal> => {
-    console.log('RehearsalService: updateRehearsal called with:', { id, data });
     const response = await api.patch(`/rehearsals/${id}`, data);
-    console.log('RehearsalService: updateRehearsal response:', response.data);
     return response.data;
   },
 
@@ -115,17 +113,11 @@ export const RehearsalService = {
     rehearsalId: number,
     songData: CreateRehearsalSongDto,
   ): Promise<any> => {
-    // Transform leadSingerIds to leadSingers format expected by backend
     const transformedSongData = {
       ...songData,
       leadSingers: songData.leadSingerIds?.map((id) => ({ id })) || [],
-      leadSingerIds: undefined, // Remove the array field
+      leadSingerIds: undefined,
     };
-
-    console.log('API Call Debug:', {
-      originalData: songData,
-      transformedData: transformedSongData,
-    });
 
     const response = await api.post(
       `/rehearsals/${rehearsalId}/songs`,
@@ -148,7 +140,7 @@ export const RehearsalService = {
       const transformedSongData = {
         ...songData,
         leadSingers: songData.leadSingerIds?.map((id) => ({ id })) || [],
-        leadSingerIds: undefined, // Remove the array field
+        leadSingerIds: undefined,
       };
 
       return api.post(`/rehearsals/${rehearsalId}/songs`, transformedSongData);
@@ -220,7 +212,15 @@ export const RehearsalService = {
     rehearsalId: number,
     songId: number,
   ): Promise<void> => {
-    await api.delete(`/rehearsals/${rehearsalId}/songs/${songId}`);
+    try {
+      await api.delete(`/rehearsals/${rehearsalId}/songs/${songId}`);
+    } catch (error: any) {
+      if (error.response?.status === 403) {
+        await api.delete(`/rehearsals/${rehearsalId}/songs/${songId}/remove`);
+      } else {
+        throw error;
+      }
+    }
   },
 
   deleteSongFromRehearsal: async (

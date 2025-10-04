@@ -70,16 +70,19 @@ export interface SongStats {
 // Permission functions
 export const canAccessLibrary = (
   userRole: UserRole,
-  _userCategories?: string[],
+  userCategories?: string[],
 ): boolean => {
-  if (
-    userRole === UserRole.SUPER_ADMIN ||
-    userRole === UserRole.ATTENDANCE_ADMIN ||
-    userRole === UserRole.LEAD
-  ) {
+  // SUPER_ADMIN can access library (regardless of categories)
+  if (userRole === UserRole.SUPER_ADMIN) {
     return true;
   }
 
+  // LEAD category users can access library
+  if (userCategories?.includes('LEAD')) {
+    return true;
+  }
+
+  // ATTENDANCE_ADMIN and regular users are completely blocked
   return false;
 };
 
@@ -87,17 +90,19 @@ export const canCreateSongs = (
   userRole: UserRole,
   userCategories?: string[],
 ): boolean => {
-  // Check if user has lead category (same as rehearsal permissions)
+  // SUPER_ADMIN can create songs (regardless of categories)
+  if (userRole === UserRole.SUPER_ADMIN) {
+    return true;
+  }
+
+  // LEAD category users can create songs
   if (userCategories?.includes('LEAD')) {
     return true;
   }
 
-  // Also allow super admin and attendance admin roles
-  if (
-    userRole === UserRole.SUPER_ADMIN ||
-    userRole === UserRole.ATTENDANCE_ADMIN
-  ) {
-    return true;
+  // ATTENDANCE_ADMIN is completely blocked from song management
+  if (userRole === UserRole.ATTENDANCE_ADMIN) {
+    return false;
   }
 
   return false;
@@ -230,10 +235,61 @@ export const useCreateSong = () => {
   return { createSong, isLoading, error };
 };
 
+// Permission functions
+export const canUpdateSongs = (
+  userRole: UserRole,
+  userCategories?: string[],
+): boolean => {
+  // SUPER_ADMIN can update any song (regardless of categories)
+  if (userRole === UserRole.SUPER_ADMIN) {
+    return true;
+  }
+
+  // LEAD category users can update any song
+  if (userCategories?.includes('LEAD')) {
+    return true;
+  }
+
+  // ATTENDANCE_ADMIN is completely blocked from song management
+  if (userRole === UserRole.ATTENDANCE_ADMIN) {
+    return false;
+  }
+
+  return false;
+};
+
+export const canUpdateSpecificSong = (
+  userRole: UserRole,
+  userCategories: string[] | undefined,
+): boolean => {
+  // SUPER_ADMIN can update any song (regardless of categories)
+  if (userRole === UserRole.SUPER_ADMIN) {
+    return true;
+  }
+
+  // LEAD category users can update ANY song (including admin-created ones)
+  if (userCategories?.includes('LEAD')) {
+    return true;
+  }
+
+  // ATTENDANCE_ADMIN is completely blocked
+  if (userRole === UserRole.ATTENDANCE_ADMIN) {
+    return false;
+  }
+
+  // Regular users cannot update songs
+  return false;
+};
+
+export const canDeleteSongs = (userRole: UserRole): boolean => {
+  return userRole === UserRole.SUPER_ADMIN;
+};
+
 // Hook to update a song
 export const useUpdateSong = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user, isAuthenticated } = useAuth();
 
   const updateSong = async (
     id: string,
@@ -243,12 +299,31 @@ export const useUpdateSong = () => {
       setIsLoading(true);
       setError(null);
 
+      // Check authentication
+      if (!isAuthenticated || !user) {
+        setError('Authentication required');
+        return null;
+      }
+
+      // Check permissions
+      const hasAccess = canUpdateSongs(user.role, user.categories);
+      if (!hasAccess) {
+        setError('Insufficient permissions to update songs');
+        return null;
+      }
+
       const response = await api.patch(`/songs/${id}`, songData);
       return response.data;
     } catch (err: any) {
-      const errorMessage =
-        err.response?.data?.message || err.message || 'Failed to update song';
-      setError(errorMessage);
+      if (err.response?.status === 401) {
+        setError('Authentication required');
+      } else if (err.response?.status === 403) {
+        setError('Insufficient permissions to update songs');
+      } else {
+        const errorMessage =
+          err.response?.data?.message || err.message || 'Failed to update song';
+        setError(errorMessage);
+      }
       return null;
     } finally {
       setIsLoading(false);
@@ -262,18 +337,38 @@ export const useUpdateSong = () => {
 export const useDeleteSong = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user, isAuthenticated } = useAuth();
 
   const deleteSong = async (id: string): Promise<boolean> => {
     try {
       setIsLoading(true);
       setError(null);
 
+      // Check authentication
+      if (!isAuthenticated || !user) {
+        setError('Authentication required');
+        return false;
+      }
+
+      // Check permissions
+      const hasAccess = canDeleteSongs(user.role);
+      if (!hasAccess) {
+        setError('Insufficient permissions to delete songs');
+        return false;
+      }
+
       await api.delete(`/songs/${id}`);
       return true;
     } catch (err: any) {
-      const errorMessage =
-        err.response?.data?.message || err.message || 'Failed to delete song';
-      setError(errorMessage);
+      if (err.response?.status === 401) {
+        setError('Authentication required');
+      } else if (err.response?.status === 403) {
+        setError('Insufficient permissions to delete songs');
+      } else {
+        const errorMessage =
+          err.response?.data?.message || err.message || 'Failed to delete song';
+        setError(errorMessage);
+      }
       return false;
     } finally {
       setIsLoading(false);
@@ -464,28 +559,26 @@ export const filterSongs = (songs: Song[], filters: SongFilter): Song[] => {
   });
 };
 
-export const canUpdateSongs = (
+export const canManageSongs = (
   userRole: UserRole,
   userCategories?: string[],
 ): boolean => {
-  // Check if user has lead category (same as rehearsal permissions)
+  // SUPER_ADMIN can manage songs (regardless of categories)
+  if (userRole === UserRole.SUPER_ADMIN) {
+    return true;
+  }
+
+  // LEAD category users can manage songs
   if (userCategories?.includes('LEAD')) {
     return true;
   }
 
-  // Also allow super admin and attendance admin roles
-  if (
-    userRole === UserRole.SUPER_ADMIN ||
-    userRole === UserRole.ATTENDANCE_ADMIN
-  ) {
-    return true;
+  // ATTENDANCE_ADMIN is completely blocked
+  if (userRole === UserRole.ATTENDANCE_ADMIN) {
+    return false;
   }
 
   return false;
-};
-
-export const canDeleteSongs = (userRole: UserRole): boolean => {
-  return userRole === UserRole.SUPER_ADMIN;
 };
 
 export const voicePartOptions = [

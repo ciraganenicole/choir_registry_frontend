@@ -3,28 +3,35 @@ import {
   FaClock,
   FaEdit,
   FaEye,
+  FaFilePdf,
   FaMusic,
   FaPlus,
+  FaTrash,
   FaUsers,
 } from 'react-icons/fa';
 
 import { Card, CardContent } from '@/components/card';
+import ConfirmationDialog from '@/components/dialog/ConfirmationDialog';
 import Layout from '@/components/layout';
 import SongDetail from '@/components/library/SongDetail';
 import Pagination from '@/components/pagination';
 import SongForm from '@/lib/library/form';
 import type { Song } from '@/lib/library/logic';
 import {
+  canDeleteSongs,
+  canManageSongs,
+  canUpdateSpecificSong,
   difficultyOptions,
   filterSongs,
   searchSongs,
   SongDifficulty,
   SongStatus,
   statusOptions,
+  useDeleteSong,
   useSongs,
   useSongStats,
 } from '@/lib/library/logic';
-import { UserCategory } from '@/lib/user/type';
+import { exportSongListToPDF } from '@/lib/library/pdf-export';
 import { useAuth } from '@/providers/AuthProvider';
 
 const LibraryPage = () => {
@@ -43,13 +50,19 @@ const LibraryPage = () => {
   });
   const [currentPage, setCurrentPage] = useState(1);
   const songsPerPage = 5;
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [songToDelete, setSongToDelete] = useState<Song | null>(null);
 
   const { user } = useAuth();
   const { songs, isLoading, error, refetch } = useSongs();
   const { stats } = useSongStats();
+  const { deleteSong, isLoading: isDeleting } = useDeleteSong();
 
-  // Check if user can manage songs (only lead category users)
-  const canManageSongs = user?.categories?.includes(UserCategory.LEAD);
+  // Check if user can manage songs (SUPER_ADMIN or LEAD category users)
+  const canManageSongsPermission = user
+    ? canManageSongs(user.role, user.categories)
+    : false;
+  const canDeleteSongsPermission = user ? canDeleteSongs(user.role) : false;
 
   // Filter and search songs
   const filteredSongs = React.useMemo(() => {
@@ -194,6 +207,38 @@ const LibraryPage = () => {
     setSelectedSong(null);
   };
 
+  const handleDeleteSong = async (song: Song) => {
+    setSongToDelete(song);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDeleteSong = async () => {
+    if (!songToDelete) return;
+
+    const success = await deleteSong(songToDelete.id);
+    if (success) {
+      refetch(); // Refresh the song list
+      setShowDeleteDialog(false);
+      setSongToDelete(null);
+    }
+  };
+
+  const cancelDeleteSong = () => {
+    setShowDeleteDialog(false);
+    setSongToDelete(null);
+  };
+
+  const handleExportList = async () => {
+    try {
+      await exportSongListToPDF(filteredSongs);
+    } catch (exportError) {
+      // eslint-disable-next-line no-console
+      console.error('Error exporting song list to PDF:', exportError);
+      // eslint-disable-next-line no-alert
+      alert("Erreur lors de l'exportation de la liste");
+    }
+  };
+
   return (
     <Layout>
       {/* {!hasLibraryAccess ? (
@@ -217,14 +262,23 @@ const LibraryPage = () => {
               chorale
             </p>
           </div>
-          {canManageSongs && (
+          <div className="flex gap-2">
             <button
-              className="flex items-center gap-2 self-start rounded-md bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 md:self-auto md:px-6 md:text-base"
-              onClick={() => setShowForm(true)}
+              onClick={handleExportList}
+              disabled={filteredSongs.length === 0}
+              className="flex items-center gap-2 self-start rounded-md bg-green-500 px-4 py-2 text-sm font-semibold text-white hover:bg-green-600 disabled:cursor-not-allowed disabled:bg-gray-400 md:self-auto md:px-6 md:text-base"
             >
-              <FaPlus /> <span>Ajouter un Chant</span>
+              <FaFilePdf /> <span>Exporter Liste</span>
             </button>
-          )}
+            {canManageSongsPermission && (
+              <button
+                className="flex items-center gap-2 self-start rounded-md bg-orange-500 px-4 py-2 text-sm font-semibold text-white hover:bg-orange-600 md:self-auto md:px-6 md:text-base"
+                onClick={() => setShowForm(true)}
+              >
+                <FaPlus /> <span>Ajouter un Chant</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {showForm && (
@@ -444,7 +498,10 @@ const LibraryPage = () => {
                           </span>
                           <span className="sm:hidden">Détails</span>
                         </button>
-                        {canManageSongs && (
+                        {canUpdateSpecificSong(
+                          user?.role,
+                          user?.categories,
+                        ) && (
                           <button
                             onClick={() => {
                               setSelectedSongForEdit(song);
@@ -455,6 +512,17 @@ const LibraryPage = () => {
                             <FaEdit />{' '}
                             <span className="hidden sm:inline">Modifier</span>
                             <span className="sm:hidden">Modifier</span>
+                          </button>
+                        )}
+                        {canDeleteSongsPermission && (
+                          <button
+                            onClick={() => handleDeleteSong(song)}
+                            disabled={isDeleting}
+                            className="flex w-full items-center justify-center gap-1 rounded-md border border-red-300 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50 sm:w-auto"
+                          >
+                            <FaTrash />{' '}
+                            <span className="hidden sm:inline">Supprimer</span>
+                            <span className="sm:hidden">Supprimer</span>
                           </button>
                         )}
                       </div>
@@ -475,13 +543,7 @@ const LibraryPage = () => {
 
         {/* Song Detail Popup */}
         {showSongDetail && selectedSong && (
-          <SongDetail
-            song={selectedSong}
-            onClose={handleCloseSongDetail}
-            onEdit={() => {
-              // Handle edit functionality
-            }}
-          />
+          <SongDetail song={selectedSong} onClose={handleCloseSongDetail} />
         )}
 
         {/* Edit Song Modal */}
@@ -543,6 +605,19 @@ const LibraryPage = () => {
             </div>
           </div>
         )}
+
+        {/* Delete Confirmation Dialog */}
+        <ConfirmationDialog
+          isOpen={showDeleteDialog}
+          onClose={cancelDeleteSong}
+          onConfirm={confirmDeleteSong}
+          title="Supprimer le chant"
+          message={`Êtes-vous sûr de vouloir supprimer le chant "${songToDelete?.title}" ? Cette action est irréversible.`}
+          confirmText="Supprimer"
+          cancelText="Annuler"
+          type="danger"
+          isLoading={isDeleting}
+        />
       </div>
       {/* )} */}
     </Layout>

@@ -15,7 +15,6 @@ import type {
   RehearsalSongsResponse,
   RehearsalStats,
   RehearsalTemplate,
-  UpdateRehearsalDto,
 } from './types';
 import {
   InstrumentType,
@@ -218,16 +217,15 @@ export const useUpdateRehearsal = () => {
   const [error, setError] = useState<string | null>(null);
 
   const updateRehearsal = useCallback(
-    async (id: number, data: UpdateRehearsalDto): Promise<boolean> => {
+    async (rehearsalId: number, updateData: any): Promise<boolean> => {
       setIsLoading(true);
       setError(null);
 
       try {
-        const result = await RehearsalService.updateRehearsal(id, data);
-        console.log('useUpdateRehearsal: Service response:', result);
+        // TODO: Implement actual API call
+        console.log('Updating rehearsal:', rehearsalId, updateData);
         return true;
       } catch (err: any) {
-        console.error('useUpdateRehearsal: Update error:', err);
         setError(err.response?.data?.message || 'Failed to update rehearsal');
         return false;
       } finally {

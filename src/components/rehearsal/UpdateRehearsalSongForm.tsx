@@ -125,6 +125,12 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
       const [showVoicePartDropdowns, setShowVoicePartDropdowns] = useState<
         Record<number, boolean>
       >({});
+      const [chorusMemberSearchTerm, setChorusMemberSearchTerm] = useState('');
+      const [musicianUserSearchTerms, setMusicianUserSearchTerms] = useState<
+        string[]
+      >([]);
+      const [showMusicianUserDropdowns, setShowMusicianUserDropdowns] =
+        useState<Record<number, boolean>>({});
 
       useEffect(() => {
         if (initialData.musicians && initialData.musicians.length > 0) {
@@ -159,8 +165,14 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
           ).fill('');
           setVoicePartSearchTerms(initialSearchTerms);
         }
+
+        if (initialData.musicians && initialData.musicians.length > 0) {
+          const initialMusicianSearchTerms = new Array(
+            initialData.musicians.length,
+          ).fill('');
+          setMusicianUserSearchTerms(initialMusicianSearchTerms);
+        }
       }, [initialData.musicians, initialData.voiceParts]);
-      const [chorusMemberSearchTerm, setChorusMemberSearchTerm] = useState('');
 
       useEffect(() => {
         setFormData({
@@ -322,6 +334,7 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
           ...prev,
           musicians: [...prev.musicians, newMusician],
         }));
+        setMusicianUserSearchTerms((prev) => [...prev, '']);
       };
 
       const updateMusician = (index: number, field: string, value: any) => {
@@ -338,6 +351,25 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
           ...prev,
           musicians: prev.musicians.filter((_, i) => i !== index),
         }));
+
+        setMusicianUserSearchTerms((prev) =>
+          prev.filter((_, i) => i !== index),
+        );
+
+        setShowMusicianUserDropdowns((prev) => {
+          const newState = { ...prev };
+          delete newState[index];
+          const shiftedState: Record<number, boolean> = {};
+          Object.keys(newState).forEach((key) => {
+            const idx = parseInt(key, 10);
+            if (idx > index) {
+              shiftedState[idx - 1] = newState[idx] ?? false;
+            } else {
+              shiftedState[idx] = newState[idx] ?? false;
+            }
+          });
+          return shiftedState;
+        });
       };
 
       const addVoicePart = () => {
@@ -409,6 +441,8 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
           ...prev,
           musicians: [],
         }));
+        setMusicianUserSearchTerms([]);
+        setShowMusicianUserDropdowns({});
       };
 
       const clearVoiceParts = () => {
@@ -432,6 +466,34 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
         }
         return 'Utilisateur inconnu';
       };
+
+      // Musician user dropdown helper functions
+      const updateMusicianUserSearchTerm = (index: number, value: string) => {
+        setMusicianUserSearchTerms((prev) => {
+          const newTerms = [...prev];
+          newTerms[index] = value;
+          return newTerms;
+        });
+      };
+
+      const openMusicianUserDropdown = (index: number) => {
+        setShowMusicianUserDropdowns((prev) => ({
+          ...prev,
+          [index]: true,
+        }));
+      };
+
+      const closeMusicianUserDropdown = (index: number) => {
+        setShowMusicianUserDropdowns((prev) => ({
+          ...prev,
+          [index]: false,
+        }));
+      };
+
+      const getMusicianUserDropdownState = (index: number) => ({
+        showDropdown: showMusicianUserDropdowns[index] || false,
+        searchTerm: musicianUserSearchTerms[index] || '',
+      });
 
       const tabs = [
         { id: 'basic', label: 'Informations de base', icon: FaMusic },
@@ -1004,26 +1066,111 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                                 </span>
                               )}
                             </label>
-                            <select
-                              value={musician.userId || 0}
-                              onChange={(e) =>
-                                updateMusician(
-                                  index,
-                                  'userId',
-                                  parseInt(e.target.value, 10) || 0,
-                                )
-                              }
-                              className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            >
-                              <option value={0}>
-                                Sélectionner un utilisateur...
-                              </option>
-                              {users.map((user) => (
-                                <option key={user.id} value={user.id}>
-                                  {user.firstName} {user.lastName}
-                                </option>
-                              ))}
-                            </select>
+
+                            {/* Selected User Display */}
+                            <div className="mb-3">
+                              {musician.userId && musician.userId > 0 ? (
+                                <div className="flex flex-wrap gap-2">
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-1 text-sm text-blue-800">
+                                    {getSelectedUserName(musician.userId)}
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        updateMusician(index, 'userId', 0)
+                                      }
+                                      className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
+                                    >
+                                      ×
+                                    </button>
+                                  </span>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-gray-500">
+                                  Aucun utilisateur sélectionné
+                                </p>
+                              )}
+                            </div>
+
+                            {/* Searchable User Input */}
+                            <div className="relative">
+                              <input
+                                type="text"
+                                value={
+                                  getMusicianUserDropdownState(index).searchTerm
+                                }
+                                onChange={(e) => {
+                                  updateMusicianUserSearchTerm(
+                                    index,
+                                    e.target.value,
+                                  );
+                                }}
+                                placeholder="Rechercher des utilisateurs..."
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                onFocus={() => openMusicianUserDropdown(index)}
+                                onBlur={() =>
+                                  setTimeout(
+                                    () => closeMusicianUserDropdown(index),
+                                    200,
+                                  )
+                                }
+                              />
+                              {getMusicianUserDropdownState(index)
+                                .showDropdown && (
+                                <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
+                                  {users
+                                    .filter((user) =>
+                                      `${user.firstName} ${user.lastName}`
+                                        .toLowerCase()
+                                        .includes(
+                                          getMusicianUserDropdownState(
+                                            index,
+                                          ).searchTerm.toLowerCase(),
+                                        ),
+                                    )
+                                    .sort((a, b) =>
+                                      `${a.firstName} ${a.lastName}`.localeCompare(
+                                        `${b.firstName} ${b.lastName}`,
+                                      ),
+                                    )
+                                    .map((user) => (
+                                      <div
+                                        key={user.id}
+                                        className="cursor-pointer px-3 py-2 hover:bg-blue-50"
+                                        onMouseDown={(e) => {
+                                          e.preventDefault();
+                                          updateMusician(
+                                            index,
+                                            'userId',
+                                            user.id,
+                                          );
+                                          updateMusicianUserSearchTerm(
+                                            index,
+                                            '',
+                                          );
+                                          closeMusicianUserDropdown(index);
+                                        }}
+                                      >
+                                        <span className="text-sm text-gray-700">
+                                          {user.firstName} {user.lastName}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  {users.filter((user) =>
+                                    `${user.firstName} ${user.lastName}`
+                                      .toLowerCase()
+                                      .includes(
+                                        getMusicianUserDropdownState(
+                                          index,
+                                        ).searchTerm.toLowerCase(),
+                                      ),
+                                  ).length === 0 && (
+                                    <div className="px-3 py-2 text-sm text-gray-500">
+                                      Aucun utilisateur trouvé
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
                           </div>
 
                           <div className="md:col-span-2">

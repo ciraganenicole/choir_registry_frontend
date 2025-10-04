@@ -2,7 +2,7 @@ import { jsPDF as JSPDF } from 'jspdf';
 import type { CellHookData } from 'jspdf-autotable';
 import autoTable from 'jspdf-autotable';
 import React, { useEffect, useState } from 'react';
-import { FaEdit, FaEye, FaUserCog } from 'react-icons/fa';
+import { FaEye } from 'react-icons/fa';
 import { HiDownload } from 'react-icons/hi';
 
 import SearchInput from '@/components/filters/search';
@@ -17,7 +17,7 @@ import {
   UserCategory,
   type UserFilters,
 } from '../../../lib/user/type';
-import { assignLeadRole, FetchUsers } from '../../../lib/user/user_actions';
+import { FetchUsers } from '../../../lib/user/user_actions';
 import DeleteUser from './crud/delete';
 import UpdateUser from './crud/update';
 import ViewUser from './crud/view';
@@ -86,11 +86,6 @@ const LeadsManagement: React.FC = () => {
     setIsPopupViewOpen(true);
   };
 
-  const handleUpdate = (user: User) => {
-    setSelectedUser(user);
-    setIsPopupUpdateOpen(true);
-  };
-
   const handleUpdateUser = (updatedUser: User) => {
     setLeads((prevLeads) =>
       prevLeads.map((lead) =>
@@ -108,25 +103,6 @@ const LeadsManagement: React.FC = () => {
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     setCurrentPage(1);
-  };
-
-  const handleAssignLeadRole = async (user: User) => {
-    try {
-      const result = await assignLeadRole(user.id);
-      setLeadCredentials({
-        firstName: result.user.firstName,
-        lastName: result.user.lastName,
-        email: result.user.email || '',
-        password: result.password,
-      });
-      setShowLeadCredentials(true);
-
-      setLeads((prevLeads) =>
-        prevLeads.map((u) => (u.id === user.id ? { ...u, ...result.user } : u)),
-      );
-    } catch (assignError) {
-      handleError(assignError, setErrorMessage);
-    }
   };
 
   const exportLeads = async () => {
@@ -195,8 +171,6 @@ const LeadsManagement: React.FC = () => {
     const iconClasses = 'h-4 w-4';
     const buttonClasses = {
       view: 'text-blue-500 hover:bg-blue-50',
-      update: 'text-green-500 hover:bg-green-50',
-      lead: 'text-indigo-500 hover:bg-indigo-50',
       delete: 'text-red-500 hover:bg-red-50',
     };
 
@@ -212,25 +186,6 @@ const LeadsManagement: React.FC = () => {
               Voir
             </button>
           )}
-          {canUpdateUsers(currentUser?.role) && (
-            <button
-              onClick={() => handleUpdate(viewedUser)}
-              className="flex items-center gap-2 rounded-md bg-green-50 px-3 py-2 text-sm text-green-600 hover:bg-green-100"
-            >
-              <FaEdit className={iconClasses} />
-              Modifier
-            </button>
-          )}
-          {canUpdateUsers(currentUser?.role) &&
-            !viewedUser.categories?.includes(UserCategory.LEAD) && (
-              <button
-                onClick={() => handleAssignLeadRole(viewedUser)}
-                className="flex items-center gap-2 rounded-md bg-indigo-50 px-3 py-2 text-sm text-indigo-600 hover:bg-indigo-100"
-              >
-                <FaUserCog className={iconClasses} />
-                Assigner conducteur
-              </button>
-            )}
         </div>
       );
     }
@@ -246,25 +201,6 @@ const LeadsManagement: React.FC = () => {
             <FaEye className={iconClasses} />
           </button>
         )}
-        {canUpdateUsers(currentUser?.role) && (
-          <button
-            onClick={() => handleUpdate(viewedUser)}
-            className={buttonClasses.update}
-            title="Modifier"
-          >
-            <FaEdit className={iconClasses} />
-          </button>
-        )}
-        {canUpdateUsers(currentUser?.role) &&
-          !viewedUser.categories?.includes(UserCategory.LEAD) && (
-            <button
-              onClick={() => handleAssignLeadRole(viewedUser)}
-              className={buttonClasses.lead}
-              title="Assigner LEAD Role"
-            >
-              <FaUserCog className={iconClasses} />
-            </button>
-          )}
       </div>
     );
   };

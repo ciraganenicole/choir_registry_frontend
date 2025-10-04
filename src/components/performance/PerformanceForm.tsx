@@ -68,6 +68,29 @@ const PerformanceForm: React.FC<PerformanceFormProps> = ({
     }
   }, [currentShift?.leaderId]);
 
+  // Initialize form data when editing an existing performance
+  React.useEffect(() => {
+    if (performance) {
+      setFormData({
+        date: (() => {
+          if (performance.date instanceof Date) {
+            return performance.date.toISOString().split('T')[0];
+          }
+          if (typeof performance.date === 'string') {
+            return performance.date;
+          }
+          return '';
+        })() as string,
+        type: performance.type || PerformanceType.SUNDAY_SERVICE,
+        shiftLeadId:
+          performance.shiftLeadId || currentShift?.leaderId || undefined,
+        location: performance.location || '',
+        expectedAudience: performance.expectedAudience || 0,
+        notes: performance.notes || '',
+      });
+    }
+  }, [performance, currentShift?.leaderId]);
+
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [shiftValidationWarning, setShiftValidationWarning] = useState<
     string | null

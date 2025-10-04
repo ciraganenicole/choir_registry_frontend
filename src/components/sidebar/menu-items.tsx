@@ -1,6 +1,8 @@
 import {
+  FaBullhorn,
   FaCalendarAlt,
   FaDollarSign,
+  FaFileAlt,
   FaMicrophone,
   FaMusic,
   FaUsers,
@@ -57,5 +59,15 @@ export const menuItems = [
     title: 'Attendance',
     path: '/attendance',
     icon: FaCalendarAlt,
+  },
+  {
+    title: 'Annonces',
+    path: '/announcements',
+    icon: FaBullhorn,
+  },
+  {
+    title: 'Rapports',
+    path: '/committee/reports',
+    icon: FaFileAlt,
   },
 ];

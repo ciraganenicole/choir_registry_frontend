@@ -6,7 +6,9 @@ import {
   Calendar,
   ChevronDown,
   ChevronRight,
+  FileText,
   Home,
+  Megaphone,
   Menu,
   Users,
   X,
@@ -79,6 +81,18 @@ const Layout = ({ children }: { children: ReactNode }) => {
       label: 'Transactions',
       roles: [UserRole.SUPER_ADMIN, UserRole.FINANCE_ADMIN],
     },
+    {
+      path: '/admin/announcements',
+      icon: Megaphone,
+      label: 'Annonces',
+      roles: [UserRole.SUPER_ADMIN],
+    },
+    {
+      path: '/committee/reports',
+      icon: FileText,
+      label: 'Rapports',
+      roles: [UserRole.SUPER_ADMIN], // Will be filtered by category in the component
+    },
   ];
 
   const dropdownMenuItems: DropdownMenuItem[] = [
@@ -126,6 +140,13 @@ const Layout = ({ children }: { children: ReactNode }) => {
 
     // Check if user has the required role
     const hasRequiredRole = item.roles.includes(user.role);
+
+    // Special case for committee reports - check for COMMITTEE category OR SUPER_ADMIN role
+    if (item.path === '/committee/reports') {
+      const hasCommitteeCategory = user.categories?.includes('COMMITTEE');
+      const isSuperAdmin = user.role === UserRole.SUPER_ADMIN;
+      return hasRequiredRole || hasCommitteeCategory || isSuperAdmin;
+    }
 
     return hasRequiredRole;
   });

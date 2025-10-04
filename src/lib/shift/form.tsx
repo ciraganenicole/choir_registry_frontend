@@ -54,12 +54,19 @@ export const ShiftForm: React.FC<ShiftFormProps> = ({
   // Initialize form data when editing
   useEffect(() => {
     if (shift) {
+      // Format dates for HTML date inputs (YYYY-MM-DD format)
+      const formatDateForInput = (dateString: string) => {
+        if (!dateString) return '';
+        const date = new Date(dateString);
+        return date.toISOString().split('T')[0];
+      };
+
       setFormData({
         name: shift.name || '',
         leaderId: shift.leader?.id || 0,
-        startDate: shift.startDate || '',
-        endDate: shift.endDate || '',
-        status: shift.status || ShiftStatus.UPCOMING,
+        startDate: formatDateForInput(shift?.startDate ?? '') || '',
+        endDate: formatDateForInput(shift?.endDate ?? '') || '',
+        status: shift.status ?? ShiftStatus.UPCOMING,
         eventsScheduled: shift.eventsScheduled || 0,
         eventsCompleted: shift.eventsCompleted || 0,
         notes: shift.notes || '',
@@ -190,10 +197,6 @@ export const ShiftForm: React.FC<ShiftFormProps> = ({
 
   return (
     <div>
-      <h3 className="mb-6 text-lg font-medium text-gray-900">
-        {isEditing ? "Modifier l'horaire" : 'Créer un nouvel horaire'}
-      </h3>
-
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Shift Name */}
         {error && (

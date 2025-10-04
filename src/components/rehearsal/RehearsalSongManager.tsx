@@ -67,6 +67,11 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
   const { user } = useAuth();
   const [showAddSong, setShowAddSong] = useState(false);
   const [editingSongIndex, setEditingSongIndex] = useState<number | null>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [songToDelete, setSongToDelete] = useState<{
+    index: number;
+    song: any;
+  } | null>(null);
   const { users } = useUsers();
 
   // Check if user can manage songs (only lead category users)
@@ -85,13 +90,61 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
   const rehearsalSongs = separatedRehearsalSongs?.rehearsalSongs || [];
   const rehearsalInfo = separatedRehearsalSongs?.rehearsalInfo;
 
+  // Function to check if user can delete a specific song
+  const canDeleteSong = (song: CreateRehearsalSongDto) => {
+    if (!user || !canManageSongs) {
+      return false;
+    }
+
+    const isRehearsalCreator = rehearsalInfo?.rehearsalLeadId === user.id;
+    const canDelete =
+      song.addedById === user.id ||
+      isRehearsalCreator ||
+      user.role === 'SUPER_ADMIN';
+
+    return canDelete;
+  };
+
   const convertedSongs: CreateRehearsalSongDto[] = rehearsalSongs.map(
     (song) => {
+      // Try to get lead singers from multiple possible locations
+      let leadSingerIds: number[] = [];
+
+      // Check leadSingers array first
+      if (
+        song.rehearsalDetails.leadSingers &&
+        Array.isArray(song.rehearsalDetails.leadSingers)
+      ) {
+        leadSingerIds = song.rehearsalDetails.leadSingers.map(
+          (ls: any) => ls.id,
+        );
+      }
+      // Check leadSinger array (singular) - using any to bypass TypeScript
+      else if (
+        (song.rehearsalDetails as any).leadSinger &&
+        Array.isArray((song.rehearsalDetails as any).leadSinger)
+      ) {
+        leadSingerIds = (song.rehearsalDetails as any).leadSinger.map(
+          (ls: any) => ls.id,
+        );
+      }
+      // Check if there's a single leadSinger object
+      else if (
+        (song.rehearsalDetails as any).leadSinger &&
+        !Array.isArray((song.rehearsalDetails as any).leadSinger)
+      ) {
+        leadSingerIds = [(song.rehearsalDetails as any).leadSinger.id];
+      }
+      // Check if there's a leadSingerId field
+      else if ((song.rehearsalDetails as any).leadSingerId) {
+        leadSingerIds = [(song.rehearsalDetails as any).leadSingerId];
+      }
+
       const convertedSong = {
         songId: song.songLibrary.id,
-        rehearsalSongId: song.rehearsalSongId, // Include the RehearsalSong ID for updates
-        leadSingerIds:
-          song.rehearsalDetails.leadSingers?.map((ls: any) => ls.id) || [], // Use only leadSingers
+        rehearsalSongId: song.rehearsalSongId,
+        addedById: song.songLibrary.addedById || rehearsalInfo?.rehearsalLeadId,
+        leadSingerIds,
         difficulty: song.rehearsalDetails.difficulty as SongDifficulty,
         needsWork: song.rehearsalDetails.needsWork,
         order: song.rehearsalDetails.order,
@@ -135,7 +188,6 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
   const [showLeadSingerDropdown, setShowLeadSingerDropdown] = useState(false);
   const [showSongDropdown, setShowSongDropdown] = useState(false);
 
-  // Individual state for each voice part member dropdown
   const [voicePartDropdownStates, setVoicePartDropdownStates] = useState<
     Record<
       number,
@@ -146,21 +198,16 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
     >
   >({});
 
-  // Add a ref to track which dropdown is currently open
   const activeDropdownRef = useRef<string | null>(null);
 
-  // Helper functions to manage dropdown state
   const openDropdown = (dropdownName: string) => {
-    // Close all other dropdowns first
     setShowInstrumentDropdown(false);
     setShowMusicianUserDropdown(false);
     setShowLeadSingerDropdown(false);
     setShowSongDropdown(false);
 
-    // Set the active dropdown
     activeDropdownRef.current = dropdownName;
 
-    // Open the specific dropdown
     switch (dropdownName) {
       case 'instrument':
         setShowInstrumentDropdown(true);
@@ -175,7 +222,6 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
         setShowSongDropdown(true);
         break;
       default:
-        // No action needed for unknown dropdown names
         break;
     }
   };
@@ -197,15 +243,12 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
           setShowSongDropdown(false);
           break;
         default:
-          // No action needed for unknown dropdown names
           break;
       }
     }
   };
 
-  // Helper functions for voice part member dropdowns
   const openVoicePartDropdown = (voicePartIndex: number) => {
-    // Close all other voice part dropdowns
     setVoicePartDropdownStates((prev) => {
       const newState: Record<
         number,
@@ -285,6 +328,7 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
     [],
   );
   const [leadSingerSearchTerm, setLeadSingerSearchTerm] = useState('');
+  const [musicianUserSearchTerm, setMusicianUserSearchTerm] = useState('');
 
   const [showUpdateForm, setShowUpdateForm] = useState(false);
   const [songToUpdate, setSongToUpdate] =
@@ -593,10 +637,11 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
     }
   };
 
-  const handleDeleteSong = async (index: number) => {
-    const songToDelete = songs[index];
+  const handleDeleteSong = (index: number) => {
+    const songsToUse = convertedSongs.length > 0 ? convertedSongs : songs;
+    const songToDeleteData = songsToUse[index];
 
-    if (!songToDelete) {
+    if (!songToDeleteData) {
       toast.error('Chanson introuvable');
       return;
     }
@@ -608,77 +653,57 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
       return;
     }
 
-    const confirmed = await new Promise<boolean>((resolve) => {
-      toast.custom(
-        (t) => (
-          <div className="max-w-sm rounded-lg border border-gray-200 bg-white p-4 shadow-lg">
-            <div className="flex items-center gap-3">
-              <div className="shrink-0">
-                <div className="flex size-8 items-center justify-center rounded-full bg-red-100">
-                  <FaTrash className="text-sm text-red-600" />
-                </div>
-              </div>
-              <div className="flex-1">
-                <h4 className="text-sm font-medium text-gray-900">
-                  Supprimer la chanson
-                </h4>
-                <p className="mt-1 text-sm text-gray-600">
-                  Êtes-vous sûr de vouloir supprimer &quot;
-                  {getSelectedSongTitle(songToDelete.songId)}&quot; ?
-                </p>
-              </div>
-            </div>
-            <div className="mt-4 flex items-center gap-2">
-              <button
-                onClick={() => {
-                  toast.dismiss(t.id);
-                  resolve(true);
-                }}
-                className="flex-1 rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
-              >
-                Supprimer
-              </button>
-              <button
-                onClick={() => {
-                  toast.dismiss(t.id);
-                  resolve(false);
-                }}
-                className="flex-1 rounded-md bg-gray-100 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
-              >
-                Annuler
-              </button>
-            </div>
-          </div>
-        ),
-        { duration: Infinity },
+    setSongToDelete({ index, song: songToDeleteData });
+    setShowDeleteConfirm(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!songToDelete) return;
+
+    try {
+      const idToUse =
+        songToDelete.song.rehearsalSongId || songToDelete.song.songId;
+
+      await RehearsalService.deleteRehearsalSong(rehearsalId!, idToUse);
+
+      const songsToUse = convertedSongs.length > 0 ? convertedSongs : songs;
+
+      const updatedSongs = songsToUse.filter(
+        (_, i) => i !== songToDelete.index,
       );
-    });
 
-    if (!confirmed) {
-      return;
+      const reorderedSongs = updatedSongs.map((song, i) => ({
+        ...song,
+        order: i + 1,
+      }));
+      onSongsChange(reorderedSongs);
+
+      if (fetchRehearsalSongs) {
+        await fetchRehearsalSongs();
+      }
+
+      toast.success('Chanson supprimée avec succès');
+
+      setShowDeleteConfirm(false);
+      setSongToDelete(null);
+    } catch (error: any) {
+      if (error.response?.status === 403) {
+        toast.error(
+          "Permission refusée: Vous n'avez pas le droit de supprimer cette chanson",
+        );
+      } else if (error.response?.status === 404) {
+        toast.error('Chanson introuvable');
+      } else if (error.response?.status === 401) {
+        toast.error('Authentification requise');
+      } else {
+        toast.error('Erreur lors de la suppression de la chanson');
+      }
     }
+  };
 
-    // Call API to delete the song
-    await RehearsalService.deleteRehearsalSong(
-      rehearsalId,
-      songToDelete.songId,
-    );
-
-    // Update local state
-    const updatedSongs = songs.filter((_, i) => i !== index);
-
-    const reorderedSongs = updatedSongs.map((song, i) => ({
-      ...song,
-      order: i + 1,
-    }));
-    onSongsChange(reorderedSongs);
-
-    // Refresh data from API
-    if (fetchRehearsalSongs) {
-      await fetchRehearsalSongs();
-    }
-
-    toast.success('Chanson supprimée avec succès');
+  const handleCancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setSongToDelete(null);
   };
 
   const addVoicePart = () => {
@@ -859,30 +884,24 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
               type="button"
               onClick={async (event) => {
                 try {
-                  // Show loading state
                   const button = event.target as HTMLButtonElement;
                   button.disabled = true;
                   button.textContent = 'Sauvegarde...';
 
-                  // Save rehearsal first
                   const rehearsalSaved = await ensureRehearsalSaved();
 
                   if (rehearsalSaved) {
-                    // Open add song popup after successful save
                     setShowAddSong(true);
                   } else {
-                    // Show error if save failed
                     toast.error(
                       'Erreur lors de la sauvegarde de la répétition. Veuillez réessayer.',
                     );
                   }
                 } catch (error) {
-                  // Error logging removed for production
                   toast.error(
                     'Erreur lors de la sauvegarde de la répétition. Veuillez réessayer.',
                   );
                 } finally {
-                  // Restore button state
                   const button = event.target as HTMLButtonElement;
                   button.disabled = false;
                   button.textContent = 'Ajouter une chanson';
@@ -899,7 +918,6 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
             <button
               type="button"
               onClick={() => {
-                // Promotion dialog functionality removed as it's not used
                 toast.success('Fonctionnalité de promotion non disponible');
               }}
               disabled={isPromoting}
@@ -946,55 +964,62 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
             </div>
           );
         }
+
         if (convertedSongs.length > 0 || songs.length > 0) {
+          const songsToRender =
+            convertedSongs.length > 0 ? convertedSongs : songs;
+
           return (
             <div className="space-y-3">
-              {(convertedSongs.length > 0 ? convertedSongs : songs).map(
-                (song, index) => (
-                  <div
-                    key={index}
-                    className="rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200 hover:shadow-md"
-                  >
-                    <div className="mb-3 flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <span className="text-sm font-medium text-gray-500">
-                          #{song.order}
+              {songsToRender.map((song, index) => (
+                <div
+                  key={index}
+                  className="rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200 hover:shadow-md"
+                >
+                  <div className="mb-3 flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className="text-sm font-medium text-gray-500">
+                        #{song.order}
+                      </span>
+                      <FaMusic className="text-blue-500" />
+                      <span className="font-medium text-gray-900">
+                        {getSelectedSongTitle(song.songId)}
+                      </span>
+                      {rehearsalInfo && convertedSongs.length > 0 && (
+                        <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
+                          📚 Bibliothèque
                         </span>
-                        <FaMusic className="text-blue-500" />
-                        <span className="font-medium text-gray-900">
-                          {getSelectedSongTitle(song.songId)}
+                      )}
+                      {convertedSongs.length > 0 && (
+                        <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
+                          🎯 Répétition
                         </span>
-                        {rehearsalInfo && convertedSongs.length > 0 && (
-                          <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
-                            📚 Bibliothèque
-                          </span>
-                        )}
-                        {convertedSongs.length > 0 && (
-                          <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
-                            🎯 Répétition
-                          </span>
-                        )}
-                        <span
-                          className={`rounded-full px-2 py-1 text-xs font-medium ${getDifficultyColor(song.difficulty)}`}
-                        >
-                          🎯 {song.difficulty} (répétition)
+                      )}
+                      <span
+                        className={`rounded-full px-2 py-1 text-xs font-medium ${getDifficultyColor(song.difficulty)}`}
+                      >
+                        🎯 {song.difficulty} (répétition)
+                      </span>
+                      <span
+                        className={`rounded-full px-2 py-1 text-xs font-medium ${getMusicalKeyColor()}`}
+                      >
+                        🎵 {song.musicalKey} (répétition)
+                      </span>
+                      {song.needsWork && (
+                        <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-800">
+                          Travail nécessaire
                         </span>
-                        <span
-                          className={`rounded-full px-2 py-1 text-xs font-medium ${getMusicalKeyColor()}`}
-                        >
-                          🎵 {song.musicalKey} (répétition)
-                        </span>
-                        {song.needsWork && (
-                          <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-800">
-                            Travail nécessaire
-                          </span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-600">
-                          <FaClock className="mr-1 inline" />
-                          {song.timeAllocated} min
-                        </span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-gray-600">
+                        <FaClock className="mr-1 inline" />
+                        {song.timeAllocated} min
+                      </span>
+                      {(() => {
+                        const canDelete = canDeleteSong(song);
+                        return canDelete;
+                      })() && (
                         <button
                           type="button"
                           onClick={() => handleEditSong(index)}
@@ -1002,91 +1027,98 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                         >
                           <FaEdit />
                         </button>
+                      )}
+                      {(() => {
+                        const canDelete = canDeleteSong(song);
+                        return canDelete;
+                      })() && (
                         <button
                           type="button"
-                          onClick={() => handleDeleteSong(index)}
+                          onClick={() => {
+                            handleDeleteSong(index);
+                          }}
                           className="rounded p-2 text-gray-600 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
                         >
                           <FaTrash />
                         </button>
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4 text-sm text-gray-600 md:grid-cols-2">
-                      <div>
-                        <span className="font-medium">
-                          Chanteur(s) principal(aux):
-                        </span>
-                        <span className="ml-2">
-                          {song.leadSingerIds && song.leadSingerIds.length > 0
-                            ? song.leadSingerIds
-                                .map((id) => getSelectedUserName(id))
-                                .join(', ')
-                            : 'Aucun'}
-                        </span>
-                      </div>
-                      {song.focusPoints && (
-                        <div className="md:col-span-2">
-                          <span className="font-medium">Points de focus:</span>
-                          <span className="ml-2">{song.focusPoints}</span>
-                        </div>
-                      )}
-                      {song.notes && (
-                        <div className="md:col-span-2">
-                          <span className="font-medium">Notes:</span>
-                          <span className="ml-2">{song.notes}</span>
-                        </div>
                       )}
                     </div>
+                  </div>
 
-                    {song.voiceParts && song.voiceParts.length > 0 && (
-                      <div className="mt-3 border-t border-gray-100 pt-3">
-                        <div className="mb-2 flex items-center gap-2">
-                          <FaUsers className="text-purple-500" />
-                          <span className="text-sm font-medium text-gray-700">
-                            Parties vocales
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {song.voiceParts.map((vp, vpIndex) => (
-                            <span
-                              key={vpIndex}
-                              className="rounded-full bg-purple-100 px-2 py-1 text-xs text-purple-800"
-                            >
-                              {vp.voicePartType} ({vp.memberIds?.length || 0}{' '}
-                              membres)
-                            </span>
-                          ))}
-                        </div>
+                  <div className="grid grid-cols-1 gap-4 text-sm text-gray-600 md:grid-cols-2">
+                    <div>
+                      <span className="font-medium">
+                        Chanteur(s) principal(aux):
+                      </span>
+                      <span className="ml-2">
+                        {song.leadSingerIds && song.leadSingerIds.length > 0
+                          ? song.leadSingerIds
+                              .map((id) => getSelectedUserName(id))
+                              .join(', ')
+                          : 'Aucun'}
+                      </span>
+                    </div>
+                    {song.focusPoints && (
+                      <div className="md:col-span-2">
+                        <span className="font-medium">Points de focus:</span>
+                        <span className="ml-2">{song.focusPoints}</span>
                       </div>
                     )}
-
-                    {song.musicians && song.musicians.length > 0 && (
-                      <div className="mt-2">
-                        <div className="mb-2 flex items-center gap-2">
-                          <FaMicrophone className="text-green-500" />
-                          <span className="text-sm font-medium text-gray-700">
-                            Musiciens
-                          </span>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {song.musicians.map((musician, mIndex) => (
-                            <span
-                              key={mIndex}
-                              className="rounded-full bg-green-100 px-2 py-1 text-xs text-green-800"
-                            >
-                              {musician.userId
-                                ? getSelectedUserName(musician.userId)
-                                : 'Non assigné'}{' '}
-                              - {musician.instrument}
-                            </span>
-                          ))}
-                        </div>
+                    {song.notes && (
+                      <div className="md:col-span-2">
+                        <span className="font-medium">Notes:</span>
+                        <span className="ml-2">{song.notes}</span>
                       </div>
                     )}
                   </div>
-                ),
-              )}
+
+                  {song.voiceParts && song.voiceParts.length > 0 && (
+                    <div className="mt-3 border-t border-gray-100 pt-3">
+                      <div className="mb-2 flex items-center gap-2">
+                        <FaUsers className="text-purple-500" />
+                        <span className="text-sm font-medium text-gray-700">
+                          Parties vocales
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {song.voiceParts.map((vp, vpIndex) => (
+                          <span
+                            key={vpIndex}
+                            className="rounded-full bg-purple-100 px-2 py-1 text-xs text-purple-800"
+                          >
+                            {vp.voicePartType} ({vp.memberIds?.length || 0}{' '}
+                            membres)
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {song.musicians && song.musicians.length > 0 && (
+                    <div className="mt-2">
+                      <div className="mb-2 flex items-center gap-2">
+                        <FaMicrophone className="text-green-500" />
+                        <span className="text-sm font-medium text-gray-700">
+                          Musiciens
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {song.musicians.map((musician, mIndex) => (
+                          <span
+                            key={mIndex}
+                            className="rounded-full bg-green-100 px-2 py-1 text-xs text-green-800"
+                          >
+                            {musician.userId
+                              ? getSelectedUserName(musician.userId)
+                              : 'Non assigné'}{' '}
+                            - {musician.instrument}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           );
         }
@@ -1193,15 +1225,10 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                 </div>
 
                 <div>
-                  {/* 
-                    REHEARSAL LEAD SINGER - This is rehearsal-specific
-                    The same song can have different lead singers in different rehearsals
-                  */}
                   <label className="block text-sm font-medium text-gray-700">
                     Chanteur(s) principal(aux) pour cette répétition
                   </label>
 
-                  {/* Selected Lead Singers Display */}
                   <div className="mb-2">
                     <div className="flex flex-wrap gap-2">
                       {selectedLeadSingerIds.map((singerId) => {
@@ -1225,7 +1252,6 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                     </div>
                   </div>
 
-                  {/* Lead Singer Selection Dropdown */}
                   <div className="relative">
                     <input
                       type="text"
@@ -1287,10 +1313,6 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                   </div>
                 </div>
 
-                {/* 
-                  REHEARSAL-SPECIFIC DIFFICULTY - The difficulty level for THIS rehearsal
-                  The same song can be rehearsed at different difficulty levels in different rehearsals
-                */}
                 <div>
                   <label className="mb-2 block text-sm font-medium text-gray-700">
                     Niveau de difficulté pour cette répétition
@@ -1313,10 +1335,6 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                   </select>
                 </div>
 
-                {/* 
-                  REHEARSAL-SPECIFIC MUSICAL KEY - The key for THIS rehearsal
-                  The same song can be rehearsed in different keys in different rehearsals
-                */}
                 <div>
                   <label className="mb-2 block text-sm font-medium text-gray-700">
                     Clé musicale pour cette répétition
@@ -1339,9 +1357,6 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                   </select>
                 </div>
 
-                {/* 
-                  REHEARSAL-SPECIFIC TIME ALLOCATION - How long to spend on this song in THIS rehearsal
-                */}
                 <div>
                   <label className="mb-2 block text-sm font-medium text-gray-700">
                     Temps alloué pour cette répétition (minutes)
@@ -1361,9 +1376,6 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                   />
                 </div>
 
-                {/* 
-                  REHEARSAL-SPECIFIC WORK FLAG - This song needs work in THIS rehearsal
-                */}
                 <div className="flex items-center">
                   <label className="flex items-center">
                     <input
@@ -1384,10 +1396,6 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                 </div>
               </div>
 
-              {/* 
-                REHEARSAL-SPECIFIC FOCUS POINTS AND NOTES
-                These are specific to this rehearsal, not the song itself
-              */}
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div>
                   <label className="mb-2 block text-sm font-medium text-gray-700">
@@ -1425,11 +1433,6 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
 
               {/* Voice Parts Management */}
               <div className="border-t border-gray-200 pt-6">
-                {/* 
-                  REHEARSAL VOICE PARTS - These are rehearsal-specific assignments
-                  Each rehearsal can assign different members to different voice parts
-                  Focus points and notes are specific to this rehearsal
-                */}
                 <div className="mb-4 flex items-center justify-between">
                   <h4 className="text-lg font-medium text-gray-900">
                     Attaque-chant
@@ -1720,17 +1723,46 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                       <div>
                         <label className="mb-2 block text-sm font-medium text-gray-700">
                           Utilisateur
+                          {!musician.userId && (
+                            <span className="ml-2 rounded bg-orange-100 px-2 py-1 text-xs text-orange-600">
+                              Non assigné
+                            </span>
+                          )}
                         </label>
+
+                        {/* Selected User Display */}
+                        <div className="mb-3">
+                          {musician.userId && musician.userId > 0 ? (
+                            <div className="flex flex-wrap gap-2">
+                              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-1 text-sm text-blue-800">
+                                {getSelectedUserName(musician.userId)}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    updateMusician(index, 'userId', 0);
+                                    setMusicianUserSearchTerm('');
+                                  }}
+                                  className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
+                                >
+                                  ×
+                                </button>
+                              </span>
+                            </div>
+                          ) : (
+                            <p className="text-sm text-gray-500">
+                              Aucun utilisateur sélectionné
+                            </p>
+                          )}
+                        </div>
+
                         <div className="relative">
                           <input
                             type="text"
-                            value={(() => {
-                              if (musician.userId === 0) return '';
-                              if (musician.userId)
-                                return getSelectedUserName(musician.userId);
-                              return '';
-                            })()}
-                            onChange={() => openDropdown('musicianUser')}
+                            value={musicianUserSearchTerm}
+                            onChange={(e) => {
+                              setMusicianUserSearchTerm(e.target.value);
+                              openDropdown('musicianUser');
+                            }}
                             placeholder="Tapez pour rechercher un utilisateur..."
                             className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                             onFocus={() => openDropdown('musicianUser')}
@@ -1747,6 +1779,13 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                                 Sélectionnez un musicien
                               </div>
                               {users
+                                .filter((u) =>
+                                  `${u.firstName} ${u.lastName}`
+                                    .toLowerCase()
+                                    .includes(
+                                      musicianUserSearchTerm.toLowerCase(),
+                                    ),
+                                )
                                 .sort((a, b) =>
                                   `${a.firstName} ${a.lastName}`.localeCompare(
                                     `${b.firstName} ${b.lastName}`,
@@ -1759,6 +1798,7 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                                     onMouseDown={(e) => {
                                       e.preventDefault();
                                       updateMusician(index, 'userId', u.id);
+                                      setMusicianUserSearchTerm('');
                                       closeDropdown('musicianUser');
                                     }}
                                   >
@@ -1767,6 +1807,17 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                                     </span>
                                   </div>
                                 ))}
+                              {users.filter((u) =>
+                                `${u.firstName} ${u.lastName}`
+                                  .toLowerCase()
+                                  .includes(
+                                    musicianUserSearchTerm.toLowerCase(),
+                                  ),
+                              ).length === 0 && (
+                                <div className="px-3 py-2 text-sm text-gray-500">
+                                  Aucun utilisateur trouvé
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -1931,6 +1982,48 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
             onCancel={handleUpdateCancel}
           />
         )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && songToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white shadow-xl">
+            <div className="p-6">
+              <div className="mb-4 flex items-center">
+                <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-red-100">
+                  <FaTrash className="text-xl text-red-600" />
+                </div>
+              </div>
+              <h3 className="mb-2 text-center text-lg font-semibold text-gray-900">
+                Confirmer la suppression
+              </h3>
+              <p className="mb-6 text-center text-gray-600">
+                Êtes-vous sûr de vouloir supprimer la chanson{' '}
+                <span className="font-semibold text-gray-900">
+                  &quot;{getSelectedSongTitle(songToDelete.song.songId)}&quot;
+                </span>
+                ?
+              </p>
+              <p className="mb-6 text-center text-sm text-red-600">
+                Cette action est irréversible.
+              </p>
+              <div className="flex gap-3">
+                <button
+                  onClick={handleCancelDelete}
+                  className="flex-1 rounded-md border border-gray-300 bg-white px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  className="flex-1 rounded-md bg-red-600 px-4 py-2 font-medium text-white hover:bg-red-700"
+                >
+                  Supprimer
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
