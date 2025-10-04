@@ -4,6 +4,9 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { UserRole } from '@/lib/user/type';
+import { useAuth } from '@/providers/AuthProvider';
+
 import { RehearsalService } from './service';
 import type {
   CreateRehearsalDto,
@@ -132,9 +135,32 @@ export const useRehearsalById = (id: number) => {
   };
 };
 
+// Permission helper function for rehearsal creation
+export const canCreateRehearsals = (
+  userRole: UserRole,
+  userCategories?: string[],
+): boolean => {
+  // Check if user has lead category (same as song permissions)
+  if (userCategories?.includes('LEAD')) {
+    return true;
+  }
+
+  // Also allow super admin and attendance admin roles
+  if (
+    userRole === UserRole.SUPER_ADMIN ||
+    userRole === UserRole.ATTENDANCE_ADMIN ||
+    userRole === UserRole.LEAD
+  ) {
+    return true;
+  }
+
+  return false;
+};
+
 export const useCreateRehearsal = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user, isAuthenticated } = useAuth();
 
   const createRehearsal = useCallback(
     async (data: CreateRehearsalDto): Promise<Rehearsal | false> => {
@@ -142,16 +168,42 @@ export const useCreateRehearsal = () => {
       setError(null);
 
       try {
+        // Check authentication
+        if (!isAuthenticated || !user) {
+          setError('Authentication required');
+          return false;
+        }
+
+        // Check permissions - LEAD is a category, not a role
+        const hasAccess = canCreateRehearsals(user.role, user.categories);
+        if (!hasAccess) {
+          setError('Insufficient permissions to create rehearsals');
+          return false;
+        }
+
         const result = await RehearsalService.createRehearsal(data);
         return result;
       } catch (err: any) {
-        setError(err.response?.data?.message || 'Failed to create rehearsal');
+        console.error('Rehearsal creation error:', err);
+        if (err.response?.status === 403) {
+          setError(
+            'Access denied: You do not have permission to create rehearsals. Please contact an administrator.',
+          );
+        } else if (err.response?.status === 401) {
+          setError('Authentication required. Please log in again.');
+        } else {
+          setError(
+            err.response?.data?.message ||
+              err.message ||
+              'Failed to create rehearsal',
+          );
+        }
         return false;
       } finally {
         setIsLoading(false);
       }
     },
-    [],
+    [user, isAuthenticated],
   );
 
   return {

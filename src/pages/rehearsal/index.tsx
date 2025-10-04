@@ -3,7 +3,7 @@ import React from 'react';
 import Layout from '@/components/layout';
 import { RehearsalErrorBoundary } from '@/components/rehearsal/ErrorBoundary';
 import { RehearsalDashboard } from '@/components/rehearsal/RehearsalDashboard';
-import { UserRole } from '@/lib/user/type';
+import { UserCategory, UserRole } from '@/lib/user/type';
 import { useAuth } from '@/providers/AuthProvider';
 
 const RehearsalPage: React.FC = () => {
@@ -23,7 +23,8 @@ const RehearsalPage: React.FC = () => {
   const canViewRehearsals =
     user.role === UserRole.SUPER_ADMIN ||
     user.role === UserRole.LEAD ||
-    user.role === UserRole.ATTENDANCE_ADMIN;
+    user.role === UserRole.ATTENDANCE_ADMIN ||
+    user.categories?.includes(UserCategory.LEAD);
 
   if (!canViewRehearsals) {
     return (
