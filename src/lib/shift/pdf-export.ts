@@ -29,7 +29,7 @@ export const exportShiftListToPDF = async (shifts: LeadershipShift[]) => {
   // Add title
   pdfDoc.setFontSize(16);
   pdfDoc.setFont('helvetica', 'bold');
-  pdfDoc.text('Liste des Horaires', margin + 36, margin + 10);
+  pdfDoc.text('Programme de Conduite', margin + 36, margin + 10);
 
   // Add date
   pdfDoc.setFontSize(12);
@@ -71,74 +71,131 @@ export const exportShiftListToPDF = async (shifts: LeadershipShift[]) => {
 
   // Table headers
   const tableStartY = currentY;
-  const colWidths = [35, 30, 40, 20]; // Name, Leader, Date Range, Status
+  const pageWidth = pdfDoc.internal.pageSize.getWidth();
+  const tableWidth = pageWidth - margin * 2;
+  const colWidths = [tableWidth * 0.35, tableWidth * 0.45, tableWidth * 0.2]; // Leader, Date Range, Status
   const colPositions = [
     margin,
     margin + colWidths[0]!,
     margin + colWidths[0]! + colWidths[1]!,
-    margin + colWidths[0]! + colWidths[1]! + colWidths[2]!,
   ];
 
-  // Header row
-  pdfDoc.setFontSize(10);
-  pdfDoc.setFont('helvetica', 'bold');
-  pdfDoc.text('Nom', colPositions[0]!, tableStartY);
-  pdfDoc.text('Conducteur', colPositions[1]!, tableStartY);
-  pdfDoc.text('Période', colPositions[2]!, tableStartY);
-  pdfDoc.text('Statut', colPositions[3]!, tableStartY);
+  // Header row background
+  const headerHeight = 8;
+  pdfDoc.setFillColor(240, 240, 240);
+  pdfDoc.rect(margin, tableStartY - 5, tableWidth, headerHeight, 'F');
 
-  // Draw header underline
+  // Draw header borders
+  pdfDoc.setDrawColor(0, 0, 0);
+  pdfDoc.setLineWidth(0.3);
+
+  // Outer border
+  pdfDoc.rect(margin, tableStartY - 5, tableWidth, headerHeight);
+
+  // Column separators
   pdfDoc.line(
-    margin,
+    colPositions[1]!,
+    tableStartY - 5,
+    colPositions[1]!,
     tableStartY + 3,
-    margin + colWidths[0]! + colWidths[1]! + colWidths[2]! + colWidths[3]!,
+  );
+  pdfDoc.line(
+    colPositions[2]!,
+    tableStartY - 5,
+    colPositions[2]!,
     tableStartY + 3,
   );
 
+  // Header text
+  pdfDoc.setFontSize(10);
+  pdfDoc.setFont('helvetica', 'bold');
+  pdfDoc.text('Conducteur', colPositions[0]! + 2, tableStartY);
+  pdfDoc.text('Période', colPositions[1]! + 2, tableStartY);
+  pdfDoc.text('Statut', colPositions[2]! + 2, tableStartY);
+
   // Table rows
   currentY = tableStartY + 8;
-  const rowHeight = 6;
+  const rowHeight = 8;
   const pageHeight = pdfDoc.internal.pageSize.getHeight();
   const bottomMargin = 20;
 
-  shifts.forEach((shift) => {
+  shifts.forEach((shift, index) => {
     // Check if we need a new page
     if (currentY + rowHeight > pageHeight - bottomMargin) {
       pdfDoc.addPage();
       currentY = margin;
 
       // Redraw headers on new page
-      pdfDoc.setFontSize(10);
-      pdfDoc.setFont('helvetica', 'bold');
-      pdfDoc.text('Nom', colPositions[0]!, currentY);
-      pdfDoc.text('Conducteur', colPositions[1]!, currentY);
-      pdfDoc.text('Période', colPositions[2]!, currentY);
-      pdfDoc.text('Statut', colPositions[3]!, currentY);
+      pdfDoc.setFillColor(240, 240, 240);
+      pdfDoc.rect(margin, currentY - 5, tableWidth, headerHeight, 'F');
+
+      pdfDoc.setDrawColor(0, 0, 0);
+      pdfDoc.setLineWidth(0.3);
+      pdfDoc.rect(margin, currentY - 5, tableWidth, headerHeight);
       pdfDoc.line(
-        margin,
-        currentY + 3,
-        margin + colWidths[0]! + colWidths[1]! + colWidths[2]! + colWidths[3]!,
+        colPositions[1]!,
+        currentY - 5,
+        colPositions[1]!,
         currentY + 3,
       );
+      pdfDoc.line(
+        colPositions[2]!,
+        currentY - 5,
+        colPositions[2]!,
+        currentY + 3,
+      );
+
+      pdfDoc.setFontSize(10);
+      pdfDoc.setFont('helvetica', 'bold');
+      pdfDoc.text('Conducteur', colPositions[0]! + 2, currentY);
+      pdfDoc.text('Période', colPositions[1]! + 2, currentY);
+      pdfDoc.text('Statut', colPositions[2]! + 2, currentY);
       currentY += 8;
+    }
+
+    // Draw row borders
+    pdfDoc.setDrawColor(200, 200, 200);
+    pdfDoc.setLineWidth(0.2);
+
+    // Outer border
+    pdfDoc.rect(margin, currentY - 4, tableWidth, rowHeight);
+
+    // Column separators
+    pdfDoc.line(colPositions[1]!, currentY - 4, colPositions[1]!, currentY + 4);
+    pdfDoc.line(colPositions[2]!, currentY - 4, colPositions[2]!, currentY + 4);
+
+    // Alternate row background
+    if (index % 2 === 1) {
+      pdfDoc.setFillColor(250, 250, 250);
+      pdfDoc.rect(margin, currentY - 4, tableWidth, rowHeight, 'F');
+      // Redraw borders after fill
+      pdfDoc.setDrawColor(200, 200, 200);
+      pdfDoc.rect(margin, currentY - 4, tableWidth, rowHeight);
+      pdfDoc.line(
+        colPositions[1]!,
+        currentY - 4,
+        colPositions[1]!,
+        currentY + 4,
+      );
+      pdfDoc.line(
+        colPositions[2]!,
+        currentY - 4,
+        colPositions[2]!,
+        currentY + 4,
+      );
     }
 
     // Shift data
     pdfDoc.setFontSize(9);
     pdfDoc.setFont('helvetica', 'normal');
 
-    // Name (truncate if too long)
-    const name =
-      shift.name.length > 18 ? `${shift.name.substring(0, 15)}...` : shift.name;
-    pdfDoc.text(name, colPositions[0]!, currentY);
-
     // Leader
     const leaderName = shift.leader
-      ? `${shift.leader.firstName} ${shift.leader.lastName}`.length > 12
-        ? `${`${shift.leader.firstName} ${shift.leader.lastName}`.substring(0, 9)}...`
-        : `${shift.leader.firstName} ${shift.leader.lastName}`
+      ? `${shift.leader.lastName} ${shift.leader.firstName}`.length > 20
+        ? `${` ${shift.leader.lastName} ${shift.leader.firstName}`.substring(0, 17)}...`
+        : ` ${shift.leader.lastName} ${shift.leader.firstName}`
       : 'N/A';
-    pdfDoc.text(leaderName, colPositions[1]!, currentY);
+    pdfDoc.text(leaderName, colPositions[0]! + 2, currentY);
 
     // Date Range
     const dateRange = (() => {
@@ -147,7 +204,7 @@ export const exportShiftListToPDF = async (shifts: LeadershipShift[]) => {
       const end = new Date(shift.endDate).toLocaleDateString('fr-FR');
       return `${start} - ${end}`;
     })();
-    pdfDoc.text(dateRange, colPositions[2]!, currentY);
+    pdfDoc.text(dateRange, colPositions[1]! + 2, currentY);
 
     // Status
     const getStatusText = (status: string) => {
@@ -181,7 +238,7 @@ export const exportShiftListToPDF = async (shifts: LeadershipShift[]) => {
       }
     }
 
-    pdfDoc.text(getStatusText(actualStatus), colPositions[3]!, currentY);
+    pdfDoc.text(getStatusText(actualStatus), colPositions[2]! + 2, currentY);
 
     currentY += rowHeight;
   });
