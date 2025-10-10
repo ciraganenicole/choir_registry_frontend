@@ -73,8 +73,24 @@ export const RehearsalService = {
   },
 
   createRehearsal: async (data: CreateRehearsalDto): Promise<Rehearsal> => {
-    const response = await api.post('/rehearsals', data);
-    return response.data;
+    console.log('RehearsalService: createRehearsal called with:', data);
+
+    try {
+      const response = await api.post('/rehearsals', data);
+      console.log('RehearsalService: createRehearsal response:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('RehearsalService: createRehearsal error:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message,
+        url: error.config?.url,
+        method: error.config?.method,
+        headers: error.config?.headers,
+      });
+      throw error;
+    }
   },
 
   updateRehearsal: async (
@@ -315,13 +331,27 @@ export const RehearsalService = {
       const response = await api.post('/rehearsals/templates', templateData);
       return response.data;
     } catch (error) {
+      // Get current user from localStorage for default IDs
+      let defaultUserId = 1;
+      try {
+        const user = localStorage.getItem('user');
+        if (user) {
+          const userData = JSON.parse(user);
+          defaultUserId = userData.id || 1;
+        }
+      } catch (er) {
+        console.warn(
+          'Could not parse user data for template creation, using default ID',
+        );
+      }
+
       const rehearsalData = {
         ...templateData,
         isTemplate: true,
         date: new Date().toISOString(),
         location: 'Template Location',
-        rehearsalLeadId: 1, // Default lead
-        shiftLeadId: 1, // Default shift lead
+        rehearsalLeadId: defaultUserId,
+        shiftLeadId: defaultUserId,
       };
 
       const response = await api.post('/rehearsals', rehearsalData);
