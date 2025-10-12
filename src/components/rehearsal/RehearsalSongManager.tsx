@@ -370,25 +370,6 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
     return 'Chanson inconnue';
   };
 
-  const validateVoiceParts = (songsToValidate: CreateRehearsalSongDto[]) => {
-    const validatedSongs = songsToValidate.map((song) => {
-      const validatedSong = {
-        ...song,
-        voiceParts:
-          song.voiceParts?.map((voicePart) => ({
-            ...voicePart,
-            voicePartType: rehearsalVoicePartOptions.includes(
-              voicePart.voicePartType,
-            )
-              ? voicePart.voicePartType
-              : 'Soprano',
-          })) || [],
-      };
-      return validatedSong;
-    });
-    return validatedSongs;
-  };
-
   const handleLeadSingerToggle = (userId: number) => {
     setSelectedLeadSingerIds((prev) => {
       if (prev.includes(userId)) {
@@ -541,9 +522,6 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
 
     await RehearsalService.addSongToRehearsal(rehearsalId, songToAdd);
 
-    const validatedSongs = validateVoiceParts([...songs, songToAdd]);
-    onSongsChange(validatedSongs);
-
     if (fetchRehearsalSongs) {
       await fetchRehearsalSongs();
     }
@@ -620,12 +598,6 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
         updateData,
       );
 
-      const updatedSongs = [...songs];
-      updatedSongs[editingSongIndex] = { ...songToUpdateData, ...updateData };
-
-      const validatedSongs = validateVoiceParts(updatedSongs);
-      onSongsChange(validatedSongs);
-
       if (fetchRehearsalSongs) {
         await fetchRehearsalSongs();
       }
@@ -665,18 +637,6 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
         songToDelete.song.rehearsalSongId || songToDelete.song.songId;
 
       await RehearsalService.deleteRehearsalSong(rehearsalId!, idToUse);
-
-      const songsToUse = convertedSongs.length > 0 ? convertedSongs : songs;
-
-      const updatedSongs = songsToUse.filter(
-        (_, i) => i !== songToDelete.index,
-      );
-
-      const reorderedSongs = updatedSongs.map((song, i) => ({
-        ...song,
-        order: i + 1,
-      }));
-      onSongsChange(reorderedSongs);
 
       if (fetchRehearsalSongs) {
         await fetchRehearsalSongs();
@@ -1051,11 +1011,15 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                         Chanteur(s) principal(aux):
                       </span>
                       <span className="ml-2">
-                        {song.leadSingerIds && song.leadSingerIds.length > 0
-                          ? song.leadSingerIds
-                              .map((id) => getSelectedUserName(id))
-                              .join(', ')
-                          : 'Aucun'}
+                        {song.leadSingerIds && song.leadSingerIds.length > 0 ? (
+                          song.leadSingerIds
+                            .map((id) => getSelectedUserName(id))
+                            .join(', ')
+                        ) : (
+                          <span className="italic text-gray-400">
+                            Non assigné
+                          </span>
+                        )}
                       </span>
                     </div>
                     {song.focusPoints && (
@@ -1202,14 +1166,16 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                             onMouseDown={(e) => {
                               e.preventDefault();
                               const songId = parseInt(song.id, 10);
-                              setNewSong((prev) => ({
-                                ...prev,
-                                songId,
-                                voiceParts: [],
-                                musicians: [],
-                                focusPoints: '',
-                                notes: '',
-                              }));
+                              setNewSong((prev) => {
+                                return {
+                                  ...prev,
+                                  songId,
+                                  voiceParts: [],
+                                  musicians: [],
+                                  focusPoints: '',
+                                  notes: '',
+                                };
+                              });
                               closeDropdown('song');
                             }}
                           >
@@ -1934,32 +1900,51 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
               </div>
 
               {/* Modal Actions */}
-              <div className="flex items-center justify-end gap-3 border-t border-gray-200 pt-6">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowAddSong(false);
-                    setEditingSongIndex(null);
-                    resetForm();
-                  }}
-                  className="rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
-                >
-                  Annuler
-                </button>
-                <button
-                  type="button"
-                  onClick={
-                    editingSongIndex !== null ? handleUpdateSong : handleAddSong
-                  }
-                  disabled={
-                    editingSongIndex !== null
-                      ? false
-                      : !newSong.songId || newSong.leadSingerIds.length === 0
-                  }
-                  className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-                >
-                  {editingSongIndex !== null ? 'Mettre à jour' : 'Ajouter'}
-                </button>
+              <div className="border-t border-gray-200 pt-6">
+                {/* Warning about unassigned musicians */}
+                {newSong.musicians.some((m) => !m.userId || m.userId === 0) && (
+                  <div className="mb-4 rounded-md border border-yellow-300 bg-yellow-50 p-3">
+                    <p className="text-sm text-yellow-800">
+                      ⚠️ Attention: Les musiciens sans utilisateur assigné ne
+                      seront pas sauvegardés. Veuillez assigner un utilisateur à
+                      chaque musicien ou les supprimer.
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex items-center justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAddSong(false);
+                      setEditingSongIndex(null);
+                      resetForm();
+                    }}
+                    className="rounded-md bg-gray-100 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (editingSongIndex !== null) {
+                        handleUpdateSong();
+                      } else {
+                        handleAddSong();
+                      }
+                    }}
+                    disabled={
+                      editingSongIndex !== null
+                        ? false
+                        : !newSong.songId || newSong.leadSingerIds.length === 0
+                    }
+                    className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                  >
+                    {editingSongIndex !== null
+                      ? 'Confirmer la modification'
+                      : "Confirmer l'ajout"}
+                  </button>
+                </div>
               </div>
             </div>
           </div>

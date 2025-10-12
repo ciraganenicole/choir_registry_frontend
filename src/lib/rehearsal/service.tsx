@@ -113,16 +113,21 @@ export const RehearsalService = {
     rehearsalId: number,
     songData: CreateRehearsalSongDto,
   ): Promise<any> => {
+    // Don't transform - backend expects leadSingerIds, not leadSingers
     const transformedSongData = {
       ...songData,
-      leadSingers: songData.leadSingerIds?.map((id) => ({ id })) || [],
-      leadSingerIds: undefined,
+      // Filter out musicians without a valid userId (0, null, or undefined)
+      musicians:
+        songData.musicians?.filter((m) => m.userId && m.userId > 0) || [],
     };
 
-    const response = await api.post(
-      `/rehearsals/${rehearsalId}/songs`,
-      transformedSongData,
-    );
+    const endpoint = `/rehearsals/${rehearsalId}/songs`;
+
+    const response = await api.post(endpoint, transformedSongData);
+
+    if (response.data?.rehearsalSongs) {
+      return response.data;
+    }
     return response.data;
   },
   fetchRehearsalSongs: async (
@@ -137,10 +142,12 @@ export const RehearsalService = {
     songsData: CreateRehearsalSongDto[],
   ): Promise<any[]> => {
     const promises = songsData.map((songData) => {
+      // Don't transform - backend expects leadSingerIds, not leadSingers
       const transformedSongData = {
         ...songData,
-        leadSingers: songData.leadSingerIds?.map((id) => ({ id })) || [],
-        leadSingerIds: undefined,
+        // Filter out musicians without a valid userId (0, null, or undefined)
+        musicians:
+          songData.musicians?.filter((m) => m.userId && m.userId > 0) || [],
       };
 
       return api.post(`/rehearsals/${rehearsalId}/songs`, transformedSongData);
@@ -189,7 +196,10 @@ export const RehearsalService = {
         updateData.chorusMemberIds = songData.chorusMemberIds;
       }
       if (songData.musicians !== undefined) {
-        updateData.musicians = songData.musicians;
+        // Filter out musicians without a valid userId (0, null, or undefined)
+        updateData.musicians = songData.musicians.filter(
+          (m) => m.userId && m.userId > 0,
+        );
       }
       if (songData.voiceParts !== undefined) {
         updateData.voiceParts = songData.voiceParts;

@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import toast from 'react-hot-toast';
 import { FaTimes } from 'react-icons/fa';
 import Select from 'react-select';
 
@@ -254,7 +255,10 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
     }
 
     // Validate performanceId if no performanceId is provided in props
-    if (!performanceId && formData.performanceId === 0) {
+    if (
+      !performanceId &&
+      (!formData.performanceId || formData.performanceId === 0)
+    ) {
       errors.performanceId = 'Veuillez sélectionner une performance';
     }
 
@@ -344,55 +348,77 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
       return;
     }
 
-    if (isEditing) {
-      if (!rehearsal || !rehearsal.id) {
-        return;
-      }
-
-      const updateData: UpdateRehearsalDto = {
-        title: formData.title,
-        date: formData.date,
-        type: formData.type,
-        location: formData.location,
-        duration: formData.duration,
-        rehearsalLeadId: formData.rehearsalLeadId,
-        shiftLeadId: formData.shiftLeadId,
-        notes: formData.notes,
-        objectives: formData.objectives,
-        musicians: formData.musicians,
-      };
-
-      const success = await updateRehearsal(rehearsal.id, updateData);
-      if (success) {
-        onSuccess?.();
-      }
-    } else if (isRehearsalSaved && savedRehearsalId) {
-      if (formData.rehearsalSongs && formData.rehearsalSongs.length > 0) {
-        await addSongsToRehearsal(savedRehearsalId, formData.rehearsalSongs);
-      }
-
-      onSuccess?.();
-    } else {
-      const rehearsalDataWithoutSongs = {
-        ...formData,
-        rehearsalSongs: undefined,
-      };
-
-      const createdRehearsal = await createRehearsal(rehearsalDataWithoutSongs);
-
-      if (createdRehearsal && createdRehearsal.id) {
-        setSavedRehearsalId(createdRehearsal.id);
-        setIsRehearsalSaved(true);
-
-        if (formData.rehearsalSongs && formData.rehearsalSongs.length > 0) {
-          await addSongsToRehearsal(
-            createdRehearsal.id,
-            formData.rehearsalSongs,
-          );
+    try {
+      if (isEditing) {
+        if (!rehearsal || !rehearsal.id) {
+          return;
         }
 
+        const updateData: UpdateRehearsalDto = {
+          title: formData.title,
+          date: formData.date,
+          type: formData.type,
+          location: formData.location,
+          duration: formData.duration,
+          rehearsalLeadId: formData.rehearsalLeadId,
+          shiftLeadId: formData.shiftLeadId,
+          notes: formData.notes,
+          objectives: formData.objectives,
+          musicians: formData.musicians,
+        };
+
+        const success = await updateRehearsal(rehearsal.id, updateData);
+        if (success) {
+          toast.success('Répétition modifiée avec succès');
+          onSuccess?.();
+        }
+      } else if (isRehearsalSaved && savedRehearsalId) {
+        if (formData.rehearsalSongs && formData.rehearsalSongs.length > 0) {
+          await addSongsToRehearsal(savedRehearsalId, formData.rehearsalSongs);
+        }
+
+        toast.success('Chansons ajoutées avec succès à la répétition');
         onSuccess?.();
+      } else {
+        const rehearsalDataWithoutSongs = {
+          ...formData,
+          rehearsalSongs: undefined,
+        };
+
+        const createdRehearsal = await createRehearsal(
+          rehearsalDataWithoutSongs,
+        );
+
+        if (createdRehearsal && createdRehearsal.id) {
+          setSavedRehearsalId(createdRehearsal.id);
+          setIsRehearsalSaved(true);
+
+          if (formData.rehearsalSongs && formData.rehearsalSongs.length > 0) {
+            await addSongsToRehearsal(
+              createdRehearsal.id,
+              formData.rehearsalSongs,
+            );
+          }
+
+          toast.success('Répétition créée avec succès');
+          onSuccess?.();
+        } else {
+          toast.error('Erreur lors de la création de la répétition');
+        }
       }
+    } catch (error: any) {
+      const errorMessage =
+        error.response?.data?.message ||
+        error.message ||
+        'Une erreur est survenue lors de la sauvegarde de la répétition';
+
+      // Show error toast
+      toast.error(errorMessage);
+
+      // Set a general error message
+      setValidationErrors({
+        general: errorMessage,
+      });
     }
   };
 
@@ -443,10 +469,10 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="h-[98vh] w-full overflow-y-auto rounded-lg bg-white shadow-xl md:w-[80%]">
-        <div className="flex items-center justify-between border-b border-gray-400 p-6 ">
-          <h2 className="text-xl font-semibold text-gray-900">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4">
+      <div className="h-[95vh] w-full max-w-6xl overflow-y-auto rounded-lg bg-white shadow-xl sm:h-[98vh]">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-400 bg-white p-4 sm:p-6">
+          <h2 className="text-lg font-semibold text-gray-900 sm:text-xl">
             {(() => {
               if (isEditing) return 'Modifier la répétition';
               if (isTemplateMode)
@@ -456,31 +482,31 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
           </h2>
           <button
             onClick={onCancel}
-            className="rounded-md bg-red-500 px-4 py-2 text-gray-400 transition-colors hover:text-gray-600"
+            className="rounded-md bg-red-500 px-3 py-2 text-gray-400 transition-colors hover:text-gray-600 sm:px-4 sm:py-2"
           >
-            <FaTimes className="text-lg text-white" />
+            <FaTimes className="text-base text-white sm:text-lg" />
           </button>
         </div>
 
-        <div className="space-y-6 p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="space-y-4 p-3 sm:space-y-6 sm:p-6">
+          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
             {validationErrors.general && (
-              <div className="rounded-md border border-red-200 bg-red-50 p-4">
-                <p className="text-sm text-red-600">
+              <div className="rounded-md border border-red-200 bg-red-50 p-3 sm:p-4">
+                <p className="text-xs text-red-600 sm:text-sm">
                   {validationErrors.general}
                 </p>
               </div>
             )}
 
-            <div className="mb-4 grid grid-cols-1  gap-4 rounded-lg border border-gray-400 bg-white p-6 md:grid-cols-3">
-              <h4 className="text-md col-span-3 mb-4 font-medium text-gray-900">
+            <div className="mb-4 grid grid-cols-1 gap-3 rounded-lg border border-gray-400 bg-white p-4 sm:gap-4 sm:p-6 lg:grid-cols-3">
+              <h4 className="sm:text-md col-span-1 mb-2 text-sm font-medium text-gray-900 sm:mb-4 lg:col-span-3">
                 Informations générales
               </h4>
 
-              <div className="mb-4">
+              <div className="mb-2 sm:mb-4 lg:col-span-3">
                 <label
                   htmlFor="title"
-                  className="mb-2 block text-sm font-medium text-gray-700"
+                  className="mb-1 block text-xs font-medium text-gray-700 sm:mb-2 sm:text-sm"
                 >
                   Titre *
                 </label>
@@ -490,7 +516,7 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
                   name="title"
                   value={formData.title}
                   onChange={handleInputChange}
-                  className={`w-full rounded-md border px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-base ${
                     validationErrors.title
                       ? 'border-red-300'
                       : 'border-gray-300'
@@ -498,7 +524,7 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
                   placeholder="Entrez le titre de la répétition"
                 />
                 {validationErrors.title && (
-                  <p className="mt-1 text-sm text-red-600">
+                  <p className="mt-1 text-xs text-red-600 sm:text-sm">
                     {validationErrors.title}
                   </p>
                 )}
@@ -507,7 +533,7 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
               <div>
                 <label
                   htmlFor="date"
-                  className="mb-2 block text-sm font-medium text-gray-700"
+                  className="mb-1 block text-xs font-medium text-gray-700 sm:mb-2 sm:text-sm"
                 >
                   Date *
                 </label>
@@ -517,12 +543,12 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
                   name="date"
                   value={formData.date}
                   onChange={handleInputChange}
-                  className={`w-full rounded-md border px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-base ${
                     validationErrors.date ? 'border-red-300' : 'border-gray-300'
                   }`}
                 />
                 {validationErrors.date && (
-                  <p className="mt-1 text-sm text-red-600">
+                  <p className="mt-1 text-xs text-red-600 sm:text-sm">
                     {validationErrors.date}
                   </p>
                 )}
@@ -531,7 +557,7 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
               <div>
                 <label
                   htmlFor="duration"
-                  className="mb-2 block text-sm font-medium text-gray-700"
+                  className="mb-1 block text-xs font-medium text-gray-700 sm:mb-2 sm:text-sm"
                 >
                   Durée (minutes) *
                 </label>
@@ -543,14 +569,14 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
                   onChange={handleInputChange}
                   min="15"
                   step="15"
-                  className={`w-full rounded-md border px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-base ${
                     validationErrors.duration
                       ? 'border-red-300'
                       : 'border-gray-300'
                   }`}
                 />
                 {validationErrors.duration && (
-                  <p className="mt-1 text-sm text-red-600">
+                  <p className="mt-1 text-xs text-red-600 sm:text-sm">
                     {validationErrors.duration}
                   </p>
                 )}
@@ -559,7 +585,7 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
               <div>
                 <label
                   htmlFor="type"
-                  className="mb-2 block text-sm font-medium text-gray-700"
+                  className="mb-1 block text-xs font-medium text-gray-700 sm:mb-2 sm:text-sm"
                 >
                   Type de répétition *
                 </label>
@@ -585,7 +611,7 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
                       }
                     }}
                     placeholder="Tapez pour rechercher un type..."
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-base"
                     onFocus={() => setShowTypeDropdown(true)}
                     onBlur={() =>
                       setTimeout(() => setShowTypeDropdown(false), 200)
@@ -620,7 +646,7 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
               <div>
                 <label
                   htmlFor="location"
-                  className="mb-2 block text-sm font-medium text-gray-700"
+                  className="mb-1 block text-xs font-medium text-gray-700 sm:mb-2 sm:text-sm"
                 >
                   Lieu *
                 </label>
@@ -630,7 +656,7 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
                   name="location"
                   value={formData.location}
                   onChange={handleInputChange}
-                  className={`w-full rounded-md border px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-base ${
                     validationErrors.location
                       ? 'border-red-300'
                       : 'border-gray-300'
@@ -638,7 +664,7 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
                   placeholder="Entrez le lieu de la répétition"
                 />
                 {validationErrors.location && (
-                  <p className="mt-1 text-sm text-red-600">
+                  <p className="mt-1 text-xs text-red-600 sm:text-sm">
                     {validationErrors.location}
                   </p>
                 )}
@@ -646,10 +672,10 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
 
               {/* Performance Selector - Only show if no performanceId is provided */}
               {!performanceId ? (
-                <div>
+                <div className="lg:col-span-2">
                   <label
                     htmlFor="performanceId"
-                    className="mb-2 block text-sm font-medium text-gray-700"
+                    className="mb-1 block text-xs font-medium text-gray-700 sm:mb-2 sm:text-sm"
                   >
                     Performance associée *
                   </label>
@@ -763,7 +789,7 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
               <div>
                 <label
                   htmlFor="rehearsalLeadId"
-                  className="mb-2 block text-sm font-medium text-gray-700"
+                  className="mb-1 block text-xs font-medium text-gray-700 sm:mb-2 sm:text-sm"
                 >
                   Conducteur *
                 </label>
@@ -778,7 +804,7 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
                       rehearsalLeadId: leaderId,
                     }));
                   }}
-                  className={`w-full rounded-md border px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                  className={`w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-base ${
                     validationErrors.rehearsalLeadId
                       ? 'border-red-300'
                       : 'border-gray-300'
@@ -792,7 +818,7 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
                   ))}
                 </select>
                 {validationErrors.rehearsalLeadId && (
-                  <p className="mt-1 text-sm text-red-600">
+                  <p className="mt-1 text-xs text-red-600 sm:text-sm">
                     {validationErrors.rehearsalLeadId}
                   </p>
                 )}
@@ -818,17 +844,17 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
             </div>
 
             {/* Planning Section */}
-            <div className="rounded-lg border border-gray-400  bg-white p-4">
-              <h4 className="text-md mb-4 font-medium text-gray-900">
+            <div className="rounded-lg border border-gray-400 bg-white p-3 sm:p-4">
+              <h4 className="sm:text-md mb-3 text-sm font-medium text-gray-900 sm:mb-4">
                 Planification
               </h4>
 
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
                 {/* Objectives */}
-                <div className="">
+                <div>
                   <label
                     htmlFor="objectives"
-                    className="mb-2 block text-sm font-medium text-gray-700"
+                    className="mb-1 block text-xs font-medium text-gray-700 sm:mb-2 sm:text-sm"
                   >
                     Objectifs
                   </label>
@@ -838,7 +864,7 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
                     value={formData.objectives || ''}
                     onChange={handleInputChange}
                     rows={3}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-base"
                     placeholder="Décrivez les objectifs de cette répétition..."
                   />
                 </div>
@@ -847,7 +873,7 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
                 <div>
                   <label
                     htmlFor="notes"
-                    className="mb-2 block text-sm font-medium text-gray-700"
+                    className="mb-1 block text-xs font-medium text-gray-700 sm:mb-2 sm:text-sm"
                   >
                     Notes
                   </label>
@@ -857,7 +883,7 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
                     value={formData.notes || ''}
                     onChange={handleInputChange}
                     rows={3}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-base"
                     placeholder="Ajoutez des notes supplémentaires..."
                   />
                 </div>
@@ -865,14 +891,14 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
             </div>
 
             {/* Song Management Section */}
-            <div className="rounded-lg border border-gray-400  bg-white p-6">
-              <h4 className="text-md mb-4 font-medium text-gray-900">
+            <div className="rounded-lg border border-gray-400 bg-white p-3 sm:p-6">
+              <h4 className="sm:text-md mb-3 text-sm font-medium text-gray-900 sm:mb-4">
                 Gestion des chansons
               </h4>
 
               {validationErrors.songs && (
-                <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3">
-                  <p className="text-sm text-red-600">
+                <div className="mb-3 rounded-md border border-red-200 bg-red-50 p-2 sm:mb-4 sm:p-3">
+                  <p className="text-xs text-red-600 sm:text-sm">
                     {validationErrors.songs}
                   </p>
                 </div>
@@ -913,23 +939,21 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
               />
             </div>
 
-            <div className="flex justify-end space-x-3 border-t border-gray-400 pt-6 ">
+            <div className="sticky bottom-0 flex flex-col justify-end gap-2 border-t border-gray-400 bg-white pt-3 sm:flex-row sm:gap-3 sm:pt-6">
               <button
                 type="button"
                 onClick={handleCancel}
-                className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-auto sm:text-sm"
               >
                 Annuler
               </button>
 
-              {isEditing && (
-                <button
-                  type="submit"
-                  className="rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  Mettre à jour
-                </button>
-              )}
+              <button
+                type="submit"
+                className="w-full rounded-md border border-transparent bg-blue-600 px-4 py-2 text-xs font-medium text-white hover:bg-blue-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-auto sm:text-sm"
+              >
+                {isEditing ? 'Confirmer la modification' : "Confirmer l'ajout"}
+              </button>
             </div>
           </form>
         </div>
