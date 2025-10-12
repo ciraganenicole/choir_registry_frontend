@@ -814,7 +814,7 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
   return (
     <div className="space-y-6">
       <div className="rounded-lg border border-gray-200 bg-white p-4">
-        <div className="mb-4 flex items-center justify-between">
+        <div className="mb-4 flex flex-col items-start justify-between md:flex-row md:items-center">
           <h3 className="text-lg font-medium text-gray-900">
             Chansons de la répétition
           </h3>
