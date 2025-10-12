@@ -504,7 +504,7 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
 
       return (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4"
           onClick={(e) => {
             // Only close if clicking on the backdrop, not on the modal content
             if (e.target === e.currentTarget) {
@@ -513,18 +513,18 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
           }}
         >
           <div
-            className="flex h-[95vh] w-full max-w-6xl flex-col overflow-hidden rounded-lg bg-white shadow-xl md:w-[90%]"
+            className="flex h-[95vh] w-full max-w-6xl flex-col overflow-hidden rounded-lg bg-white shadow-xl"
             onClick={(e) => {
               // Prevent clicks inside the modal from bubbling up
               e.stopPropagation();
             }}
           >
-            <div className="flex items-center justify-between border-b border-gray-200 p-6">
+            <div className="sticky top-0 z-10 flex items-center justify-between border-b border-gray-200 bg-white p-4 sm:p-6">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900">
+                <h2 className="text-lg font-semibold text-gray-900 sm:text-xl">
                   Modifier les détails de répétition
                 </h2>
-                <p className="mt-1 text-sm text-gray-600">
+                <p className="mt-1 text-xs text-gray-600 sm:text-sm">
                   Mise à jour des propriétés spécifiques à la répétition (la
                   chanson ne peut pas être changée)
                 </p>
@@ -533,14 +533,14 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                 onClick={() => {
                   onCancel();
                 }}
-                className="rounded-md bg-red-500 px-4 py-2 text-gray-400 transition-colors hover:text-gray-600"
+                className="rounded-md bg-red-500 px-3 py-2 text-gray-400 transition-colors hover:text-gray-600 sm:px-4 sm:py-2"
               >
-                <FaTimes className="text-lg text-white" />
+                <FaTimes className="text-base text-white sm:text-lg" />
               </button>
             </div>
 
             <div className="border-b border-gray-200">
-              <nav className="flex space-x-8 px-6">
+              <nav className="flex gap-2 overflow-x-auto px-3 sm:gap-4 sm:px-6 lg:gap-8">
                 {tabs.map((tab) => {
                   const Icon = tab.icon;
                   return (
@@ -551,13 +551,13 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                         e.stopPropagation();
                         updateField('activeTab', tab.id);
                       }}
-                      className={`flex items-center gap-2 border-b-2 px-1 py-4 text-sm font-medium ${
+                      className={`flex items-center gap-1 whitespace-nowrap border-b-2 px-1 py-3 text-xs font-medium sm:gap-2 sm:py-4 sm:text-sm ${
                         formData.activeTab === tab.id
                           ? 'border-blue-500 text-blue-600'
                           : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
                       }`}
                     >
-                      <Icon className="size-4" />
+                      <Icon className="size-3 sm:size-4" />
                       {tab.label}
                     </button>
                   );
@@ -565,11 +565,11 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
               </nav>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6">
-              <div className="mb-6 rounded-lg border border-gray-200 bg-gray-50 p-4">
-                <div className="mb-2 flex items-center gap-2">
-                  <FaMusic className="text-blue-600" />
-                  <h3 className="text-lg font-semibold text-gray-900">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-6">
+              <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3 sm:mb-6 sm:p-4">
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <FaMusic className="text-sm text-blue-600 sm:text-base" />
+                  <h3 className="text-base font-semibold text-gray-900 sm:text-lg">
                     Chanson sélectionnée
                   </h3>
                   <span className="rounded-full bg-orange-100 px-2 py-1 text-xs text-orange-800">
@@ -577,10 +577,10 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                   </span>
                 </div>
                 <div className="text-gray-700">
-                  <p className="text-lg font-medium">
+                  <p className="text-base font-medium sm:text-lg">
                     🎵 {songTitle || 'Titre non disponible'}
                   </p>
-                  <p className="text-sm text-gray-600">
+                  <p className="text-xs text-gray-600 sm:text-sm">
                     par {songComposer || 'Compositeur non disponible'}
                   </p>
                   <p className="mt-1 text-xs text-gray-500">
@@ -592,16 +592,18 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
               </div>
 
               {formData.errors.general && (
-                <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-4">
-                  <p className="text-red-600">{formData.errors.general}</p>
+                <div className="mb-3 rounded-md border border-red-200 bg-red-50 p-3 sm:mb-4 sm:p-4">
+                  <p className="text-xs text-red-600 sm:text-sm">
+                    {formData.errors.general}
+                  </p>
                 </div>
               )}
 
               {formData.activeTab === 'basic' && (
-                <div className="space-y-6">
-                  <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div className="space-y-4 sm:space-y-6">
+                  <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
                     <div>
-                      <label className="mb-2 block text-sm font-medium text-gray-700">
+                      <label className="mb-1 block text-xs font-medium text-gray-700 sm:mb-2 sm:text-sm">
                         Difficulté *
                       </label>
                       <select
@@ -612,7 +614,7 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                             e.target.value as SongDifficulty,
                           )
                         }
-                        className={`w-full rounded-md border px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        className={`w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-base ${
                           formData.errors.difficulty
                             ? 'border-red-300'
                             : 'border-gray-300'
@@ -625,14 +627,14 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                         ))}
                       </select>
                       {formData.errors.difficulty && (
-                        <p className="mt-1 text-sm text-red-600">
+                        <p className="mt-1 text-xs text-red-600 sm:text-sm">
                           {formData.errors.difficulty}
                         </p>
                       )}
                     </div>
 
                     <div>
-                      <label className="mb-2 block text-sm font-medium text-gray-700">
+                      <label className="mb-1 block text-xs font-medium text-gray-700 sm:mb-2 sm:text-sm">
                         Clé musicale *
                       </label>
                       <select
@@ -643,7 +645,7 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                             e.target.value as MusicalKey,
                           )
                         }
-                        className={`w-full rounded-md border px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        className={`w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-base ${
                           formData.errors.musicalKey
                             ? 'border-red-300'
                             : 'border-gray-300'
@@ -656,14 +658,14 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                         ))}
                       </select>
                       {formData.errors.musicalKey && (
-                        <p className="mt-1 text-sm text-red-600">
+                        <p className="mt-1 text-xs text-red-600 sm:text-sm">
                           {formData.errors.musicalKey}
                         </p>
                       )}
                     </div>
 
                     <div>
-                      <label className="mb-2 block text-sm font-medium text-gray-700">
+                      <label className="mb-1 block text-xs font-medium text-gray-700 sm:mb-2 sm:text-sm">
                         Ordre *
                       </label>
                       <input
@@ -676,21 +678,21 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                           )
                         }
                         min="1"
-                        className={`w-full rounded-md border px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        className={`w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-base ${
                           formData.errors.order
                             ? 'border-red-300'
                             : 'border-gray-300'
                         }`}
                       />
                       {formData.errors.order && (
-                        <p className="mt-1 text-sm text-red-600">
+                        <p className="mt-1 text-xs text-red-600 sm:text-sm">
                           {formData.errors.order}
                         </p>
                       )}
                     </div>
 
                     <div>
-                      <label className="mb-2 block text-sm font-medium text-gray-700">
+                      <label className="mb-1 block text-xs font-medium text-gray-700 sm:mb-2 sm:text-sm">
                         Temps alloué (minutes)
                       </label>
                       <input
@@ -703,14 +705,14 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                           )
                         }
                         min="0"
-                        className={`w-full rounded-md border px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                        className={`w-full rounded-md border px-3 py-2 text-sm shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:text-base ${
                           formData.errors.timeAllocated
                             ? 'border-red-300'
                             : 'border-gray-300'
                         }`}
                       />
                       {formData.errors.timeAllocated && (
-                        <p className="mt-1 text-sm text-red-600">
+                        <p className="mt-1 text-xs text-red-600 sm:text-sm">
                           {formData.errors.timeAllocated}
                         </p>
                       )}
@@ -770,7 +772,7 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                   // Show loading state if users are not loaded yet
                   if (!users || users.length === 0) {
                     return (
-                      <div className="space-y-6">
+                      <div className="space-y-4 sm:space-y-6">
                         <div className="flex items-center justify-center py-8">
                           <div className="text-center">
                             <div className="mx-auto mb-4 size-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
@@ -784,7 +786,7 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                   }
 
                   return (
-                    <div className="space-y-6">
+                    <div className="space-y-4 sm:space-y-6">
                       <div>
                         <div className="mb-2 flex items-center justify-between">
                           <label className="block text-sm font-medium text-gray-700">
@@ -977,7 +979,7 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
 
               {/* Musicians Tab */}
               {formData.activeTab === 'musicians' && (
-                <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-6">
                   {(!users || users.length === 0) && (
                     <div className="flex items-center justify-center py-8">
                       <div className="text-center">
@@ -989,7 +991,7 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                     </div>
                   )}
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-medium text-gray-900">
+                    <h3 className="text-base font-medium text-gray-900 sm:text-lg">
                       Musiciens
                     </h3>
                     <div className="flex items-center gap-2">
@@ -997,7 +999,7 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                         <button
                           type="button"
                           onClick={clearMusicians}
-                          className="flex items-center gap-2 rounded-md bg-red-100 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500"
+                          className="flex items-center gap-1 rounded-md bg-red-100 px-2 py-1.5 text-xs font-medium text-red-600 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500 sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
                         >
                           <FaTrash />
                           Effacer tout
@@ -1006,7 +1008,7 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                       <button
                         type="button"
                         onClick={addMusician}
-                        className="flex items-center gap-2 rounded-md bg-green-100 px-3 py-2 text-sm font-medium text-green-600 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-green-500"
+                        className="flex items-center gap-1 rounded-md bg-green-100 px-2 py-1.5 text-xs font-medium text-green-600 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-green-500 sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
                       >
                         <FaPlus />
                         Ajouter un musicien
@@ -1018,7 +1020,7 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                     return (
                       <div
                         key={index}
-                        className="rounded-lg border border-gray-200 p-4"
+                        className="rounded-lg border border-gray-200 p-3 sm:p-4"
                       >
                         <div className="mb-3 flex items-center justify-between">
                           <h4 className="font-medium text-gray-900">
@@ -1033,9 +1035,9 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                           </button>
                         </div>
 
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
                           <div>
-                            <label className="mb-2 block text-sm font-medium text-gray-700">
+                            <label className="mb-1 block text-xs font-medium text-gray-700 sm:mb-2 sm:text-sm">
                               Instrument *
                             </label>
                             <select
@@ -1058,7 +1060,7 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                           </div>
 
                           <div>
-                            <label className="mb-2 block text-sm font-medium text-gray-700">
+                            <label className="mb-1 block text-xs font-medium text-gray-700 sm:mb-2 sm:text-sm">
                               Utilisateur
                               {!musician.userId && (
                                 <span className="ml-2 rounded bg-orange-100 px-2 py-1 text-xs text-orange-600">
@@ -1232,7 +1234,7 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                           </div>
 
                           <div>
-                            <label className="mb-2 block text-sm font-medium text-gray-700">
+                            <label className="mb-1 block text-xs font-medium text-gray-700 sm:mb-2 sm:text-sm">
                               Notes
                             </label>
                             <textarea
@@ -1247,7 +1249,7 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                           </div>
 
                           <div>
-                            <label className="mb-2 block text-sm font-medium text-gray-700">
+                            <label className="mb-1 block text-xs font-medium text-gray-700 sm:mb-2 sm:text-sm">
                               Notes de pratique
                             </label>
                             <textarea
@@ -1284,7 +1286,7 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
 
               {/* Voice Parts Tab */}
               {formData.activeTab === 'voiceParts' && (
-                <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-6">
                   {(!users || users.length === 0) && (
                     <div className="flex items-center justify-center py-8">
                       <div className="text-center">
@@ -1296,7 +1298,7 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                     </div>
                   )}
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-medium text-gray-900">
+                    <h3 className="text-base font-medium text-gray-900 sm:text-lg">
                       Parties vocales
                     </h3>
                     <div className="flex items-center gap-2">
@@ -1304,7 +1306,7 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                         <button
                           type="button"
                           onClick={clearVoiceParts}
-                          className="flex items-center gap-2 rounded-md bg-red-100 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500"
+                          className="flex items-center gap-1 rounded-md bg-red-100 px-2 py-1.5 text-xs font-medium text-red-600 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-red-500 sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
                         >
                           <FaTrash />
                           Effacer tout
@@ -1313,7 +1315,7 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                       <button
                         type="button"
                         onClick={addVoicePart}
-                        className="flex items-center gap-2 rounded-md bg-purple-100 px-3 py-2 text-sm font-medium text-purple-600 hover:bg-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        className="flex items-center gap-1 rounded-md bg-purple-100 px-2 py-1.5 text-xs font-medium text-purple-600 hover:bg-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500 sm:gap-2 sm:px-3 sm:py-2 sm:text-sm"
                       >
                         <FaPlus />
                         Ajouter une partie vocale
@@ -1325,7 +1327,7 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                     return (
                       <div
                         key={index}
-                        className="rounded-lg border border-gray-200 p-4"
+                        className="rounded-lg border border-gray-200 p-3 sm:p-4"
                       >
                         <div className="mb-3 flex items-center justify-between">
                           <h4 className="font-medium text-gray-900">
@@ -1340,9 +1342,9 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                           </button>
                         </div>
 
-                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                        <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2">
                           <div>
-                            <label className="mb-2 block text-sm font-medium text-gray-700">
+                            <label className="mb-1 block text-xs font-medium text-gray-700 sm:mb-2 sm:text-sm">
                               Type de partie *
                             </label>
                             <select
@@ -1365,7 +1367,7 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                           </div>
 
                           <div>
-                            <label className="mb-2 block text-sm font-medium text-gray-700">
+                            <label className="mb-1 block text-xs font-medium text-gray-700 sm:mb-2 sm:text-sm">
                               Membres *
                               {(!voicePart.memberIds ||
                                 voicePart.memberIds.length === 0) && (
@@ -1499,7 +1501,7 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                           </div>
 
                           <div className="md:col-span-2">
-                            <label className="mb-2 block text-sm font-medium text-gray-700">
+                            <label className="mb-1 block text-xs font-medium text-gray-700 sm:mb-2 sm:text-sm">
                               Points de focus
                             </label>
                             <textarea
@@ -1518,7 +1520,7 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                           </div>
 
                           <div className="md:col-span-2">
-                            <label className="mb-2 block text-sm font-medium text-gray-700">
+                            <label className="mb-1 block text-xs font-medium text-gray-700 sm:mb-2 sm:text-sm">
                               Notes
                             </label>
                             <textarea
@@ -1571,55 +1573,53 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
             </div>
 
             {/* Form Actions */}
-            <div className="flex items-center justify-between border-t border-gray-200 p-6">
-              <div className="flex space-x-3">
-                <button
-                  type="button"
-                  onClick={() => {
-                    onCancel();
-                  }}
-                  className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  disabled={formData.loading}
-                >
-                  Annuler
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleSubmit();
-                  }}
-                  disabled={formData.loading}
-                  className="rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {formData.loading ? (
-                    <div className="flex items-center">
-                      <svg
-                        className="-ml-1 mr-2 size-4 animate-spin text-white"
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                      >
-                        <circle
-                          className="opacity-25"
-                          cx="12"
-                          cy="12"
-                          r="10"
-                          stroke="currentColor"
-                          strokeWidth="4"
-                        ></circle>
-                        <path
-                          className="opacity-75"
-                          fill="currentColor"
-                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                        ></path>
-                      </svg>
-                      Sauvegarde...
-                    </div>
-                  ) : (
-                    'Sauvegarder les modifications'
-                  )}
-                </button>
-              </div>
+            <div className="sticky bottom-0 flex flex-col items-center justify-end gap-2 border-t border-gray-200 bg-white p-3 sm:flex-row sm:gap-3 sm:p-6">
+              <button
+                type="button"
+                onClick={() => {
+                  onCancel();
+                }}
+                className="w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-xs font-medium text-gray-700 hover:bg-gray-50 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-auto sm:text-sm"
+                disabled={formData.loading}
+              >
+                Annuler
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleSubmit();
+                }}
+                disabled={formData.loading}
+                className="w-full rounded-md border border-transparent bg-blue-600 px-4 py-2 text-xs font-medium text-white hover:bg-blue-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:text-sm"
+              >
+                {formData.loading ? (
+                  <div className="flex items-center justify-center">
+                    <svg
+                      className="-ml-1 mr-2 size-4 animate-spin text-white"
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                    >
+                      <circle
+                        className="opacity-25"
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        stroke="currentColor"
+                        strokeWidth="4"
+                      ></circle>
+                      <path
+                        className="opacity-75"
+                        fill="currentColor"
+                        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                      ></path>
+                    </svg>
+                    Sauvegarde...
+                  </div>
+                ) : (
+                  'Sauvegarder les modifications'
+                )}
+              </button>
             </div>
           </div>
         </div>
