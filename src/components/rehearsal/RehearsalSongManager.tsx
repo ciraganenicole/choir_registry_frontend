@@ -13,7 +13,6 @@ import {
 import { useSongs } from '@/lib/library/logic';
 import { usePromoteRehearsal } from '@/lib/performance/logic';
 import {
-  getDifficultyColor,
   getInstrumentOptions,
   getMusicalKeyColor,
   getMusicalKeyOptions,
@@ -937,71 +936,60 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                   className="rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200 hover:shadow-md"
                 >
                   <div className="mb-3 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className="text-sm font-medium text-gray-500">
-                        #{song.order}
-                      </span>
-                      <FaMusic className="text-blue-500" />
-                      <span className="font-medium text-gray-900">
-                        {getSelectedSongTitle(song.songId)}
-                      </span>
-                      {rehearsalInfo && convertedSongs.length > 0 && (
-                        <span className="rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
-                          📚 Bibliothèque
+                    <div className="flex flex-col items-start gap-3 md:flex-row md:items-center">
+                      <div className="flex flex-row items-center gap-2">
+                        <span className="text-sm font-medium text-gray-500">
+                          #{song.order}
                         </span>
-                      )}
-                      {convertedSongs.length > 0 && (
-                        <span className="rounded-full bg-green-100 px-2 py-1 text-xs font-medium text-green-800">
-                          🎯 Répétition
+                        <FaMusic className="text-blue-500" />
+                        <span className="font-medium text-gray-900">
+                          {getSelectedSongTitle(song.songId)}
                         </span>
-                      )}
-                      <span
-                        className={`rounded-full px-2 py-1 text-xs font-medium ${getDifficultyColor(song.difficulty)}`}
-                      >
-                        🎯 {song.difficulty} (répétition)
-                      </span>
-                      <span
-                        className={`rounded-full px-2 py-1 text-xs font-medium ${getMusicalKeyColor()}`}
-                      >
-                        🎵 {song.musicalKey} (répétition)
-                      </span>
-                      {song.needsWork && (
-                        <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-800">
-                          Travail nécessaire
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex flex-row items-center gap-2">
+                          <span
+                            className={`rounded-full px-2 py-1 text-xs font-medium ${getMusicalKeyColor()}`}
+                          >
+                            🎵 {song.musicalKey} (répétition)
+                          </span>
+                          {song.needsWork && (
+                            <span className="rounded-full bg-red-100 px-2 py-1 text-xs font-medium text-red-800">
+                              Travail nécessaire
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-sm text-gray-600">
+                          <FaClock className="mr-1 inline" />
+                          {song.timeAllocated} min
                         </span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-600">
-                        <FaClock className="mr-1 inline" />
-                        {song.timeAllocated} min
-                      </span>
-                      {(() => {
-                        const canDelete = canDeleteSong(song);
-                        return canDelete;
-                      })() && (
-                        <button
-                          type="button"
-                          onClick={() => handleEditSong(index)}
-                          className="rounded p-2 text-gray-600 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <FaEdit />
-                        </button>
-                      )}
-                      {(() => {
-                        const canDelete = canDeleteSong(song);
-                        return canDelete;
-                      })() && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            handleDeleteSong(index);
-                          }}
-                          className="rounded p-2 text-gray-600 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
-                        >
-                          <FaTrash />
-                        </button>
-                      )}
+                        {(() => {
+                          const canDelete = canDeleteSong(song);
+                          return canDelete;
+                        })() && (
+                          <button
+                            type="button"
+                            onClick={() => handleEditSong(index)}
+                            className="rounded p-2 text-gray-600 hover:text-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          >
+                            <FaEdit />
+                          </button>
+                        )}
+                        {(() => {
+                          const canDelete = canDeleteSong(song);
+                          return canDelete;
+                        })() && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleDeleteSong(index);
+                            }}
+                            className="rounded p-2 text-gray-600 hover:text-red-600 focus:outline-none focus:ring-2 focus:ring-red-500"
+                          >
+                            <FaTrash />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -1431,7 +1419,7 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                       </button>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 md:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                       <div>
                         <label className="mb-2 block text-sm font-medium text-gray-700">
                           Type de partie
