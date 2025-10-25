@@ -1,6 +1,14 @@
 import { jsPDF as JsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 import type { Performance } from './types';
+
+// Extend jsPDF type to include autoTable
+declare module 'jspdf' {
+  interface JsPDF {
+    autoTable: typeof autoTable;
+  }
+}
 
 export const exportPerformanceToPDF = async (performance: Performance) => {
   const pdfDoc = new JsPDF({
@@ -22,35 +30,40 @@ export const exportPerformanceToPDF = async (performance: Performance) => {
     pdfDoc.addImage(base64, 'PNG', margin, margin, 35, 20);
   } catch (error) {
     // Silently ignore logo loading errors - PDF will still be generated without logo
+    // eslint-disable-next-line no-console
     console.warn('Failed to add logo to PDF:', error);
   }
 
-  // Add title
-  pdfDoc.setFontSize(16);
+  // Add title with better styling
+  pdfDoc.setFontSize(20);
   pdfDoc.setFont('helvetica', 'bold');
-  pdfDoc.text('Rapport de Performance', margin + 36, margin + 10);
+  pdfDoc.setTextColor(40, 40, 40); // Dark gray
+  pdfDoc.text('Rapport de Performance', margin + 40, margin + 12);
 
-  // Add date
-  pdfDoc.setFontSize(12);
+  // Add subtitle with performance type
+  pdfDoc.setFontSize(14);
   pdfDoc.setFont('helvetica', 'normal');
+  pdfDoc.setTextColor(100, 100, 100); // Medium gray
+  pdfDoc.text(performance.type, margin + 40, margin + 20);
+
+  // Add date with better formatting
+  pdfDoc.setFontSize(11);
+  pdfDoc.setTextColor(60, 60, 60);
   pdfDoc.text(
-    `Date: ${new Date().toLocaleDateString('fr-FR')}`,
-    margin + 36,
-    margin + 18,
+    `Généré le: ${new Date().toLocaleDateString('fr-FR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })}`,
+    margin + 40,
+    margin + 26,
   );
 
-  let currentY = margin + 35;
+  let currentY = margin + 45;
 
-  // Performance Information Section
-  pdfDoc.setFontSize(14);
-  pdfDoc.setFont('helvetica', 'bold');
-  pdfDoc.text('Informations de la Performance', margin, currentY);
-  currentY += 10;
-
-  // Performance details
-  pdfDoc.setFontSize(11);
-  pdfDoc.setFont('helvetica', 'normal');
-
+  // Performance Information Table
   const performanceDate = new Date(performance.date).toLocaleDateString(
     'fr-FR',
     {
@@ -60,38 +73,67 @@ export const exportPerformanceToPDF = async (performance: Performance) => {
     },
   );
 
-  const performanceDetails = [
-    { label: 'Type:', value: performance.type },
-    { label: 'Date:', value: performanceDate },
-    { label: 'Emplacement:', value: performance.location || 'Non spécifié' },
-    {
-      label: 'Public attendu:',
-      value: performance.expectedAudience?.toString() || 'Non spécifié',
-    },
-    {
-      label: 'Chef de service:',
-      value: performance.shiftLead
+  const performanceData = [
+    ['Type de Performance', performance.type],
+    ['Date', performanceDate],
+    ['Emplacement', performance.location || 'Non spécifié'],
+    [
+      'Public Attendu',
+      performance.expectedAudience?.toString() || 'Non spécifié',
+    ],
+    [
+      'Chef de Service',
+      performance.shiftLead
         ? `${performance.shiftLead.firstName} ${performance.shiftLead.lastName}`
         : 'Non assigné',
-    },
-    { label: 'Statut:', value: performance.status },
+    ],
+    ['Statut', performance.status],
   ];
 
-  performanceDetails.forEach((detail) => {
-    pdfDoc.setFont('helvetica', 'bold');
-    pdfDoc.text(detail.label, margin, currentY);
-    pdfDoc.setFont('helvetica', 'normal');
-    pdfDoc.text(detail.value, margin + 40, currentY);
-    currentY += 6;
+  autoTable(pdfDoc, {
+    startY: currentY,
+    head: [['Informations de la Performance', '']],
+    body: performanceData,
+    theme: 'grid',
+    headStyles: {
+      fillColor: [41, 128, 185], // Blue header
+      textColor: 255,
+      fontSize: 12,
+      fontStyle: 'bold',
+    },
+    bodyStyles: {
+      fontSize: 10,
+    },
+    alternateRowStyles: {
+      fillColor: [245, 245, 245], // Light gray for alternate rows
+    },
+    columnStyles: {
+      0: {
+        halign: 'left',
+        fontStyle: 'bold',
+        fillColor: [236, 240, 241], // Light blue-gray
+      },
+      1: {
+        halign: 'left',
+      },
+    },
+    margin: { left: margin, right: margin },
+    tableWidth: 'wrap',
   });
 
-  // Add notes if available
+  currentY = (pdfDoc as any).lastAutoTable.finalY + 15;
+
+  // Add notes section if available
   if (performance.notes) {
-    currentY += 3;
+    pdfDoc.setFontSize(12);
     pdfDoc.setFont('helvetica', 'bold');
-    pdfDoc.text('Notes:', margin, currentY);
-    currentY += 6;
+    pdfDoc.setTextColor(40, 40, 40);
+    pdfDoc.text('Notes Générales', margin, currentY);
+    currentY += 8;
+
+    pdfDoc.setFontSize(10);
     pdfDoc.setFont('helvetica', 'normal');
+    pdfDoc.setTextColor(60, 60, 60);
 
     const pageWidth = pdfDoc.internal.pageSize.getWidth();
     const maxWidth = pageWidth - margin * 2;
@@ -101,264 +143,314 @@ export const exportPerformanceToPDF = async (performance: Performance) => {
       pdfDoc.text(line, margin, currentY);
       currentY += 5;
     });
+    currentY += 10;
   }
 
-  currentY += 10;
-
-  // Songs Section
+  // Songs Section with beautiful table
   if (performance.performanceSongs && performance.performanceSongs.length > 0) {
-    pdfDoc.setFontSize(14);
+    pdfDoc.setFontSize(16);
     pdfDoc.setFont('helvetica', 'bold');
+    pdfDoc.setTextColor(40, 40, 40);
     pdfDoc.text(
-      `Chansons Interprétées (${performance.performanceSongs.length})`,
+      `Répertoire Musical (${performance.performanceSongs.length} chanson${performance.performanceSongs.length > 1 ? 's' : ''})`,
       margin,
       currentY,
     );
-    currentY += 10;
+    currentY += 15;
 
+    // Create songs summary table
+    const songsSummaryData = performance.performanceSongs.map((song, index) => [
+      index + 1,
+      song.song.title,
+      song.song.composer,
+      song.song.genre,
+      song.musicalKey || 'N/A',
+      song.order,
+      song.timeAllocated ? `${song.timeAllocated} min` : 'N/A',
+    ]);
+
+    autoTable(pdfDoc, {
+      startY: currentY,
+      head: [
+        ['#', 'Titre', 'Compositeur', 'Genre', 'Tonalité', 'Ordre', 'Durée'],
+      ],
+      body: songsSummaryData,
+      theme: 'striped',
+      headStyles: {
+        fillColor: [52, 152, 219], // Blue header
+        textColor: 255,
+        fontSize: 9,
+        fontStyle: 'bold',
+      },
+      bodyStyles: {
+        fontSize: 8,
+      },
+      columnStyles: {
+        0: { halign: 'center' }, // #
+        1: { halign: 'left' }, // Title
+        2: { halign: 'left' }, // Composer
+        3: { halign: 'left' }, // Genre
+        4: { halign: 'center' }, // Key
+        5: { halign: 'center' }, // Order
+        6: { halign: 'center' }, // Duration
+      },
+      margin: { left: margin, right: margin },
+      tableWidth: 'wrap',
+    });
+
+    currentY = (pdfDoc as any).lastAutoTable.finalY + 20;
+
+    // Detailed song information
     performance.performanceSongs.forEach((performanceSong, index) => {
       // Check if we need a new page
       const pageHeight = pdfDoc.internal.pageSize.getHeight();
       const bottomMargin = 20;
 
-      if (currentY > pageHeight - bottomMargin - 50) {
+      if (currentY > pageHeight - bottomMargin - 80) {
         pdfDoc.addPage();
         currentY = margin;
       }
 
-      // Song header
+      // Song header with background color
+      pdfDoc.setFillColor(52, 152, 219); // Blue background
+      pdfDoc.rect(
+        margin,
+        currentY - 3,
+        pdfDoc.internal.pageSize.getWidth() - margin * 2,
+        8,
+        'F',
+      );
+
       pdfDoc.setFontSize(12);
       pdfDoc.setFont('helvetica', 'bold');
+      pdfDoc.setTextColor(255, 255, 255); // White text
       pdfDoc.text(
         `${index + 1}. ${performanceSong.song.title}`,
-        margin,
-        currentY,
+        margin + 2,
+        currentY + 2,
       );
-      currentY += 6;
+      currentY += 12;
 
-      // Song composer
-      pdfDoc.setFontSize(10);
-      pdfDoc.setFont('helvetica', 'normal');
-      pdfDoc.text(
-        `Compositeur: ${performanceSong.song.composer}`,
-        margin,
-        currentY,
-      );
-      currentY += 5;
+      // Song details in a table
+      const songDetails = [
+        ['Compositeur', performanceSong.song.composer],
+        ['Genre', performanceSong.song.genre],
+        ['Tonalité', performanceSong.musicalKey || 'Non spécifiée'],
+        ["Ordre d'exécution", performanceSong.order.toString()],
+        [
+          'Durée allouée',
+          performanceSong.timeAllocated
+            ? `${performanceSong.timeAllocated} minutes`
+            : 'Non spécifiée',
+        ],
+        [
+          'Chef de chant',
+          performanceSong.leadSinger
+            ? `${performanceSong.leadSinger.firstName} ${performanceSong.leadSinger.lastName}`
+            : 'Non assigné',
+        ],
+      ];
 
-      // Song genre
-      pdfDoc.text(`Genre: ${performanceSong.song.genre}`, margin, currentY);
-      currentY += 5;
+      autoTable(pdfDoc, {
+        startY: currentY,
+        body: songDetails,
+        theme: 'plain',
+        bodyStyles: {
+          fontSize: 9,
+        },
+        columnStyles: {
+          0: {
+            halign: 'left',
+            fontStyle: 'bold',
+            fillColor: [236, 240, 241], // Light background
+          },
+          1: {
+            halign: 'left',
+          },
+        },
+        margin: { left: margin, right: margin },
+        tableWidth: 'wrap',
+      });
 
-      // Musical key
-      if (performanceSong.musicalKey) {
-        pdfDoc.text(
-          `Tonalité: ${performanceSong.musicalKey}`,
-          margin,
-          currentY,
-        );
-        currentY += 5;
-      }
+      currentY = (pdfDoc as any).lastAutoTable.finalY + 10;
 
-      // Order and time allocated
-      pdfDoc.text(`Ordre: ${performanceSong.order}`, margin, currentY);
-      currentY += 5;
-
-      if (performanceSong.timeAllocated) {
-        pdfDoc.text(
-          `Durée allouée: ${performanceSong.timeAllocated} minutes`,
-          margin,
-          currentY,
-        );
-        currentY += 5;
-      }
-
-      // Lead singer
-      if (performanceSong.leadSinger) {
-        pdfDoc.text(
-          `Chef de chant: ${performanceSong.leadSinger.firstName} ${performanceSong.leadSinger.lastName}`,
-          margin,
-          currentY,
-        );
-        currentY += 5;
-      }
-
-      currentY += 3;
-
-      // Attaque-chant (Voice Parts)
+      // Voice Parts Table
       if (performanceSong.voiceParts && performanceSong.voiceParts.length > 0) {
         pdfDoc.setFontSize(10);
         pdfDoc.setFont('helvetica', 'bold');
-        pdfDoc.text('Attaque-chant (Parties vocales):', margin, currentY);
-        currentY += 5;
+        pdfDoc.setTextColor(40, 40, 40);
+        pdfDoc.text('Parties Vocales', margin, currentY);
+        currentY += 8;
 
-        performanceSong.voiceParts.forEach((voicePart) => {
-          pdfDoc.setFont('helvetica', 'normal');
-          pdfDoc.text(`• ${voicePart.type}:`, margin + 5, currentY);
-          currentY += 4;
+        const voicePartsData = performanceSong.voiceParts.map((voicePart) => [
+          voicePart.type,
+          voicePart.members?.length || 0,
+          voicePart.members
+            ?.map((m) => `${m.firstName} ${m.lastName}`)
+            .join(', ') || 'Aucun membre',
+          voicePart.focusPoints || 'N/A',
+          voicePart.timeAllocated ? `${voicePart.timeAllocated} min` : 'N/A',
+        ]);
 
-          if (voicePart.members && voicePart.members.length > 0) {
-            const memberNames = voicePart.members
-              .map((member) => `${member.firstName} ${member.lastName}`)
-              .join(', ');
-            pdfDoc.text(`  Membres: ${memberNames}`, margin + 10, currentY);
-            currentY += 4;
-          }
-
-          if (voicePart.focusPoints) {
-            pdfDoc.text(
-              `  Points de focus: ${voicePart.focusPoints}`,
-              margin + 10,
-              currentY,
-            );
-            currentY += 4;
-          }
-
-          if (voicePart.notes) {
-            pdfDoc.text(`  Notes: ${voicePart.notes}`, margin + 10, currentY);
-            currentY += 4;
-          }
-
-          if (voicePart.timeAllocated) {
-            pdfDoc.text(
-              `  Temps alloué: ${voicePart.timeAllocated} min`,
-              margin + 10,
-              currentY,
-            );
-            currentY += 4;
-          }
-
-          currentY += 2;
+        autoTable(pdfDoc, {
+          startY: currentY,
+          head: [['Partie', 'Membres', 'Noms', 'Points de Focus', 'Temps']],
+          body: voicePartsData,
+          theme: 'grid',
+          headStyles: {
+            fillColor: [46, 204, 113], // Green header
+            textColor: 255,
+            fontSize: 8,
+            fontStyle: 'bold',
+          },
+          bodyStyles: {
+            fontSize: 7,
+          },
+          columnStyles: {
+            0: { halign: 'center' },
+            1: { halign: 'center' },
+            2: { halign: 'left' },
+            3: { halign: 'left' },
+            4: { halign: 'center' },
+          },
+          margin: { left: margin, right: margin },
+          tableWidth: 'wrap',
         });
+
+        currentY = (pdfDoc as any).lastAutoTable.finalY + 10;
       }
 
-      // Defense (Musicians)
+      // Musicians Table
       if (performanceSong.musicians && performanceSong.musicians.length > 0) {
         pdfDoc.setFontSize(10);
         pdfDoc.setFont('helvetica', 'bold');
-        pdfDoc.text('Defense (Musiciens):', margin, currentY);
-        currentY += 5;
+        pdfDoc.setTextColor(40, 40, 40);
+        pdfDoc.text('Musiciens', margin, currentY);
+        currentY += 8;
 
-        performanceSong.musicians.forEach((musician) => {
-          pdfDoc.setFont('helvetica', 'normal');
-          const musicianName = musician.user
+        const musiciansData = performanceSong.musicians.map((musician) => [
+          musician.user
             ? `${musician.user.firstName} ${musician.user.lastName}`
-            : musician.musicianName || 'Nom non spécifié';
+            : musician.musicianName || 'Nom non spécifié',
+          musician.instrument,
+          musician.role || 'N/A',
+          musician.isSoloist ? 'Oui' : 'Non',
+          musician.isAccompanist ? 'Oui' : 'Non',
+          musician.timeAllocated ? `${musician.timeAllocated} min` : 'N/A',
+        ]);
 
-          pdfDoc.text(
-            `• ${musicianName} (${musician.instrument})`,
-            margin + 5,
-            currentY,
-          );
-          currentY += 4;
-
-          if (musician.role) {
-            pdfDoc.text(`  Rôle: ${musician.role}`, margin + 10, currentY);
-            currentY += 4;
-          }
-
-          if (musician.isSoloist) {
-            pdfDoc.text(`  Soliste: Oui`, margin + 10, currentY);
-            currentY += 4;
-          }
-
-          if (musician.isAccompanist) {
-            pdfDoc.text(`  Accompagnateur: Oui`, margin + 10, currentY);
-            currentY += 4;
-          }
-
-          if (musician.soloStartTime && musician.soloEndTime) {
-            pdfDoc.text(
-              `  Solo: ${musician.soloStartTime}s - ${musician.soloEndTime}s`,
-              margin + 10,
-              currentY,
-            );
-            currentY += 4;
-          }
-
-          if (musician.soloNotes) {
-            pdfDoc.text(
-              `  Notes solo: ${musician.soloNotes}`,
-              margin + 10,
-              currentY,
-            );
-            currentY += 4;
-          }
-
-          if (musician.accompanimentNotes) {
-            pdfDoc.text(
-              `  Notes accompagnement: ${musician.accompanimentNotes}`,
-              margin + 10,
-              currentY,
-            );
-            currentY += 4;
-          }
-
-          if (musician.timeAllocated) {
-            pdfDoc.text(
-              `  Temps alloué: ${musician.timeAllocated} min`,
-              margin + 10,
-              currentY,
-            );
-            currentY += 4;
-          }
-
-          if (musician.notes) {
-            pdfDoc.text(`  Notes: ${musician.notes}`, margin + 10, currentY);
-            currentY += 4;
-          }
-
-          currentY += 2;
+        autoTable(pdfDoc, {
+          startY: currentY,
+          head: [
+            ['Nom', 'Instrument', 'Rôle', 'Soliste', 'Accompagnateur', 'Temps'],
+          ],
+          body: musiciansData,
+          theme: 'grid',
+          headStyles: {
+            fillColor: [155, 89, 182], // Purple header
+            textColor: 255,
+            fontSize: 8,
+            fontStyle: 'bold',
+          },
+          bodyStyles: {
+            fontSize: 7,
+          },
+          columnStyles: {
+            0: { halign: 'left' },
+            1: { halign: 'left' },
+            2: { halign: 'left' },
+            3: { halign: 'center' },
+            4: { halign: 'center' },
+            5: { halign: 'center' },
+          },
+          margin: { left: margin, right: margin },
+          tableWidth: 'wrap',
         });
+
+        currentY = (pdfDoc as any).lastAutoTable.finalY + 10;
       }
 
       // Focus points and notes
       if (performanceSong.focusPoints || performanceSong.notes) {
         pdfDoc.setFontSize(10);
         pdfDoc.setFont('helvetica', 'bold');
-        pdfDoc.text('Points de focus et notes:', margin, currentY);
-        currentY += 5;
+        pdfDoc.setTextColor(40, 40, 40);
+        pdfDoc.text('Notes et Points de Focus', margin, currentY);
+        currentY += 8;
 
+        pdfDoc.setFontSize(9);
         pdfDoc.setFont('helvetica', 'normal');
+        pdfDoc.setTextColor(60, 60, 60);
+
         if (performanceSong.focusPoints) {
           pdfDoc.text(
             `Focus: ${performanceSong.focusPoints}`,
-            margin + 5,
+            margin,
             currentY,
           );
-          currentY += 4;
+          currentY += 5;
         }
 
         if (performanceSong.notes) {
-          pdfDoc.text(`Notes: ${performanceSong.notes}`, margin + 5, currentY);
-          currentY += 4;
+          pdfDoc.text(`Notes: ${performanceSong.notes}`, margin, currentY);
+          currentY += 5;
         }
       }
 
-      currentY += 8;
+      currentY += 15;
 
       // Add separator line between songs
       if (
         performance.performanceSongs &&
         index < performance.performanceSongs.length - 1
       ) {
+        pdfDoc.setDrawColor(200, 200, 200);
         pdfDoc.line(
           margin,
           currentY,
           pdfDoc.internal.pageSize.getWidth() - margin,
           currentY,
         );
-        currentY += 5;
+        currentY += 10;
       }
     });
   } else {
-    // No songs message
+    // No songs message with styling
+    pdfDoc.setFillColor(255, 193, 7); // Yellow background
+    pdfDoc.rect(
+      margin,
+      currentY - 3,
+      pdfDoc.internal.pageSize.getWidth() - margin * 2,
+      8,
+      'F',
+    );
+
     pdfDoc.setFontSize(12);
-    pdfDoc.setFont('helvetica', 'normal');
+    pdfDoc.setFont('helvetica', 'bold');
+    pdfDoc.setTextColor(40, 40, 40);
     pdfDoc.text(
       'Aucune chanson assignée à cette performance',
+      margin + 2,
+      currentY + 2,
+    );
+  }
+
+  // Footer
+  const pageCount = pdfDoc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i += 1) {
+    pdfDoc.setPage(i);
+    pdfDoc.setFontSize(8);
+    pdfDoc.setFont('helvetica', 'normal');
+    pdfDoc.setTextColor(150, 150, 150);
+    pdfDoc.text(
+      `Page ${i} sur ${pageCount}`,
+      pdfDoc.internal.pageSize.getWidth() - 30,
+      pdfDoc.internal.pageSize.getHeight() - 10,
+    );
+    pdfDoc.text(
+      'Nouvelle Jérusalem Choir - Rapport de Performance',
       margin,
-      currentY,
+      pdfDoc.internal.pageSize.getHeight() - 10,
     );
   }
 

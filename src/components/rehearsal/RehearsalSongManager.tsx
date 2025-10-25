@@ -29,6 +29,7 @@ import {
   InstrumentType,
   MusicalKey,
   SongDifficulty,
+  VoicePartType,
 } from '@/lib/rehearsal/types';
 import { UserCategory } from '@/lib/user/type';
 import { useUsers } from '@/lib/user/useUsers';
@@ -37,12 +38,12 @@ import { useAuth } from '@/providers/AuthProvider';
 import { UpdateRehearsalSongForm } from './UpdateRehearsalSongForm';
 
 const rehearsalVoicePartOptions = [
-  'Soprano',
-  'Alto',
-  'Tenor',
-  'Bass',
-  'Mezzo Soprano',
-  'Baritone',
+  VoicePartType.SOPRANO,
+  VoicePartType.ALTO,
+  VoicePartType.TENOR,
+  VoicePartType.BASS,
+  VoicePartType.MEZZO_SOPRANO,
+  VoicePartType.BARITONE,
 ];
 
 interface RehearsalSongManagerProps {
@@ -480,7 +481,9 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
               );
               return {
                 ...voicePart,
-                voicePartType: isValid ? voicePart.voicePartType : 'Soprano',
+                voicePartType: isValid
+                  ? voicePart.voicePartType
+                  : VoicePartType.SOPRANO,
               };
             }) || [],
           musicians: song.musicians || [],
@@ -549,8 +552,8 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
           voicePartType: rehearsalVoicePartOptions.includes(
             voicePart.voicePartType,
           )
-            ? voicePart.voicePartType
-            : 'Soprano',
+            ? (voicePart.voicePartType as VoicePartType)
+            : VoicePartType.SOPRANO,
         })),
       };
 
@@ -667,7 +670,7 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
 
   const addVoicePart = () => {
     const newVoicePart: CreateRehearsalVoicePartDto = {
-      voicePartType: 'Soprano',
+      voicePartType: VoicePartType.SOPRANO,
       memberIds: [],
       needsWork: false,
       focusPoints: '',
@@ -1466,17 +1469,16 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                             updateVoicePart(
                               index,
                               'voicePartType',
-                              e.target.value,
+                              e.target.value as VoicePartType,
                             )
                           }
                           className="w-full rounded-md border border-gray-300 px-3 py-2"
                         >
-                          <option value="Soprano">Soprano</option>
-                          <option value="Alto">Alto</option>
-                          <option value="Ténor">Ténor</option>
-                          <option value="Basse">Basse</option>
-                          <option value="Mezzo Soprano">Mezzo Soprano</option>
-                          <option value="Baryton">Baryton</option>
+                          {rehearsalVoicePartOptions.map((option) => (
+                            <option key={option} value={option}>
+                              {option}
+                            </option>
+                          ))}
                         </select>
                       </div>
 
@@ -1497,7 +1499,7 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                                   key={memberId}
                                   className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-1 text-sm text-blue-800"
                                 >
-                                  {member.firstName} {member.lastName}
+                                  {member.lastName} {member.firstName}
                                   <button
                                     type="button"
                                     onClick={() => {
@@ -1543,7 +1545,7 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                             <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
                               {users
                                 .filter((u) =>
-                                  `${u.firstName} ${u.lastName}`
+                                  ` ${u.lastName} ${u.firstName}`
                                     .toLowerCase()
                                     .includes(
                                       getVoicePartDropdownState(
@@ -1552,8 +1554,8 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                                     ),
                                 )
                                 .sort((a, b) =>
-                                  `${a.firstName} ${a.lastName}`.localeCompare(
-                                    `${b.firstName} ${b.lastName}`,
+                                  `${a.lastName} ${a.firstName}`.localeCompare(
+                                    `${b.lastName} ${b.firstName}`,
                                   ),
                                 )
                                 .map((u) => (
@@ -1605,14 +1607,14 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                                       className="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                                     />
                                     <span className="text-sm text-gray-700">
-                                      {u.firstName} {u.lastName}
+                                      {u.lastName} {u.firstName}
                                     </span>
                                   </div>
                                 ))}
                               {users.filter(
                                 (u) =>
                                   !voicePart.memberIds?.includes(u.id) &&
-                                  `${u.firstName} ${u.lastName}`
+                                  `${u.lastName} ${u.firstName}`
                                     .toLowerCase()
                                     .includes(
                                       getVoicePartDropdownState(
@@ -1711,15 +1713,6 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
 
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                       <div>
-                        <label className="mb-2 block text-sm font-medium text-gray-700">
-                          Utilisateur
-                          {!musician.userId && (
-                            <span className="ml-2 rounded bg-orange-100 px-2 py-1 text-xs text-orange-600">
-                              Non assigné
-                            </span>
-                          )}
-                        </label>
-
                         {/* Selected User Display */}
                         <div className="mb-3">
                           {musician.userId && musician.userId > 0 ? (
@@ -1770,14 +1763,14 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                               </div>
                               {users
                                 .filter((u) =>
-                                  `${u.firstName} ${u.lastName}`
+                                  `${u.lastName} ${u.firstName}`
                                     .toLowerCase()
                                     .includes(
                                       musicianUserSearchTerm.toLowerCase(),
                                     ),
                                 )
                                 .sort((a, b) =>
-                                  `${a.firstName} ${a.lastName}`.localeCompare(
+                                  `${a.lastName} ${a.firstName}`.localeCompare(
                                     `${b.firstName} ${b.lastName}`,
                                   ),
                                 )
@@ -1793,12 +1786,12 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                                     }}
                                   >
                                     <span className="text-sm text-gray-700">
-                                      {u.firstName} {u.lastName}
+                                      {u.lastName} {u.firstName}
                                     </span>
                                   </div>
                                 ))}
                               {users.filter((u) =>
-                                `${u.firstName} ${u.lastName}`
+                                `${u.lastName} ${u.firstName}`
                                   .toLowerCase()
                                   .includes(
                                     musicianUserSearchTerm.toLowerCase(),

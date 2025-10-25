@@ -139,20 +139,17 @@ export const canCreateRehearsals = (
   userRole: UserRole,
   userCategories?: string[],
 ): boolean => {
-  // Check if user has lead category (same as song permissions)
+  // SUPER_ADMIN can create rehearsals (regardless of categories)
+  if (userRole === UserRole.SUPER_ADMIN) {
+    return true;
+  }
+
+  // LEAD category users can create rehearsals
   if (userCategories?.includes('LEAD')) {
     return true;
   }
 
-  // Also allow super admin and attendance admin roles
-  if (
-    userRole === UserRole.SUPER_ADMIN ||
-    userRole === UserRole.ATTENDANCE_ADMIN ||
-    userRole === UserRole.LEAD
-  ) {
-    return true;
-  }
-
+  // All other roles are blocked
   return false;
 };
 

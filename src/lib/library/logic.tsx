@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 
 import { api } from '@/config/api';
+import { VoicePartType } from '@/lib/rehearsal/types';
 import { UserRole } from '@/lib/user/type';
 import { useAuth } from '@/providers/AuthProvider';
 
@@ -82,7 +83,7 @@ export const canAccessLibrary = (
     return true;
   }
 
-  // ATTENDANCE_ADMIN and regular users are completely blocked
+  // All other roles are blocked
   return false;
 };
 
@@ -100,11 +101,7 @@ export const canCreateSongs = (
     return true;
   }
 
-  // ATTENDANCE_ADMIN is completely blocked from song management
-  if (userRole === UserRole.ATTENDANCE_ADMIN) {
-    return false;
-  }
-
+  // All other roles are blocked
   return false;
 };
 
@@ -250,11 +247,7 @@ export const canUpdateSongs = (
     return true;
   }
 
-  // ATTENDANCE_ADMIN is completely blocked from song management
-  if (userRole === UserRole.ATTENDANCE_ADMIN) {
-    return false;
-  }
-
+  // All other roles are blocked
   return false;
 };
 
@@ -272,12 +265,7 @@ export const canUpdateSpecificSong = (
     return true;
   }
 
-  // ATTENDANCE_ADMIN is completely blocked
-  if (userRole === UserRole.ATTENDANCE_ADMIN) {
-    return false;
-  }
-
-  // Regular users cannot update songs
+  // All other roles are blocked
   return false;
 };
 
@@ -573,21 +561,17 @@ export const canManageSongs = (
     return true;
   }
 
-  // ATTENDANCE_ADMIN is completely blocked
-  if (userRole === UserRole.ATTENDANCE_ADMIN) {
-    return false;
-  }
-
+  // All other roles are blocked
   return false;
 };
 
 export const voicePartOptions = [
-  'Soprano',
-  'Alto',
-  'Tenor',
-  'Bass',
-  'Mezzo Soprano',
-  'Baritone',
+  VoicePartType.SOPRANO,
+  VoicePartType.ALTO,
+  VoicePartType.TENOR,
+  VoicePartType.BASS,
+  VoicePartType.MEZZO_SOPRANO,
+  VoicePartType.BARITONE,
 ];
 
 export const difficultyOptions = [

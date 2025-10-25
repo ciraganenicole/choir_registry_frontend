@@ -173,11 +173,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
     .filter((dropdown) => dropdown.items.length > 0);
 
   // Check if user is admin (should see dropdown) or LEAD category user (should see direct menu items)
-  const isAdmin =
-    user &&
-    (user.role === UserRole.SUPER_ADMIN ||
-      user.role === UserRole.ATTENDANCE_ADMIN ||
-      user.role === UserRole.FINANCE_ADMIN);
+  const isAdmin = user && user.role === UserRole.SUPER_ADMIN;
   const isLeadCategory = user && user.categories?.includes(UserCategory.LEAD);
 
   // Get LEAD-specific menu items for direct display

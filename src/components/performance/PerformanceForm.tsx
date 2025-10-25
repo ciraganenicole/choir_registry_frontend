@@ -37,12 +37,10 @@ const PerformanceForm: React.FC<PerformanceFormProps> = ({
 }) => {
   const { user } = useAuth();
 
-  // Check if user can manage performances (admin roles and lead category users)
+  // Check if user can manage performances (SUPER_ADMIN and LEAD category users only)
   const canManagePerformances =
     user?.categories?.includes(UserCategory.LEAD) ||
-    user?.role === UserRole.SUPER_ADMIN ||
-    user?.role === UserRole.ATTENDANCE_ADMIN ||
-    user?.role === UserRole.FINANCE_ADMIN;
+    user?.role === UserRole.SUPER_ADMIN;
   const {
     currentShift,
     isLoading: shiftLoading,
@@ -439,7 +437,7 @@ const PerformanceForm: React.FC<PerformanceFormProps> = ({
                 onChange={(e) =>
                   handleInputChange(
                     'expectedAudience',
-                    parseInt(e.target.value, 10) || 0,
+                    e.target.value ? parseInt(e.target.value, 10) : undefined,
                   )
                 }
                 placeholder="Nombre de personnes attendues"

@@ -187,14 +187,12 @@ const PerformancePage = () => {
     }));
   };
 
-  // Get available shift leads (users with LEAD category or admin roles)
+  // Get available shift leads (users with LEAD category or SUPER_ADMIN role only)
   const availableShiftLeads = useMemo(() => {
     return users.filter(
       (u) =>
         u.categories?.includes(UserCategory.LEAD) ||
-        u.role === UserRole.SUPER_ADMIN ||
-        u.role === UserRole.ATTENDANCE_ADMIN ||
-        u.role === UserRole.FINANCE_ADMIN,
+        u.role === UserRole.SUPER_ADMIN,
     );
   }, [users]);
 

@@ -71,9 +71,7 @@ const YearlyPlanningForm: React.FC<YearlyPlanningFormProps> = ({
     return users.filter(
       (user) =>
         user.categories?.includes(UserCategory.LEAD) ||
-        user.role === UserRole.SUPER_ADMIN ||
-        user.role === UserRole.ATTENDANCE_ADMIN ||
-        user.role === UserRole.FINANCE_ADMIN,
+        user.role === UserRole.SUPER_ADMIN,
     );
   }, [users]);
 
