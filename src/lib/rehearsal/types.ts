@@ -37,6 +37,15 @@ export enum MusicalKey {
   B = 'B',
 }
 
+export enum VoicePartType {
+  SOPRANO = 'Soprano',
+  ALTO = 'Alto',
+  TENOR = 'Tenor',
+  BASS = 'Bass',
+  MEZZO_SOPRANO = 'Mezzo Soprano',
+  BARITONE = 'Baritone',
+}
+
 export enum InstrumentType {
   // String Family
   PIANO = 'Piano',
@@ -222,7 +231,7 @@ export interface RehearsalSong {
 
 export interface RehearsalVoicePart {
   id: number;
-  voicePartType: string; // Soprano, Alto, Tenor, Bass
+  voicePartType: VoicePartType;
   memberIds: number[];
   members: {
     id: number;
@@ -306,7 +315,7 @@ export interface UpdateRehearsalSongDto {
 }
 
 export interface CreateRehearsalVoicePartDto {
-  voicePartType: string;
+  voicePartType: VoicePartType;
   memberIds: number[];
   needsWork?: boolean;
   focusPoints?: string;

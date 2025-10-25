@@ -29,7 +29,6 @@ export const RehearsalService = {
 
       const response = await api.get(`/rehearsals?${params.toString()}`);
 
-      // Handle different response formats
       let data;
       let total;
       if (Array.isArray(response.data) && response.data.length === 2) {
@@ -73,24 +72,8 @@ export const RehearsalService = {
   },
 
   createRehearsal: async (data: CreateRehearsalDto): Promise<Rehearsal> => {
-    console.log('RehearsalService: createRehearsal called with:', data);
-
-    try {
-      const response = await api.post('/rehearsals', data);
-      console.log('RehearsalService: createRehearsal response:', response.data);
-      return response.data;
-    } catch (error: any) {
-      console.error('RehearsalService: createRehearsal error:', {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
-        data: error.response?.data,
-        message: error.message,
-        url: error.config?.url,
-        method: error.config?.method,
-        headers: error.config?.headers,
-      });
-      throw error;
-    }
+    const response = await api.post('/rehearsals', data);
+    return response.data;
   },
 
   updateRehearsal: async (
@@ -113,10 +96,8 @@ export const RehearsalService = {
     rehearsalId: number,
     songData: CreateRehearsalSongDto,
   ): Promise<any> => {
-    // Don't transform - backend expects leadSingerIds, not leadSingers
     const transformedSongData = {
       ...songData,
-      // Filter out musicians without a valid userId (0, null, or undefined)
       musicians:
         songData.musicians?.filter((m) => m.userId && m.userId > 0) || [],
     };
@@ -142,10 +123,8 @@ export const RehearsalService = {
     songsData: CreateRehearsalSongDto[],
   ): Promise<any[]> => {
     const promises = songsData.map((songData) => {
-      // Don't transform - backend expects leadSingerIds, not leadSingers
       const transformedSongData = {
         ...songData,
-        // Filter out musicians without a valid userId (0, null, or undefined)
         musicians:
           songData.musicians?.filter((m) => m.userId && m.userId > 0) || [],
       };
@@ -196,7 +175,6 @@ export const RehearsalService = {
         updateData.chorusMemberIds = songData.chorusMemberIds;
       }
       if (songData.musicians !== undefined) {
-        // Filter out musicians without a valid userId (0, null, or undefined)
         updateData.musicians = songData.musicians.filter(
           (m) => m.userId && m.userId > 0,
         );
@@ -341,7 +319,6 @@ export const RehearsalService = {
       const response = await api.post('/rehearsals/templates', templateData);
       return response.data;
     } catch (error) {
-      // Get current user from localStorage for default IDs
       let defaultUserId = 1;
       try {
         const user = localStorage.getItem('user');
@@ -418,17 +395,11 @@ export const RehearsalService = {
       });
 
       const cleanupPromises = invalidTemplates.map((rehearsal: Rehearsal) =>
-        api
-          .patch(`/rehearsals/${rehearsal.id}`, { isTemplate: false })
-          .catch(() => {
-            // Silently handle cleanup errors
-          }),
+        api.patch(`/rehearsals/${rehearsal.id}`, { isTemplate: false }),
       );
 
       await Promise.all(cleanupPromises);
-    } catch (error) {
-      // Silently handle cleanup errors
-    }
+    } catch (error) {}
   },
 
   copyTemplate: async (

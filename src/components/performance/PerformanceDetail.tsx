@@ -4,6 +4,7 @@ import {
   FaCalendarAlt,
   FaCheck,
   FaClock,
+  FaDownload,
   FaEdit,
   FaExclamationTriangle,
   FaEye,
@@ -24,6 +25,7 @@ import {
   usePerformance,
   usePerformances,
 } from '@/lib/performance/logic';
+import { exportPerformanceToPDF } from '@/lib/performance/pdf-export';
 import type { Performance, PerformanceStatus } from '@/lib/performance/types';
 import { useRehearsals } from '@/lib/rehearsal/logic';
 import type { Rehearsal, RehearsalStatus } from '@/lib/rehearsal/types';
@@ -162,6 +164,21 @@ const PerformanceDetail: React.FC<PerformanceDetailProps> = ({
     }
   };
 
+  const handleExportToPDF = async () => {
+    try {
+      await exportPerformanceToPDF(currentPerformance);
+      setFeedback({
+        type: 'success',
+        message: 'Rapport de performance exporté avec succès',
+      });
+    } catch (error: any) {
+      setFeedback({
+        type: 'error',
+        message: `Erreur lors de l'export: ${error.message || 'Erreur inconnue'}`,
+      });
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
       <div className="max-h-[90vh] w-[98%] overflow-y-auto rounded-lg bg-white p-4 shadow-xl md:w-[80%] md:p-6">
@@ -173,12 +190,22 @@ const PerformanceDetail: React.FC<PerformanceDetailProps> = ({
               Performance {currentPerformance.type}
             </h2>
           </div>
-          <button
-            onClick={onClose}
-            className="flex items-center gap-1 rounded-md bg-red-500 p-2 text-sm text-white hover:bg-red-600 md:gap-2 md:px-4 md:text-base"
-          >
-            <FaTimes className="text-sm" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleExportToPDF}
+              className="flex items-center gap-1 rounded-md bg-green-500 p-2 text-sm text-white hover:bg-green-600 md:gap-2 md:px-4 md:text-base"
+              title="Exporter le rapport PDF"
+            >
+              <FaDownload className="text-sm" />
+              <span className="hidden sm:inline">Exporter PDF</span>
+            </button>
+            <button
+              onClick={onClose}
+              className="flex items-center gap-1 rounded-md bg-red-500 p-2 text-sm text-white hover:bg-red-600 md:gap-2 md:px-4 md:text-base"
+            >
+              <FaTimes className="text-sm" />
+            </button>
+          </div>
         </div>
 
         {/* Feedback Messages */}

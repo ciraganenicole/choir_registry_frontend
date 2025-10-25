@@ -310,6 +310,15 @@ export const PerformanceService = {
       );
       return response.data;
     } catch (error: any) {
+      console.error('Promotion API Error:', {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message,
+        url: error.config?.url,
+        method: error.config?.method,
+      });
+
       if (error.response?.status === 401) {
         throw new Error('Authentication required - please log in');
       } else if (error.response?.status === 403) {
@@ -319,10 +328,11 @@ export const PerformanceService = {
       } else if (error.response?.status === 404) {
         throw new Error('Rehearsal not found or endpoint not available');
       } else if (error.response?.status === 400) {
-        throw new Error(
+        const errorMessage =
           error.response?.data?.message ||
-            'Rehearsal cannot be promoted - check status and requirements',
-        );
+          error.response?.data?.error ||
+          'Rehearsal cannot be promoted - check status and requirements';
+        throw new Error(errorMessage);
       }
 
       throw new Error(

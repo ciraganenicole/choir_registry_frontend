@@ -22,8 +22,6 @@ const RehearsalPage: React.FC = () => {
   // Check if user has permission to view rehearsals
   const canViewRehearsals =
     user.role === UserRole.SUPER_ADMIN ||
-    user.role === UserRole.LEAD ||
-    user.role === UserRole.ATTENDANCE_ADMIN ||
     user.categories?.includes(UserCategory.LEAD);
 
   if (!canViewRehearsals) {

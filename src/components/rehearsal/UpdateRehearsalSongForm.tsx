@@ -24,6 +24,7 @@ import {
   InstrumentType,
   MusicalKey,
   SongDifficulty,
+  VoicePartType,
 } from '@/lib/rehearsal/types';
 import { useUsers } from '@/lib/user/useUsers';
 
@@ -65,12 +66,12 @@ interface UpdateSongFormState {
 }
 
 const rehearsalVoicePartOptions = [
-  'Soprano',
-  'Alto',
-  'Tenor',
-  'Bass',
-  'Mezzo Soprano',
-  'Baritone',
+  VoicePartType.SOPRANO,
+  VoicePartType.ALTO,
+  VoicePartType.TENOR,
+  VoicePartType.BASS,
+  VoicePartType.MEZZO_SOPRANO,
+  VoicePartType.BARITONE,
 ];
 
 export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
@@ -374,7 +375,7 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
 
       const addVoicePart = () => {
         const newVoicePart: CreateRehearsalVoicePartDto = {
-          voicePartType: 'Soprano',
+          voicePartType: VoicePartType.SOPRANO,
           memberIds: [],
           needsWork: false,
           focusPoints: '',
@@ -1353,7 +1354,7 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                                 updateVoicePart(
                                   index,
                                   'voicePartType',
-                                  e.target.value,
+                                  e.target.value as VoicePartType,
                                 )
                               }
                               className="w-full rounded-md border border-gray-300 px-3 py-2 shadow-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
