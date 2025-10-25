@@ -222,8 +222,7 @@ export const useUpdateRehearsal = () => {
       setError(null);
 
       try {
-        // TODO: Implement actual API call
-        console.log('Updating rehearsal:', rehearsalId, updateData);
+        await RehearsalService.updateRehearsal(rehearsalId, updateData);
         return true;
       } catch (err: any) {
         setError(err.response?.data?.message || 'Failed to update rehearsal');

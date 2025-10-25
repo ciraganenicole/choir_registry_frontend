@@ -84,7 +84,7 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
     fetchRehearsalSongs,
   } = useRehearsalSongs(rehearsalId || 0);
 
-  const { isLoading: isPromoting } = usePromoteRehearsal();
+  const { promoteRehearsal, isLoading: isPromoting } = usePromoteRehearsal();
 
   const rehearsalSongs = separatedRehearsalSongs?.rehearsalSongs || [];
   const rehearsalInfo = separatedRehearsalSongs?.rehearsalInfo;
@@ -803,11 +803,49 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
     if (!performanceId || performanceId <= 0) return false;
     if (!rehearsalInfo) return false;
     if (rehearsalInfo.performanceId !== performanceId) return false;
+    if (rehearsalInfo.status !== 'Completed') return false; // Only completed rehearsals can be promoted
 
     const hasSongs = convertedSongs.length > 0 || songs.length > 0;
     if (!hasSongs) return false;
 
     return true;
+  };
+
+  const handlePromoteToPerformance = async () => {
+    if (!canPromote()) {
+      if (!rehearsalId || rehearsalId <= 0) {
+        toast.error('ID de répétition invalide');
+      } else if (!performanceId || performanceId <= 0) {
+        toast.error('ID de performance invalide');
+      } else if (!rehearsalInfo) {
+        toast.error('Informations de répétition manquantes');
+      } else if (rehearsalInfo.performanceId !== performanceId) {
+        toast.error("La répétition n'est pas liée à cette performance");
+      } else if (convertedSongs.length === 0 && songs.length === 0) {
+        toast.error('Aucune chanson dans cette répétition');
+      } else if (rehearsalInfo.status !== 'Completed') {
+        toast.error(
+          `La répétition doit être terminée pour être promue. Statut actuel: ${rehearsalInfo.status}`,
+        );
+      }
+      return;
+    }
+
+    try {
+      const promotedPerformance = await promoteRehearsal(rehearsalId!);
+
+      if (promotedPerformance) {
+        toast.success('Répétition promue avec succès vers la performance!');
+        // Optionally refresh the rehearsal data to show updated status
+        if (fetchRehearsalSongs) {
+          await fetchRehearsalSongs();
+        }
+      }
+    } catch (error: any) {
+      toast.error(
+        `Erreur lors de la promotion: ${error.message || 'Erreur inconnue'}`,
+      );
+    }
   };
 
   return (
@@ -876,9 +914,7 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
           {canPromote() && (
             <button
               type="button"
-              onClick={() => {
-                toast.success('Fonctionnalité de promotion non disponible');
-              }}
+              onClick={handlePromoteToPerformance}
               disabled={isPromoting}
               className="flex items-center gap-2 rounded-md bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -932,7 +968,7 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
             <div className="space-y-3">
               {songsToRender.map((song, index) => (
                 <div
-                  key={index}
+                  key={`song-${song.songId || song.rehearsalSongId || index}`}
                   className="rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200 hover:shadow-md"
                 >
                   <div className="mb-3 flex items-center justify-between">
@@ -1035,7 +1071,7 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                       <div className="flex flex-wrap gap-2">
                         {song.voiceParts.map((vp, vpIndex) => (
                           <span
-                            key={vpIndex}
+                            key={`vp-${song.songId || song.rehearsalSongId || index}-${vpIndex}`}
                             className="rounded-full bg-purple-100 px-2 py-1 text-xs text-purple-800"
                           >
                             {vp.voicePartType} ({vp.memberIds?.length || 0}{' '}
@@ -1057,7 +1093,7 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                       <div className="flex flex-wrap gap-2">
                         {song.musicians.map((musician, mIndex) => (
                           <span
-                            key={mIndex}
+                            key={`musician-${song.songId || song.rehearsalSongId || index}-${mIndex}`}
                             className="rounded-full bg-green-100 px-2 py-1 text-xs text-green-800"
                           >
                             {musician.userId
@@ -1403,7 +1439,7 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
 
                 {newSong.voiceParts.map((voicePart, index) => (
                   <div
-                    key={index}
+                    key={`new-vp-${index}`}
                     className="mb-4 rounded-lg border border-gray-200 p-4"
                   >
                     <div className="mb-3 flex items-center justify-between">
@@ -1657,7 +1693,7 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
 
                 {newSong.musicians.map((musician, index) => (
                   <div
-                    key={index}
+                    key={`new-musician-${index}`}
                     className="mb-4 rounded-lg border border-gray-200 p-4"
                   >
                     <div className="mb-3 flex items-center justify-between">
