@@ -1,7 +1,16 @@
 import { jsPDF as JsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
+import type { Performance } from '@/lib/performance/types';
 import type { LeadershipShift } from '@/lib/shift/logic';
 import { ShiftStatus } from '@/lib/shift/logic';
+
+// Extend jsPDF type to include autoTable
+declare module 'jspdf' {
+  interface JsPDF {
+    autoTable: typeof autoTable;
+  }
+}
 
 export const exportShiftListToPDF = async (shifts: LeadershipShift[]) => {
   const pdfDoc = new JsPDF({
@@ -23,6 +32,7 @@ export const exportShiftListToPDF = async (shifts: LeadershipShift[]) => {
     pdfDoc.addImage(base64, 'PNG', margin, margin, 35, 20);
   } catch (error) {
     // Silently ignore logo loading errors - PDF will still be generated without logo
+    // eslint-disable-next-line no-console
     console.warn('Failed to add logo to PDF:', error);
   }
 
@@ -248,7 +258,10 @@ export const exportShiftListToPDF = async (shifts: LeadershipShift[]) => {
   pdfDoc.save(filename);
 };
 
-export const exportShiftDetailToPDF = async (shift: LeadershipShift) => {
+export const exportShiftDetailToPDF = async (
+  shift: LeadershipShift,
+  performances?: Performance[],
+) => {
   const pdfDoc = new JsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -268,33 +281,17 @@ export const exportShiftDetailToPDF = async (shift: LeadershipShift) => {
     pdfDoc.addImage(base64, 'PNG', margin, margin, 35, 20);
   } catch (error) {
     // Silently ignore logo loading errors - PDF will still be generated without logo
+    // eslint-disable-next-line no-console
     console.warn('Failed to add logo to PDF:', error);
   }
 
-  // Add title
-  pdfDoc.setFontSize(16);
+  // Add title with better styling
+  pdfDoc.setFontSize(20);
   pdfDoc.setFont('helvetica', 'bold');
-  pdfDoc.text("Détails de l'Horaire", margin + 36, margin + 10);
+  pdfDoc.setTextColor(40, 40, 40); // Dark gray
+  pdfDoc.text("Détails de l'Horaire", margin + 40, margin + 12);
 
-  // Add date
-  pdfDoc.setFontSize(12);
-  pdfDoc.setFont('helvetica', 'normal');
-  pdfDoc.text(
-    `Date: ${new Date().toLocaleDateString('fr-FR')}`,
-    margin + 36,
-    margin + 18,
-  );
-
-  // Add shift name
-  const shiftTitleY = margin + 35;
-  pdfDoc.setFontSize(14);
-  pdfDoc.setFont('helvetica', 'bold');
-  pdfDoc.text(shift.name || 'Horaire sans nom', margin, shiftTitleY);
-
-  // Add status
-  const statusY = shiftTitleY + 10;
-  pdfDoc.setFontSize(12);
-  pdfDoc.setFont('helvetica', 'normal');
+  let currentY = margin + 45;
 
   // Determine actual status based on dates
   const now = new Date();
@@ -327,70 +324,233 @@ export const exportShiftDetailToPDF = async (shift: LeadershipShift) => {
     }
   };
 
-  pdfDoc.text(`Statut: ${getStatusText(actualStatus)}`, margin, statusY);
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'Active':
+        return [46, 204, 113]; // Green
+      case 'Upcoming':
+        return [52, 152, 219]; // Blue
+      case 'Completed':
+        return [241, 196, 15]; // Yellow/Orange
+      case 'Cancelled':
+        return [231, 76, 60]; // Red
+      default:
+        return [149, 165, 166]; // Gray
+    }
+  };
 
-  // Add leader information
-  const leaderY = statusY + 8;
-  pdfDoc.text('Conducteur:', margin, leaderY);
+  const translatePerformanceType = (type: string): string => {
+    const translations: Record<string, string> = {
+      Concert: 'Concert',
+      'Worship Service': 'Service de Culte',
+      'Sunday Service': 'Service du Dimanche',
+      'Special Event': 'Événement Spécial',
+      Rehearsal: 'Répétition',
+      Wedding: 'Mariage',
+      Funeral: 'Funérailles',
+      Other: 'Autre',
+    };
+    return translations[type] || type;
+  };
+
+  // Status badge with colored background
+  const statusColor = getStatusColor(actualStatus);
+  pdfDoc.setFillColor(statusColor[0]!, statusColor[1]!, statusColor[2]!);
+  pdfDoc.rect(margin, currentY - 3, 40, 8, 'F');
+  pdfDoc.setFontSize(11);
+  pdfDoc.setFont('helvetica', 'bold');
+  pdfDoc.setTextColor(255, 255, 255); // White text
   pdfDoc.text(
-    `Nom: ${shift.leader ? `${shift.leader.firstName} ${shift.leader.lastName}` : 'Inconnu'}`,
-    margin + 5,
-    leaderY + 5,
+    `Statut: ${getStatusText(actualStatus)}`,
+    margin + 2,
+    currentY + 2,
   );
-  pdfDoc.text(`Email: ${shift.leader?.email || '-'}`, margin + 5, leaderY + 10);
+  pdfDoc.setTextColor(40, 40, 40); // Reset to dark gray
+  currentY += 15;
+
+  // Shift Information Table
+  const shiftInfoData = [
+    ['Statut', getStatusText(actualStatus)],
+    [
+      'Période',
+      `${new Date(shift.startDate).toLocaleDateString('fr-FR')} - ${new Date(shift.endDate).toLocaleDateString('fr-FR')}`,
+    ],
+    [
+      'Durée',
+      (() => {
+        if (shift.startDate && shift.endDate) {
+          const start = new Date(shift.startDate);
+          const end = new Date(shift.endDate);
+          const diffTime = Math.abs(end.getTime() - start.getTime());
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+          return `${diffDays} jours`;
+        }
+        return 'Non spécifiée';
+      })(),
+    ],
+  ];
+
+  autoTable(pdfDoc, {
+    startY: currentY,
+    head: [["Informations de l'Horaire", '']],
+    body: shiftInfoData,
+    theme: 'grid',
+    headStyles: {
+      fillColor: [155, 89, 182], // Purple header to match shift theme
+      textColor: 255,
+      fontSize: 12,
+      fontStyle: 'bold',
+    },
+    bodyStyles: {
+      fontSize: 10,
+    },
+    alternateRowStyles: {
+      fillColor: [245, 245, 245], // Light gray for alternate rows
+    },
+    columnStyles: {
+      0: {
+        halign: 'left',
+        fontStyle: 'bold',
+        fillColor: [236, 240, 241], // Light background
+      },
+      1: {
+        halign: 'left',
+      },
+    },
+    margin: { left: margin, right: margin },
+    tableWidth: 'wrap',
+  });
+
+  currentY = (pdfDoc as any).lastAutoTable.finalY + 15;
+
+  // Leader Information Table
+  const leaderData = [
+    [
+      'Nom',
+      shift.leader
+        ? `${shift.leader.firstName} ${shift.leader.lastName}`
+        : 'Inconnu',
+    ],
+    ['Email', shift.leader?.email || '-'],
+    ['Téléphone', shift.leader?.phoneNumber || '-'],
+  ];
+
+  autoTable(pdfDoc, {
+    startY: currentY,
+    head: [['Conducteur', '']],
+    body: leaderData,
+    theme: 'grid',
+    headStyles: {
+      fillColor: [52, 152, 219], // Blue header
+      textColor: 255,
+      fontSize: 12,
+      fontStyle: 'bold',
+    },
+    bodyStyles: {
+      fontSize: 10,
+    },
+    alternateRowStyles: {
+      fillColor: [245, 245, 245], // Light gray for alternate rows
+    },
+    columnStyles: {
+      0: {
+        halign: 'left',
+        fontStyle: 'bold',
+        fillColor: [236, 240, 241], // Light background
+      },
+      1: {
+        halign: 'left',
+      },
+    },
+    margin: { left: margin, right: margin },
+    tableWidth: 'wrap',
+  });
+
+  currentY = (pdfDoc as any).lastAutoTable.finalY + 15;
+
+  // Add performance information with table
+  pdfDoc.setFontSize(16);
+  pdfDoc.setFont('helvetica', 'bold');
+  pdfDoc.setTextColor(40, 40, 40);
   pdfDoc.text(
-    `Téléphone: ${shift.leader?.phoneNumber || '-'}`,
-    margin + 5,
-    leaderY + 15,
+    `Répertoire des Performances (${performances?.length || shift.eventsScheduled || 0})`,
+    margin,
+    currentY,
   );
 
-  // Add schedule information
-  const scheduleY = leaderY + 25;
-  pdfDoc.text("Détails de l'horaire:", margin, scheduleY);
-  pdfDoc.text(
-    `Date de début: ${shift.startDate ? new Date(shift.startDate).toLocaleDateString('fr-FR') : '-'}`,
-    margin + 5,
-    scheduleY + 5,
-  );
-  pdfDoc.text(
-    `Date de fin: ${shift.endDate ? new Date(shift.endDate).toLocaleDateString('fr-FR') : '-'}`,
-    margin + 5,
-    scheduleY + 10,
-  );
+  currentY += 15;
 
-  // Calculate duration
-  if (shift.startDate && shift.endDate) {
-    const start = new Date(shift.startDate);
-    const end = new Date(shift.endDate);
-    const diffTime = Math.abs(end.getTime() - start.getTime());
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    pdfDoc.text(`Durée: ${diffDays} jours`, margin + 5, scheduleY + 15);
+  // Performance table
+  if (performances && performances.length > 0) {
+    const performanceData = performances.map((perf) => [
+      translatePerformanceType(perf.type),
+      perf.location || 'Non spécifié',
+      new Date(perf.date).toLocaleDateString('fr-FR', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      }),
+    ]);
+
+    autoTable(pdfDoc, {
+      startY: currentY,
+      head: [['Type de Performance', 'Emplacement', 'Date']],
+      body: performanceData,
+      theme: 'striped',
+      headStyles: {
+        fillColor: [155, 89, 182], // Purple header to match shift theme
+        textColor: 255,
+        fontSize: 10,
+        fontStyle: 'bold',
+      },
+      bodyStyles: {
+        fontSize: 9,
+      },
+      columnStyles: {
+        0: { halign: 'left' }, // Type - auto width
+        1: { halign: 'left' }, // Location - auto width
+        2: { halign: 'left' }, // Date - auto width
+      },
+      margin: { left: margin, right: margin },
+      tableWidth: 'wrap',
+    });
+
+    currentY = (pdfDoc as any).lastAutoTable.finalY + 15;
+  } else {
+    // No performances message with styling
+    pdfDoc.setFillColor(255, 193, 7); // Yellow background
+    pdfDoc.rect(
+      margin,
+      currentY - 3,
+      pdfDoc.internal.pageSize.getWidth() - margin * 2,
+      8,
+      'F',
+    );
+
+    pdfDoc.setFontSize(12);
+    pdfDoc.setFont('helvetica', 'bold');
+    pdfDoc.setTextColor(40, 40, 40);
+    pdfDoc.text(
+      `Programmées: ${shift.eventsScheduled || 0} | Terminées: ${shift.eventsCompleted || 0}`,
+      margin + 2,
+      currentY + 2,
+    );
+    pdfDoc.setTextColor(40, 40, 40); // Reset
+    currentY += 15;
   }
 
-  // Add performance information
-  const performanceY = scheduleY + 25;
-  pdfDoc.text('Performances:', margin, performanceY);
-  pdfDoc.text(
-    `Programmées: ${shift.eventsScheduled || 0}`,
-    margin + 5,
-    performanceY + 5,
-  );
-  pdfDoc.text(
-    `Terminées: ${shift.eventsCompleted || 0}`,
-    margin + 5,
-    performanceY + 10,
-  );
-
-  // Add notes section
-  let currentY = performanceY + 20;
+  // Add notes section with better styling
   if (shift.notes) {
-    pdfDoc.setFontSize(11);
+    currentY += 5;
+    pdfDoc.setFontSize(12);
     pdfDoc.setFont('helvetica', 'bold');
-    pdfDoc.text('Notes:', margin, currentY);
+    pdfDoc.setTextColor(40, 40, 40);
+    pdfDoc.text('Notes Générales', margin, currentY);
     currentY += 8;
 
     pdfDoc.setFontSize(10);
     pdfDoc.setFont('helvetica', 'normal');
+    pdfDoc.setTextColor(60, 60, 60);
 
     // Split notes into lines that fit the page width
     const pageWidth = pdfDoc.internal.pageSize.getWidth();
@@ -412,30 +572,76 @@ export const exportShiftDetailToPDF = async (shift: LeadershipShift) => {
       pdfDoc.text(line, margin, currentY);
       currentY += lineHeight;
     });
+    currentY += 10;
   }
 
-  // Add creation info
+  // Add creation info in a table
   if (shift.created_by) {
-    currentY += 10;
-    pdfDoc.setFontSize(10);
-    pdfDoc.setFont('helvetica', 'normal');
-    pdfDoc.text(
-      `Créé par: ${shift.created_by.firstName} ${shift.created_by.lastName}`,
-      margin,
-      currentY,
-    );
+    const creationData = [
+      [
+        'Créé par',
+        `${shift.created_by.firstName} ${shift.created_by.lastName}`,
+      ],
+      [
+        'Date de création',
+        shift.createdAt
+          ? new Date(shift.createdAt).toLocaleDateString('fr-FR', {
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+            })
+          : '-',
+      ],
+    ];
 
-    if (shift.createdAt) {
-      const createdDate = new Date(shift.createdAt).toLocaleDateString(
-        'fr-FR',
-        {
-          year: 'numeric',
-          month: 'long',
-          day: 'numeric',
+    autoTable(pdfDoc, {
+      startY: currentY,
+      head: [['Informations de Création', '']],
+      body: creationData,
+      theme: 'plain',
+      headStyles: {
+        fillColor: [149, 165, 166], // Gray header
+        textColor: 255,
+        fontSize: 10,
+        fontStyle: 'bold',
+      },
+      bodyStyles: {
+        fontSize: 9,
+      },
+      columnStyles: {
+        0: {
+          halign: 'left',
+          fontStyle: 'bold',
+          fillColor: [250, 250, 250], // Very light background
         },
-      );
-      pdfDoc.text(`Créé le: ${createdDate}`, margin, currentY + 5);
-    }
+        1: {
+          halign: 'left',
+        },
+      },
+      margin: { left: margin, right: margin },
+      tableWidth: 'wrap',
+    });
+
+    currentY = (pdfDoc as any).lastAutoTable.finalY + 15;
+  }
+
+  // Footer
+  const pageCount = pdfDoc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i += 1) {
+    pdfDoc.setPage(i);
+    pdfDoc.setFontSize(8);
+    pdfDoc.setFont('helvetica', 'normal');
+    pdfDoc.setTextColor(150, 150, 150);
+    pdfDoc.text(
+      `Page ${i} sur ${pageCount}`,
+      pdfDoc.internal.pageSize.getWidth() - 30,
+      pdfDoc.internal.pageSize.getHeight() - 10,
+    );
+    pdfDoc.text(
+      "Nouvelle Jérusalem Choir - Détails de l'Horaire",
+      margin,
+      pdfDoc.internal.pageSize.getHeight() - 10,
+    );
   }
 
   // Save PDF with shift name as filename

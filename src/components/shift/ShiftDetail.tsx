@@ -80,8 +80,9 @@ const ShiftDetail: React.FC<ShiftDetailProps> = ({
 
   const handleExportPDF = async () => {
     try {
-      await exportShiftDetailToPDF(shift);
+      await exportShiftDetailToPDF(shift, performances || []);
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error('Error exporting shift to PDF:', error);
       alert("Erreur lors de l'exportation du PDF");
     }
