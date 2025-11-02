@@ -16,7 +16,11 @@ import type {
   UpdatePerformanceDto,
 } from '@/lib/performance/types';
 import { PerformanceType } from '@/lib/performance/types';
-import { getActualShiftStatus, useCurrentShift } from '@/lib/shift/logic';
+import {
+  getActualShiftStatus,
+  ShiftStatus,
+  useCurrentShift,
+} from '@/lib/shift/logic';
 import { UserCategory, UserRole } from '@/lib/user/type';
 import { useAuth } from '@/providers/AuthProvider';
 
@@ -122,21 +126,24 @@ const PerformanceForm: React.FC<PerformanceFormProps> = ({
       newErrors.type = 'Le type est requis';
     }
 
-    // Shift validation removed - performances can be created without active shifts
-    // Shift validation is now optional - performances can be created without assignment
+    // Shift validation - check if there's an active shift and validate its status
     if (currentShift) {
-      if (!currentShift.leaderId) {
-        newErrors.general = 'Aucun chef de service assigné au shift';
-        setErrors(newErrors);
-        return false;
-      }
-
       const actualStatus = getActualShiftStatus(currentShift);
-      if (actualStatus === 'Completed' || actualStatus === 'Cancelled') {
+      if (
+        actualStatus === ShiftStatus.COMPLETED ||
+        actualStatus === ShiftStatus.CANCELLED
+      ) {
         newErrors.general =
           'Ce shift est terminé ou annulé, impossible de créer une performance';
         setErrors(newErrors);
         return false;
+      }
+
+      // Only show warning if shift exists but has no leader (shouldn't happen based on interface)
+      if (!currentShift.leaderId) {
+        setShiftValidationWarning(
+          "Ce shift n'a pas de conducteur assigné. La performance sera créée sans conducteur.",
+        );
       }
     }
 
@@ -475,9 +482,12 @@ const PerformanceForm: React.FC<PerformanceFormProps> = ({
               disabled={
                 loading ||
                 shiftLoading ||
-                !currentShift?.leaderId ||
-                getActualShiftStatus(currentShift) === 'Completed' ||
-                getActualShiftStatus(currentShift) === 'Cancelled'
+                (currentShift
+                  ? getActualShiftStatus(currentShift) === ShiftStatus.COMPLETED
+                  : false) ||
+                (currentShift
+                  ? getActualShiftStatus(currentShift) === ShiftStatus.CANCELLED
+                  : false)
               }
               className="flex items-center gap-2 rounded-md bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:opacity-50"
             >
@@ -498,13 +508,16 @@ const PerformanceForm: React.FC<PerformanceFormProps> = ({
                     </>
                   );
                 }
-                if (!currentShift?.leaderId) {
-                  return 'Aucun conducteur assigné';
-                }
-                if (getActualShiftStatus(currentShift) === 'Completed') {
+                if (
+                  currentShift &&
+                  getActualShiftStatus(currentShift) === ShiftStatus.COMPLETED
+                ) {
                   return 'Shift terminé';
                 }
-                if (getActualShiftStatus(currentShift) === 'Cancelled') {
+                if (
+                  currentShift &&
+                  getActualShiftStatus(currentShift) === ShiftStatus.CANCELLED
+                ) {
                   return 'Shift annulé';
                 }
                 return (
