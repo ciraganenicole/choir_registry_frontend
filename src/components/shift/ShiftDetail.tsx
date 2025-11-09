@@ -55,10 +55,14 @@ const ShiftDetail: React.FC<ShiftDetailProps> = ({
 
   // Fetch performances for this shift
   useEffect(() => {
-    if (shift?.id) {
-      fetchPerformances({ shiftLeadId: shift.id });
+    if (shift?.leaderId) {
+      // Fetch with max limit (100) to get all performances for this shift
+      fetchPerformances(
+        { shiftLeadId: shift.leaderId },
+        { page: 1, limit: 100 },
+      );
     }
-  }, [shift?.id, fetchPerformances]);
+  }, [shift?.leaderId, fetchPerformances]);
 
   // Safety check - if no shift data, don't render
   if (!shift) {

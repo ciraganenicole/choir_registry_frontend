@@ -64,7 +64,7 @@ export const TransactionService = {
     const response = await api.get('/transactions', {
       params: {
         ...filters,
-        limit: 1000000, // Get all records
+        limit: 1000, // Get all records
       },
       responseType: 'blob',
     });

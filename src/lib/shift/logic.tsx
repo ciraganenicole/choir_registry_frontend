@@ -707,18 +707,23 @@ export const useLeaderHistory = () => {
         const allShifts: LeadershipShift[] = shiftsResponse.data[0] || [];
 
         // Also fetch performances to get actual completion data
+        // Note: API has max limit of 100, so we'll use that
         let performancesData: any[] = [];
         try {
-          const performancesResponse = await api.get(
-            '/performances?limit=10000',
-          );
+          const performancesResponse = await api.get('/performances?limit=100');
           if (Array.isArray(performancesResponse.data)) {
             performancesData = performancesResponse.data;
           } else if (Array.isArray(performancesResponse.data?.[0])) {
             performancesData = performancesResponse.data[0];
+          } else if (
+            performancesResponse.data?.data &&
+            Array.isArray(performancesResponse.data.data)
+          ) {
+            performancesData = performancesResponse.data.data;
           }
         } catch (perfError) {
           // If performances endpoint fails, continue with shift data only
+          // The fallback logic will estimate based on shift data
         }
         const historyMap = new Map<
           number,
