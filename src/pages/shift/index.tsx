@@ -140,10 +140,10 @@ const ShiftPage = () => {
   const leaderHistoryWithPerformance = useMemo(() => {
     if (!leaderHistory.length) return [];
 
-    // Pre-calculate max performances once
-    const maxPerformances = Math.max(
-      ...leaderHistory.map((l) => l.totalEvents || 0),
-    );
+    // Pre-calculate max performances once, with proper handling of empty arrays
+    const eventCounts = leaderHistory.map((l) => l.totalEvents || 0);
+    const maxPerformances =
+      eventCounts.length > 0 ? Math.max(...eventCounts, 0) : 0;
 
     // Calculate average completion rate for comparison
     const avgCompletionRate =
@@ -153,7 +153,7 @@ const ShiftPage = () => {
               leader.totalEvents > 0
                 ? (leader.totalEventsCompleted / leader.totalEvents) * 100
                 : 0;
-            return sum + rate;
+            return sum + (Number.isNaN(rate) ? 0 : rate);
           }, 0) / leaderHistory.length
         : 0;
 
@@ -162,22 +162,35 @@ const ShiftPage = () => {
       const totalPerformances = leader.totalEvents || 0;
       const completedPerformances = leader.totalEventsCompleted || 0;
 
-      // Calculate completion rate
+      // Calculate completion rate with safety checks
       const completionRate =
-        totalPerformances > 0
-          ? (completedPerformances / totalPerformances) * 100
+        totalPerformances > 0 && !Number.isNaN(totalPerformances)
+          ? Math.max(
+              0,
+              Math.min(100, (completedPerformances / totalPerformances) * 100),
+            )
           : 0;
 
-      // Calculate performance volume
+      // Calculate performance volume with safety checks
       const performanceVolume =
-        maxPerformances > 0 ? (totalPerformances / maxPerformances) * 100 : 0;
+        maxPerformances > 0 && !Number.isNaN(maxPerformances)
+          ? Math.max(
+              0,
+              Math.min(100, (totalPerformances / maxPerformances) * 100),
+            )
+          : 0;
 
       // Calculate reliability score with enhanced weighting
       // 60% completion rate, 25% performance volume, 15% consistency bonus
-      const consistencyBonus = completionRate >= avgCompletionRate ? 10 : 0;
-      const reliabilityScore = Math.min(
-        100,
-        completionRate * 0.6 + performanceVolume * 0.25 + consistencyBonus,
+      const consistencyBonus =
+        !Number.isNaN(avgCompletionRate) && completionRate >= avgCompletionRate
+          ? 10
+          : 0;
+      const rawScore =
+        completionRate * 0.6 + performanceVolume * 0.25 + consistencyBonus;
+      const reliabilityScore = Math.max(
+        0,
+        Math.min(100, Number.isNaN(rawScore) ? 0 : rawScore),
       );
 
       // Calculate performance level based on enhanced criteria
@@ -747,21 +760,72 @@ const ShiftPage = () => {
                         <div>
                           <div className="mb-1 flex items-center justify-between text-xs text-gray-500">
                             <span>Score de fiabilité</span>
-                            <span>{performance.reliabilityScore}/100</span>
+                            <span>
+                              {Math.max(
+                                0,
+                                Math.min(
+                                  100,
+                                  performance.reliabilityScore || 0,
+                                ),
+                              )}
+                              /100
+                            </span>
                           </div>
                           <div className="h-2 w-full rounded-full bg-gray-200">
                             <div
                               className={`h-2 rounded-full transition-all duration-300 ${
-                                performance.reliabilityScore >= 80
+                                (performance.reliabilityScore || 0) >= 80
                                   ? 'bg-green-500'
-                                  : performance.reliabilityScore >= 65
+                                  : (performance.reliabilityScore || 0) >= 65
                                     ? 'bg-blue-500'
-                                    : performance.reliabilityScore >= 50
+                                    : (performance.reliabilityScore || 0) >= 50
                                       ? 'bg-yellow-500'
                                       : 'bg-gray-400'
                               }`}
                               style={{
-                                width: `${Math.min(performance.reliabilityScore, 100)}%`,
+                                width: `${Math.max(
+                                  0,
+                                  Math.min(
+                                    100,
+                                    performance.reliabilityScore || 0,
+                                  ),
+                                )}%`,
+                              }}
+                            ></div>
+                          </div>
+                        </div>
+
+                        {/* Completion Rate Progress Bar */}
+                        <div>
+                          <div className="mb-1 flex items-center justify-between text-xs text-gray-500">
+                            <span>Taux de complétion</span>
+                            <span>
+                              {Math.max(
+                                0,
+                                Math.min(100, performance.completionRate || 0),
+                              )}
+                              %
+                            </span>
+                          </div>
+                          <div className="h-2 w-full rounded-full bg-gray-200">
+                            <div
+                              className={`h-2 rounded-full transition-all duration-300 ${
+                                (performance.completionRate || 0) >= 90
+                                  ? 'bg-green-500'
+                                  : (performance.completionRate || 0) >= 75
+                                    ? 'bg-blue-500'
+                                    : (performance.completionRate || 0) >= 50
+                                      ? 'bg-yellow-500'
+                                      : 'bg-red-400'
+                              }`}
+                              style={{
+                                width: `${Math.max(
+                                  0,
+                                  Math.min(
+                                    100,
+                                    performance.completionRate || 0,
+                                  ),
+                                )}%`,
                               }}
                             ></div>
                           </div>
@@ -771,9 +835,9 @@ const ShiftPage = () => {
                         <div className="grid grid-cols-2 gap-2 text-xs">
                           <div className="text-center">
                             <div className="font-medium text-gray-900">
-                              {performance.completionRate}%
+                              {performance.totalPerformances}
                             </div>
-                            <div className="text-gray-500">Complétion</div>
+                            <div className="text-gray-500">Total</div>
                           </div>
                           <div className="text-center">
                             <div className="font-medium text-gray-900">
