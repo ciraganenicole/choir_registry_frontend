@@ -619,31 +619,6 @@ export const useUpcomingShifts = (limit: number = 5) => {
   return { upcomingShifts, isLoading, error, refetch: fetchUpcomingShifts };
 };
 
-// Helper function to get realistic mock data
-const getMockLeaderHistory = (): LeaderHistory[] => [
-  {
-    leaderId: 6,
-    leaderName: 'Muhima Aimé',
-    leaderEmail: 'muhima.aime@example.com',
-    totalEvents: 8,
-    totalEventsCompleted: 6,
-  },
-  {
-    leaderId: 7,
-    leaderName: 'Mutunzi Arcadius',
-    leaderEmail: 'mutunzi.arcadius@example.com',
-    totalEvents: 6,
-    totalEventsCompleted: 4,
-  },
-  {
-    leaderId: 8,
-    leaderName: 'Ciragane Nicole',
-    leaderEmail: 'ciragane.nicole@example.com',
-    totalEvents: 4,
-    totalEventsCompleted: 3,
-  },
-];
-
 export const useLeaderHistory = () => {
   const [leaderHistory, setLeaderHistory] = useState<LeaderHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -664,30 +639,87 @@ export const useLeaderHistory = () => {
       try {
         const response = await api.get('/leadership-shifts/history');
 
-        // Validate and normalize the history data
-        const validatedHistory = (response.data as LeaderHistory[]).map(
-          (leader) => ({
-            leaderId: leader.leaderId || 0,
-            leaderName: leader.leaderName || 'Unknown Leader',
-            leaderEmail: leader.leaderEmail || '',
-            totalEvents: leader.totalEvents || 0,
-            totalEventsCompleted: leader.totalEventsCompleted || 0,
-          }),
-        );
-
-        // If all data is empty, use mock data instead
-        const hasRealData = validatedHistory.some(
-          (leader) => leader.totalEvents > 0,
-        );
-        if (!hasRealData) {
-          setLeaderHistory(getMockLeaderHistory());
-          return;
+        // Handle different response structures
+        let historyData: any[] = [];
+        if (Array.isArray(response.data)) {
+          historyData = response.data;
+        } else if (response.data?.data && Array.isArray(response.data.data)) {
+          historyData = response.data.data;
+        } else if (
+          response.data?.history &&
+          Array.isArray(response.data.history)
+        ) {
+          historyData = response.data.history;
         }
 
-        setLeaderHistory(validatedHistory);
+        // Validate and normalize the history data
+        const validatedHistory = historyData
+          .map((leader: any) => {
+            // Handle both camelCase and snake_case field names
+            const leaderId =
+              leader.leaderId || leader.leader_id || leader.id || 0;
+            const leaderName =
+              leader.leaderName ||
+              leader.leader_name ||
+              leader.name ||
+              `${leader.firstName || ''} ${leader.lastName || ''}`.trim() ||
+              'Unknown Leader';
+            const leaderEmail =
+              leader.leaderEmail || leader.leader_email || leader.email || '';
+            const totalEvents =
+              leader.totalEvents ||
+              leader.total_events ||
+              leader.eventsScheduled ||
+              leader.events_scheduled ||
+              0;
+            const totalEventsCompleted =
+              leader.totalEventsCompleted ||
+              leader.total_events_completed ||
+              leader.eventsCompleted ||
+              leader.events_completed ||
+              0;
+
+            return {
+              leaderId: Number(leaderId) || 0,
+              leaderName: String(leaderName) || 'Unknown Leader',
+              leaderEmail: String(leaderEmail) || '',
+              totalEvents: Number(totalEvents) || 0,
+              totalEventsCompleted: Number(totalEventsCompleted) || 0,
+            };
+          })
+          .filter(
+            (leader) =>
+              leader.leaderId > 0 &&
+              (leader.totalEvents > 0 || leader.totalEventsCompleted > 0),
+          );
+
+        if (validatedHistory.length > 0) {
+          setLeaderHistory(validatedHistory);
+          return;
+        }
       } catch (historyError: any) {
+        // Fallback will be used
+      }
+
+      // Fallback: derive history from shifts data and actual performances
+      try {
         const shiftsResponse = await api.get('/leadership-shifts?limit=1000');
         const allShifts: LeadershipShift[] = shiftsResponse.data[0] || [];
+
+        // Also fetch performances to get actual completion data
+        let performancesData: any[] = [];
+        try {
+          const performancesResponse = await api.get(
+            '/performances?limit=10000',
+          );
+          if (Array.isArray(performancesResponse.data)) {
+            performancesData = performancesResponse.data;
+          } else if (Array.isArray(performancesResponse.data?.[0])) {
+            performancesData = performancesResponse.data[0];
+          }
+        } catch (perfError) {
+          // If performances endpoint fails, continue with shift data only
+        }
         const historyMap = new Map<
           number,
           {
@@ -700,24 +732,110 @@ export const useLeaderHistory = () => {
           }
         >();
 
+        // Count performances per leader from actual performance data
+        // Note: shiftLeadId in performance corresponds to leaderId in shift
+        const performancesByLeaderId = new Map<
+          number,
+          { total: number; completed: number }
+        >();
+        performancesData.forEach((performance: any) => {
+          const shiftLeadId =
+            performance.shiftLeadId ||
+            performance.shift_lead_id ||
+            performance.shiftLead?.id ||
+            performance.leaderId ||
+            performance.leader_id ||
+            null;
+
+          if (shiftLeadId) {
+            const existing = performancesByLeaderId.get(shiftLeadId) || {
+              total: 0,
+              completed: 0,
+            };
+            existing.total += 1;
+            const status =
+              performance.status?.toLowerCase?.() || performance.status || '';
+            if (status === 'completed') {
+              existing.completed += 1;
+            }
+            performancesByLeaderId.set(shiftLeadId, existing);
+          }
+        });
+
         allShifts.forEach((shift) => {
-          const leaderId = shift.leader.id;
+          // Use shift.leaderId (which matches performance.shiftLeadId) or fall back to shift.leader.id
+          const leaderId = shift.leaderId || shift.leader?.id;
+          if (!leaderId) return;
+
           const existing = historyMap.get(leaderId);
 
-          const shiftStart = new Date(shift.startDate);
-          const shiftEnd = new Date(shift.endDate);
-          const shiftDurationDays = Math.ceil(
-            (shiftEnd.getTime() - shiftStart.getTime()) / (1000 * 60 * 60 * 24),
-          );
+          // Get actual performance counts if available
+          // Match by shift.leaderId (which should match performance.shiftLeadId)
+          const perfData = performancesByLeaderId.get(leaderId);
+          const actualEvents = perfData?.total || 0;
+          const actualCompleted = perfData?.completed || 0;
 
-          const estimatedEvents = Math.max(1, Math.ceil(shiftDurationDays / 7));
+          // Prioritize actual performance data, but always have a fallback
+          let eventsScheduled = 0;
+          let eventsCompleted = 0;
 
-          const eventsScheduled = shift.eventsScheduled || estimatedEvents;
-          const eventsCompleted =
-            shift.eventsCompleted ||
-            (shift.status === ShiftStatus.COMPLETED
-              ? eventsScheduled
-              : Math.floor(eventsScheduled * 0.8));
+          if (actualEvents > 0) {
+            // Use actual performance data
+            eventsScheduled = actualEvents;
+            eventsCompleted = actualCompleted;
+          } else if (shift.eventsScheduled && shift.eventsScheduled > 0) {
+            // Fall back to shift data if available
+            eventsScheduled = shift.eventsScheduled;
+            eventsCompleted = shift.eventsCompleted || 0;
+          } else {
+            // Estimate based on shift duration
+            const shiftStart = new Date(shift.startDate);
+            const shiftEnd = new Date(shift.endDate);
+            const shiftDurationDays = Math.ceil(
+              (shiftEnd.getTime() - shiftStart.getTime()) /
+                (1000 * 60 * 60 * 24),
+            );
+
+            // Estimate: at least 1 event per week, minimum 1 event
+            eventsScheduled = Math.max(1, Math.ceil(shiftDurationDays / 7));
+
+            // Estimate completion based on status
+            if (shift.status === ShiftStatus.COMPLETED) {
+              eventsCompleted = eventsScheduled; // All completed if shift is completed
+            } else if (shift.status === ShiftStatus.ACTIVE) {
+              // For active shifts, estimate some completion based on elapsed time
+              const now = new Date();
+              const elapsedDays = Math.max(
+                0,
+                Math.ceil(
+                  (now.getTime() - shiftStart.getTime()) /
+                    (1000 * 60 * 60 * 24),
+                ),
+              );
+              const progressRatio = Math.min(
+                1,
+                elapsedDays / shiftDurationDays,
+              );
+              eventsCompleted = Math.floor(
+                eventsScheduled * progressRatio * 0.9,
+              ); // 90% of progress
+            } else {
+              // For upcoming shifts, no events completed yet
+              eventsCompleted = 0;
+            }
+          }
+
+          // Ensure we always have at least 1 scheduled event for active/completed shifts
+          if (
+            eventsScheduled === 0 &&
+            (shift.status === ShiftStatus.ACTIVE ||
+              shift.status === ShiftStatus.COMPLETED)
+          ) {
+            eventsScheduled = 1;
+            if (shift.status === ShiftStatus.COMPLETED) {
+              eventsCompleted = 1;
+            }
+          }
 
           if (existing) {
             existing.totalEvents += eventsScheduled;
@@ -726,8 +844,10 @@ export const useLeaderHistory = () => {
           } else {
             historyMap.set(leaderId, {
               leaderId: shift.leader.id,
-              leaderName: `${shift.leader.firstName} ${shift.leader.lastName}`,
-              leaderEmail: shift.leader.email,
+              leaderName:
+                `${shift.leader.firstName || ''} ${shift.leader.lastName || ''}`.trim() ||
+                'Unknown Leader',
+              leaderEmail: shift.leader.email || '',
               totalEvents: eventsScheduled,
               totalEventsCompleted: eventsCompleted,
               shiftCount: 1,
@@ -744,42 +864,11 @@ export const useLeaderHistory = () => {
           return b.totalEvents - a.totalEvents;
         });
 
-        // If no history was derived, use mock data
-        if (derivedHistory.length === 0) {
-          const mockHistory: LeaderHistory[] = [
-            {
-              leaderId: 1,
-              leaderName: 'Jean Baptiste',
-              leaderEmail: 'jean.baptiste@example.com',
-              totalEvents: 15,
-              totalEventsCompleted: 14,
-            },
-            {
-              leaderId: 2,
-              leaderName: 'Marie Claire',
-              leaderEmail: 'marie.claire@example.com',
-              totalEvents: 12,
-              totalEventsCompleted: 11,
-            },
-            {
-              leaderId: 3,
-              leaderName: 'Pierre Paul',
-              leaderEmail: 'pierre.paul@example.com',
-              totalEvents: 10,
-              totalEventsCompleted: 8,
-            },
-          ];
-          setLeaderHistory(mockHistory);
-        } else {
-          const hasRealData = derivedHistory.some(
-            (leader) => leader.totalEvents > 0,
-          );
-          if (!hasRealData) {
-            setLeaderHistory(getMockLeaderHistory());
-          } else {
-            setLeaderHistory(derivedHistory);
-          }
-        }
+        setLeaderHistory(derivedHistory);
+      } catch (fallbackError: any) {
+        // If fallback also fails, set empty array
+        setError(fallbackError.message || 'Failed to fetch leader history');
+        setLeaderHistory([]);
       }
     } catch (err: any) {
       if (err.response?.status === 401) {
@@ -787,7 +876,8 @@ export const useLeaderHistory = () => {
       } else if (err.response?.status === 403) {
         setError('Insufficient permissions to access shift history');
       } else {
-        setLeaderHistory(getMockLeaderHistory());
+        setError(err.message || 'Failed to fetch leader history');
+        setLeaderHistory([]);
       }
     } finally {
       setIsLoading(false);
