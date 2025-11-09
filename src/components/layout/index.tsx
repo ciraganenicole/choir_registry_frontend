@@ -17,7 +17,7 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import React, { useState } from 'react';
 import type { IconType } from 'react-icons';
-import { FaClock, FaMusic, FaTrophy } from 'react-icons/fa';
+import { FaClock, FaMusic, FaPrayingHands, FaTrophy } from 'react-icons/fa';
 import { IoLogoUsd } from 'react-icons/io';
 import { TbLogout2 } from 'react-icons/tb';
 
@@ -130,6 +130,12 @@ const Layout = ({ children }: { children: ReactNode }) => {
           label: 'Performances',
           roles: [UserRole.SUPER_ADMIN, UserRole.LEAD],
         },
+        {
+          path: '/louado',
+          icon: FaPrayingHands,
+          label: 'Louado',
+          roles: [UserRole.SUPER_ADMIN],
+        },
       ],
     },
   ];
@@ -167,6 +173,13 @@ const Layout = ({ children }: { children: ReactNode }) => {
           return hasRequiredRole || hasLeadCategory;
         }
 
+        if (item.path === '/louado') {
+          const hasWorshipperCategory = user.categories?.includes(
+            UserCategory.WORSHIPPER,
+          );
+          return hasRequiredRole || hasWorshipperCategory;
+        }
+
         return hasRequiredRole;
       }),
     }))
@@ -175,14 +188,19 @@ const Layout = ({ children }: { children: ReactNode }) => {
   // Check if user is admin (should see dropdown) or LEAD category user (should see direct menu items)
   const isAdmin = user && user.role === UserRole.SUPER_ADMIN;
   const isLeadCategory = user && user.categories?.includes(UserCategory.LEAD);
+  const isLouadoCategory =
+    user && user.categories?.includes(UserCategory.WORSHIPPER);
 
   // Get LEAD-specific menu items for direct display
   const leadMenuItems =
-    isLeadCategory && dropdownMenuItems[0]
-      ? dropdownMenuItems[0].items.filter(
-          (item) =>
-            item.roles.includes(UserRole.LEAD) ||
-            item.path === '/admin/users/leads',
+    (isLeadCategory || isLouadoCategory) && dropdownMenuItems[0]
+      ? dropdownMenuItems[0].items.filter((item) =>
+          item.path === '/admin/users/leads'
+            ? user?.categories?.includes(UserCategory.LEAD) ||
+              user?.role === UserRole.SUPER_ADMIN
+            : item.path === '/louado'
+              ? isLouadoCategory || user?.role === UserRole.SUPER_ADMIN
+              : item.roles.includes(UserRole.LEAD),
         )
       : [];
 

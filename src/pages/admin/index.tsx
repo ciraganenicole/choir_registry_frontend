@@ -34,7 +34,11 @@ interface AttendanceStats {
 const AdminDashboard: React.FC = () => {
   const [totalUsers, setTotalUsers] = useState<number>(0);
   const [loading, setLoading] = useState(true);
-  const { attendance, loading: attendanceLoading } = useAttendance();
+  const {
+    attendance,
+    loading: attendanceLoading,
+    fetchUsersAndAttendance,
+  } = useAttendance({ auto: false });
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [metrics, setMetrics] = useState<AttendanceMetrics>({
     totalPresent: 0,
@@ -75,6 +79,10 @@ const AdminDashboard: React.FC = () => {
 
     getUsers();
   }, []);
+
+  useEffect(() => {
+    fetchUsersAndAttendance();
+  }, [fetchUsersAndAttendance]);
 
   useEffect(() => {
     if (!attendance) {

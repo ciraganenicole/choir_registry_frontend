@@ -281,9 +281,23 @@ export const RehearsalDashboard: React.FC<RehearsalDashboardProps> = ({
         <RehearsalForm
           rehearsal={editingRehearsal}
           performanceId={performanceId}
-          onSuccess={() => {
-            handleCloseEdit();
-            fetchRehearsals(); // Refresh the list
+          onSuccess={async () => {
+            await fetchRehearsals();
+
+            if (editingRehearsal?.id) {
+              try {
+                const updatedRehearsal = await RehearsalService.fetchRehearsal(
+                  editingRehearsal.id,
+                );
+                setEditingRehearsal(updatedRehearsal);
+              } catch (err: any) {
+                const message =
+                  err?.response?.data?.message ||
+                  err?.message ||
+                  'Impossible de récupérer la répétition mise à jour.';
+                toast.error(message);
+              }
+            }
           }}
           onCancel={handleCloseEdit}
         />
@@ -626,16 +640,17 @@ export const RehearsalDashboard: React.FC<RehearsalDashboardProps> = ({
                           <FaEye className="text-sm" />
                           <span className="hidden sm:inline">Voir</span>
                         </button>
-                        {canManageRehearsals && (
-                          <button
-                            onClick={() => handleEditRehearsal(rehearsal)}
-                            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100"
-                            title="Modifier"
-                          >
-                            <FaEdit className="text-sm" />
-                            <span className="hidden sm:inline">Modifier</span>
-                          </button>
-                        )}
+                        {canManageRehearsals &&
+                          rehearsal.status !== 'Completed' && (
+                            <button
+                              onClick={() => handleEditRehearsal(rehearsal)}
+                              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100"
+                              title="Modifier"
+                            >
+                              <FaEdit className="text-sm" />
+                              <span className="hidden sm:inline">Modifier</span>
+                            </button>
+                          )}
                       </div>
                       {canManageRehearsals && (
                         <button

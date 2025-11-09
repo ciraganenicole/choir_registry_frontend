@@ -352,18 +352,6 @@ const PerformancePage = () => {
         );
         break;
 
-      case 'completed':
-        actions.push(
-          <button
-            key="view-details"
-            onClick={() => handleViewPerformanceDetail(performance)}
-            className="flex items-center gap-1 rounded-md bg-gray-500 px-3 py-1 text-sm font-medium text-white hover:bg-gray-600 sm:gap-2 sm:px-4"
-          >
-            <FaEye /> Voir détails
-          </button>,
-        );
-        break;
-
       default:
         // No actions for unknown status
         break;
@@ -620,6 +608,7 @@ const PerformancePage = () => {
                       <span className="sm:hidden">Détails</span>
                     </button>
                     {canManagePerformances &&
+                      perf.status !== PerformanceStatus.COMPLETED &&
                       // LEAD users can only edit performances assigned to them, SUPER_ADMIN can edit all
                       (user?.role === UserRole.SUPER_ADMIN ||
                         (user?.categories?.includes(UserCategory.LEAD) &&

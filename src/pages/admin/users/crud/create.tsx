@@ -413,6 +413,18 @@ const UserRegistration: React.FC<CreateUserProps> = ({
             classNamePrefix="react-select"
             placeholder="Sélectionner les catégories"
           />
+          <div className="mt-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-xs text-blue-700">
+            <p className="font-semibold">Rappel pour l’équipe Louange</p>
+            <ol className="list-decimal pl-4">
+              <li>
+                Ajoutez la catégorie <strong>WORSHIPPER</strong> aux membres qui
+                conduisent la louange et l’adoration.
+              </li>
+              <li>
+                Enregistrez pour les voir dans le planning Louange / Adoration.
+              </li>
+            </ol>
+          </div>
         </div>
 
         <button

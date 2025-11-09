@@ -5,6 +5,7 @@ import {
   FaFileAlt,
   FaMicrophone,
   FaMusic,
+  FaPrayingHands,
   FaUsers,
 } from 'react-icons/fa';
 import { LuLayoutDashboard } from 'react-icons/lu';
@@ -14,6 +15,11 @@ export const menuItems = [
     title: 'Dashboard',
     path: '/',
     icon: LuLayoutDashboard,
+  },
+  {
+    title: 'Louado',
+    path: '/louado',
+    icon: FaPrayingHands,
   },
   {
     title: 'Performances',

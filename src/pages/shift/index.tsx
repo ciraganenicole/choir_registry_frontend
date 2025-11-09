@@ -563,31 +563,32 @@ const ShiftPage = () => {
                             </div>
                           </div>
                           <div className="my-2 flex flex-row gap-2 md:my-0 md:items-end">
-                            {canEdit && (
-                              <button
-                                onClick={() => {
-                                  setSelectedShift(shift);
-                                  handleEditShift();
-                                }}
-                                className="rounded-md border border-gray-300 px-4 py-1 font-medium text-gray-700 hover:bg-gray-100"
-                              >
-                                Modifier
-                              </button>
-                            )}
+                            {canEdit &&
+                              shift.status !== ShiftStatus.COMPLETED && (
+                                <button
+                                  onClick={() => {
+                                    setSelectedShift(shift);
+                                    handleEditShift();
+                                  }}
+                                  className="rounded-md border border-gray-300 px-2 py-1 text-[12px] font-medium text-gray-700 hover:bg-gray-100"
+                                >
+                                  Modifier
+                                </button>
+                              )}
                             {canDelete && (
                               <button
                                 onClick={() => {
                                   setSelectedShift(shift);
                                   handleDeleteShift();
                                 }}
-                                className="rounded-md border border-red-300 bg-red-500 px-4 py-1 text-[12px] font-medium text-white transition-colors hover:bg-red-600 md:text-base"
+                                className="rounded-md border border-red-300 bg-red-500 px-2 py-1 text-[12px] font-medium text-white transition-colors hover:bg-red-600"
                               >
                                 Supprimer
                               </button>
                             )}
                             <button
                               onClick={() => handleShowDetails(shift)}
-                              className="rounded-md border border-gray-300 bg-blue-500 px-4 py-1 text-[12px] font-medium text-white transition-colors hover:bg-blue-600 md:text-base"
+                              className="rounded-md border border-gray-300 bg-blue-500 px-2 py-1 text-[12px] font-medium text-white transition-colors hover:bg-blue-600"
                             >
                               Détails
                             </button>

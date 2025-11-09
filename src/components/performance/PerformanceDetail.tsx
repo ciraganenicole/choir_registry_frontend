@@ -322,13 +322,15 @@ const PerformanceDetail: React.FC<PerformanceDetailProps> = ({
                 <FaCheck className="text-xs" /> Terminé
               </div>
             </div>
-            <button
-              onClick={() => setShowStatusDialog(true)}
-              className="flex items-center gap-1 rounded-md bg-blue-600 p-2 text-xs font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 md:gap-2 md:px-4 md:text-sm"
-            >
-              <FaEdit className="text-sm" />{' '}
-              <span className="hidden sm:inline">Changer le Statut</span>
-            </button>
+            {currentPerformance.status !== 'completed' && (
+              <button
+                onClick={() => setShowStatusDialog(true)}
+                className="flex items-center gap-1 rounded-md bg-blue-600 p-2 text-xs font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 md:gap-2 md:px-4 md:text-sm"
+              >
+                <FaEdit className="text-sm" />{' '}
+                <span className="hidden sm:inline">Changer le Statut</span>
+              </button>
+            )}
           </div>
         </div>
 

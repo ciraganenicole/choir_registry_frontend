@@ -1,7 +1,7 @@
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { format, parseISO } from 'date-fns';
 import debounce from 'lodash/debounce';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import SearchInput from '@/components/filters/search';
 import Layout from '@/components/layout';
@@ -147,7 +147,8 @@ const AttendancePage: React.FC = () => {
     changeEventType,
     filteredUsers,
     setAttendance,
-  } = useAttendance();
+    fetchUsersAndAttendance,
+  } = useAttendance({ auto: false });
 
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 10;
@@ -172,6 +173,21 @@ const AttendancePage: React.FC = () => {
     date: null,
     status: null,
   });
+
+  const filterKey = useMemo(
+    () =>
+      JSON.stringify({
+        startDate: filters.startDate,
+        endDate: filters.endDate,
+        status: filters.status,
+        eventType: filters.eventType,
+      }),
+    [filters.startDate, filters.endDate, filters.status, filters.eventType],
+  );
+
+  useEffect(() => {
+    fetchUsersAndAttendance();
+  }, [fetchUsersAndAttendance, filterKey, selectedEventType]);
 
   const handleDateChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const inputDate = e.target.value || getTodayDate();

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { PerformanceService } from './service';
 import type {
@@ -18,8 +18,9 @@ export const usePerformances = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [limit] = useState(10);
+  const [page, setPageState] = useState(1);
+  const limitRef = useRef(10);
+  const pageRef = useRef(1);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -27,6 +28,17 @@ export const usePerformances = () => {
     hasNext: false,
     hasPrev: false,
   });
+
+  const setPage = useCallback(
+    (nextPage: number | ((prev: number) => number)) => {
+      pageRef.current =
+        typeof nextPage === 'function'
+          ? (nextPage as (prev: number) => number)(pageRef.current)
+          : nextPage;
+      setPageState(pageRef.current);
+    },
+    [],
+  );
 
   const fetchPerformances = useCallback(
     async (
@@ -37,17 +49,26 @@ export const usePerformances = () => {
       setError(null);
 
       try {
-        const currentPage = paginationParams?.page || page;
-        const currentLimit = paginationParams?.limit || limit;
+        const currentPage =
+          paginationParams?.page !== undefined
+            ? paginationParams.page
+            : pageRef.current;
+        const currentLimit =
+          paginationParams?.limit !== undefined
+            ? paginationParams.limit
+            : limitRef.current;
 
         const response = await PerformanceService.fetchPerformances(filters, {
           page: currentPage,
           limit: currentLimit,
         });
 
+        pageRef.current = response.page;
+        limitRef.current = response.limit;
+
         setPerformances(response.data);
         setTotal(response.total);
-        setPage(response.page);
+        setPageState(response.page);
         setPagination({
           page: response.page,
           limit: response.limit,
@@ -63,7 +84,7 @@ export const usePerformances = () => {
         setLoading(false);
       }
     },
-    [page, limit],
+    [],
   );
 
   const createPerformance = useCallback(

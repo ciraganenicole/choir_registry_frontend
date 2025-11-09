@@ -5,7 +5,7 @@ import { fr } from 'date-fns/locale/fr';
 import { jsPDF } from 'jspdf';
 import type { CellHookData, RowInput } from 'jspdf-autotable';
 import autoTable from 'jspdf-autotable';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { api } from '@/config/api';
 
@@ -117,7 +117,11 @@ const userBelongsToEventType = (
   return hasRequiredCategory && hasRequiredCommission;
 };
 
-export const useAttendance = () => {
+interface UseAttendanceOptions {
+  auto?: boolean;
+}
+
+export const useAttendance = (options: UseAttendanceOptions = {}) => {
   const [users, setUsers] = useState<User[]>([]);
   const [attendance, setAttendance] = useState<{
     [userId: number]: AttendanceRecord[];
@@ -159,12 +163,23 @@ export const useAttendance = () => {
     });
   };
 
-  const fetchUsersAndAttendance = async () => {
+  const serializedFilters = useMemo(
+    () =>
+      JSON.stringify({
+        startDate: filters.startDate,
+        endDate: filters.endDate,
+        status: filters.status,
+        eventType: filters.eventType,
+      }),
+    [filters.startDate, filters.endDate, filters.status, filters.eventType],
+  );
+
+  const fetchUsersAndAttendance = useCallback(async () => {
     setLoading(true);
     setErrorMessage(null);
     try {
       const queryParams = new URLSearchParams();
-      queryParams.append('limit', '1000'); // Set a high limit to get all users
+      queryParams.append('limit', '50'); // Fetch a manageable subset to avoid flooding
       queryParams.append('page', '1');
 
       const response = await api.get(`/users?${queryParams.toString()}`);
@@ -185,20 +200,27 @@ export const useAttendance = () => {
       const userAttendancePromises = usersData.map(async (user: User) => {
         try {
           const attendanceParams = new URLSearchParams();
-          if (filters.startDate) {
-            attendanceParams.append('startDate', filters.startDate);
+          const parsedFilters = JSON.parse(serializedFilters) as {
+            startDate?: string;
+            endDate?: string;
+            status?: AttendanceStatus;
+            eventType?: AttendanceEventType;
+          };
+
+          if (parsedFilters.startDate) {
+            attendanceParams.append('startDate', parsedFilters.startDate);
           }
-          if (filters.endDate) {
-            attendanceParams.append('endDate', filters.endDate);
+          if (parsedFilters.endDate) {
+            attendanceParams.append('endDate', parsedFilters.endDate);
           }
-          if (filters.status) {
-            attendanceParams.append('status', filters.status);
+          if (parsedFilters.status) {
+            attendanceParams.append('status', parsedFilters.status);
           }
-          if (filters.eventType) {
-            attendanceParams.append('eventType', filters.eventType);
+          if (parsedFilters.eventType) {
+            attendanceParams.append('eventType', parsedFilters.eventType);
           }
 
-          attendanceParams.append('limit', '1000');
+          attendanceParams.append('limit', '200');
           attendanceParams.append('page', '1');
 
           const userAttendance = await api.get(
@@ -232,23 +254,13 @@ export const useAttendance = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [serializedFilters]);
 
-  // Fetch on first mount only
   useEffect(() => {
-    if (!users.length) {
+    if (options.auto !== false) {
       fetchUsersAndAttendance();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Fetch when filters change, but only if users are already loaded
-  useEffect(() => {
-    if (users.length) {
-      fetchUsersAndAttendance();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.startDate, filters.endDate, filters.status, filters.eventType]);
+  }, [options.auto, fetchUsersAndAttendance]);
 
   const markAttendance = async (
     userId: number,
