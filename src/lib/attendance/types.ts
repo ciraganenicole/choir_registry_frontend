@@ -56,6 +56,15 @@ export interface AttendanceRecord {
   timeIn?: string;
   type?: AttendanceType;
   justification?: JustificationReason;
+  user?: {
+    id: number;
+    firstName: string;
+    lastName: string;
+    email?: string;
+    // ... other user fields
+  };
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AttendanceFilterDto {

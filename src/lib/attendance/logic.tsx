@@ -178,26 +178,56 @@ export const useAttendance = (options: UseAttendanceOptions = {}) => {
     setLoading(true);
     setErrorMessage(null);
     try {
-      const queryParams = new URLSearchParams();
-      queryParams.append('limit', '50'); // Fetch a manageable subset to avoid flooding
-      queryParams.append('page', '1');
+      // Fetch all users with pagination
+      let allUsersData: User[] = [];
+      let page = 1;
+      const limit = 100; // Maximum allowed by API
+      let hasMore = true;
 
-      const response = await api.get(`/users?${queryParams.toString()}`);
+      while (hasMore) {
+        const queryParams = new URLSearchParams();
+        queryParams.append('limit', limit.toString());
+        queryParams.append('page', page.toString());
 
-      let usersData: User[] = [];
+        // eslint-disable-next-line no-await-in-loop
+        const response = await api.get(`/users?${queryParams.toString()}`);
 
-      if (Array.isArray(response.data) && response.data.length === 2) {
-        const [usersFromResponse] = response.data;
-        usersData = usersFromResponse || [];
-      } else if (response.data && response.data.data) {
-        usersData = response.data.data || [];
-      } else {
-        usersData = Array.isArray(response.data) ? response.data : [];
+        let pageUsersData: User[] = [];
+
+        if (Array.isArray(response.data) && response.data.length === 2) {
+          const [usersFromResponse, total] = response.data;
+          pageUsersData = usersFromResponse || [];
+          const totalCount = typeof total === 'number' ? total : 0;
+          hasMore =
+            pageUsersData.length === limit &&
+            allUsersData.length + pageUsersData.length < totalCount;
+        } else if (response.data && response.data.data) {
+          pageUsersData = response.data.data || [];
+          const total = response.data.total || 0;
+          hasMore =
+            pageUsersData.length === limit &&
+            allUsersData.length + pageUsersData.length < total;
+        } else {
+          pageUsersData = Array.isArray(response.data) ? response.data : [];
+          hasMore = pageUsersData.length === limit;
+        }
+
+        if (pageUsersData.length > 0) {
+          allUsersData = allUsersData.concat(pageUsersData);
+          page += 1;
+
+          // Safety limit: don't fetch more than 20 pages (2000 users max)
+          if (page > 20) {
+            hasMore = false;
+          }
+        } else {
+          hasMore = false;
+        }
       }
 
-      setUsers(usersData);
+      setUsers(allUsersData);
 
-      const userAttendancePromises = usersData.map(async (user: User) => {
+      const userAttendancePromises = allUsersData.map(async (user: User) => {
         try {
           const attendanceParams = new URLSearchParams();
           const parsedFilters = JSON.parse(serializedFilters) as {

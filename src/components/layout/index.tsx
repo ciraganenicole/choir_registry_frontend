@@ -206,7 +206,7 @@ const Layout = ({ children }: { children: ReactNode }) => {
 
   const renderSidebarContent = (isMobile = false) => (
     <>
-      <div>
+      <div className="flex-1 overflow-y-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <nav
           className={`flex flex-col gap-4 md:gap-6 ${isMobile ? 'mt-16' : 'mt-8'}`}
         >
@@ -282,13 +282,15 @@ const Layout = ({ children }: { children: ReactNode }) => {
         </nav>
       </div>
 
-      <button
-        onClick={handleLogout}
-        className="flex items-center gap-3 rounded-lg border border-gray-700 p-2 text-white transition-colors hover:bg-gray-800 hover:text-white"
-      >
-        <TbLogout2 className="size-6 shrink-0" />
-        <span className="whitespace-nowrap text-base">Se déconnecter</span>
-      </button>
+      <div className="mt-auto shrink-0 border-t border-gray-700 pt-4">
+        <button
+          onClick={handleLogout}
+          className="flex w-full items-center gap-3 rounded-lg border border-gray-700 p-2 text-white transition-colors hover:bg-gray-800 hover:text-white"
+        >
+          <TbLogout2 className="size-6 shrink-0" />
+          <span className="whitespace-nowrap text-base">Se déconnecter</span>
+        </button>
+      </div>
     </>
   );
 

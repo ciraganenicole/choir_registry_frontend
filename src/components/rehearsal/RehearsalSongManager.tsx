@@ -1172,20 +1172,6 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                     />
                     {showSongDropdown && (
                       <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
-                        {songsError ? (
-                          <div className="px-3 py-2 text-sm text-red-500">
-                            Erreur: {songsError}
-                          </div>
-                        ) : availableSongs.length === 0 ? (
-                          <div className="px-3 py-2 text-sm text-gray-500">
-                            Aucune chanson disponible dans la bibliothèque
-                          </div>
-                        ) : (
-                          <div className="border-b border-gray-200 p-2 text-xs text-gray-500">
-                            Chansons de la bibliothèque - Sélectionnez une
-                            chanson pour l&apos;ajouter à cette répétition
-                          </div>
-                        )}
                         {availableSongs.map((song) => (
                           <div
                             key={song.id}

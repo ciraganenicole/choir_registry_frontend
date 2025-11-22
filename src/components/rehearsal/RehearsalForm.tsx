@@ -91,7 +91,7 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
   // Fetch performances when component mounts (only if no performanceId is provided)
   useEffect(() => {
     if (!performanceId) {
-      fetchPerformances({}, { page: 1, limit: 100 });
+      fetchPerformances({}, { page: 1, limit: 1000 });
     }
   }, [performanceId, fetchPerformances]);
 

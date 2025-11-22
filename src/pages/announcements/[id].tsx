@@ -6,7 +6,6 @@ import {
   FaEdit,
   FaFilePdf,
   FaTrash,
-  FaUser,
 } from 'react-icons/fa';
 
 import Layout from '@/components/layout';
@@ -221,18 +220,7 @@ const CommuniqueDetailPage: React.FC = () => {
 
           {/* Metadata */}
           <div className="mt-6 border-t border-gray-200 pt-6">
-            <div className="grid grid-cols-1 gap-4 text-sm text-gray-600 md:grid-cols-2">
-              <div className="flex items-center">
-                <FaUser className="mr-2" />
-                <span>
-                  Publié par:{' '}
-                  <span className="font-medium text-gray-900">
-                    {communique.createdBy
-                      ? `${communique.createdBy.firstName} ${communique.createdBy.lastName}`
-                      : 'Administrateur'}
-                  </span>
-                </span>
-              </div>
+            <div className="grid grid-cols-1 gap-4 text-sm text-gray-600">
               <div className="flex items-center">
                 <FaCalendarAlt className="mr-2" />
                 <span>

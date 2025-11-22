@@ -176,14 +176,9 @@ const DailyContributions = () => {
         {/* Header Section */}
         <div className="mb-8 mt-6 md:mt-0">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <h1 className="text-xl font-bold text-gray-900 sm:text-4xl md:text-3xl">
-                Contributions Quotidiennes
-              </h1>
-              <p className="mt-2 text-xs text-gray-600 sm:text-base md:text-sm">
-                Suivi des contributions journalières des membres
-              </p>
-            </div>
+            <h1 className="text-xl font-bold text-gray-900 md:text-2xl">
+              Contributions Quotidiennes
+            </h1>
             <div className="flex flex-row items-center gap-1 md:gap-3">
               <SearchInput onSearch={handleSearch} />
               <div className="flex items-center gap-1 md:gap-3">
@@ -211,7 +206,7 @@ const DailyContributions = () => {
                   className="flex items-center gap-2 rounded-md bg-blue-600 px-1 py-2 text-sm font-medium text-white shadow-sm transition-colors hover:bg-blue-700 md:rounded-lg md:px-4 md:py-2"
                 >
                   <Download className="size-4" />
-                  <span className="hidden sm:inline">Exporter PDF</span>
+                  <span className="hidden sm:inline">PDF</span>
                 </button>
               </div>
             </div>
@@ -381,12 +376,12 @@ const DailyContributions = () => {
                             <div className="flex items-center gap-3">
                               <div className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-blue-400 to-blue-600">
                                 <span className="text-xs font-medium text-white">
-                                  {user.firstName.charAt(0).toUpperCase()}
+                                  {user.lastName.charAt(0).toUpperCase()}
                                 </span>
                               </div>
                               <div>
                                 <div className="text-sm font-medium text-gray-900">
-                                  {user.firstName} {user.lastName}
+                                  {user.lastName} {user.firstName}
                                 </div>
                               </div>
                             </div>

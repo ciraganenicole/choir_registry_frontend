@@ -1,13 +1,6 @@
 import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
-import {
-  FaCalendarAlt,
-  FaEdit,
-  FaEye,
-  FaPlus,
-  FaTrash,
-  FaUser,
-} from 'react-icons/fa';
+import { FaCalendarAlt, FaEdit, FaEye, FaPlus, FaTrash } from 'react-icons/fa';
 
 import ConfirmationDialog from '@/components/dialog/ConfirmationDialog';
 import {
@@ -186,7 +179,7 @@ const CommuniqueManager: React.FC = () => {
       </div>
 
       {/* Communiques List */}
-      <div className="rounded-lg border border-gray-200 bg-white">
+      <div className="">
         {communiques.length === 0 ? (
           <div className="p-8 text-center">
             <div className="mb-4 text-gray-500">Aucune annonce créée</div>
@@ -198,13 +191,13 @@ const CommuniqueManager: React.FC = () => {
             </button>
           </div>
         ) : (
-          <div className="divide-y divide-gray-200">
+          <div className="grid grid-cols-1 gap-4">
             {communiques.map((communique) => (
               <div
                 key={communique.id}
-                className="p-6 transition-colors hover:bg-gray-50"
+                className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm transition-colors hover:bg-blue-100"
               >
-                <div className="flex flex-col items-start justify-between md:flex-row">
+                <div className="flex flex-col items-start justify-between">
                   <div className="min-w-0 flex-1">
                     <div className="mb-2 flex flex-col justify-between md:mb-0 md:flex-row md:items-center">
                       <Link
@@ -213,55 +206,50 @@ const CommuniqueManager: React.FC = () => {
                       >
                         {communique.title}
                       </Link>
-                      <div className="ml-0 mt-2 flex items-center text-sm text-gray-500 md:ml-4 md:mt-0">
-                        <FaCalendarAlt className="mr-1" />
-                        {formatDate(communique.createdAt)}
-                      </div>
                     </div>
 
                     <div className="mb-3 line-clamp-3 text-gray-700">
                       {communique.content}
                     </div>
-
-                    <div className="flex items-center text-sm text-gray-500">
-                      <FaUser className="mr-1" />
-                      {communique.createdBy
-                        ? `${communique.createdBy.firstName} ${communique.createdBy.lastName}`
-                        : 'Administrateur'}
-                    </div>
                   </div>
 
-                  <div className="ml-0 mt-2 flex items-center space-x-2 pt-2 md:ml-4 md:mt-0 md:pt-0">
-                    <Link
-                      href={`/announcements/${communique.id}`}
-                      className="rounded-md p-2 text-gray-600 transition-colors hover:bg-blue-50 hover:text-blue-600"
-                      title="Voir l'annonce"
-                    >
-                      <FaEye />
-                    </Link>
-                    {canEditCommunique(user, communique) && (
-                      <button
-                        onClick={() => handleEdit(communique)}
-                        className="rounded-md p-2 text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-800"
-                        title="Modifier"
+                  <div className="flex w-full items-center justify-between pt-2">
+                    <div className="flex items-center text-sm text-gray-500">
+                      <FaCalendarAlt className="mr-1" />
+                      {formatDate(communique.createdAt)}
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Link
+                        href={`/announcements/${communique.id}`}
+                        className="rounded-md p-2 text-gray-600 transition-colors hover:bg-blue-50 hover:text-blue-600"
+                        title="Voir l'annonce"
                       >
-                        <FaEdit />
-                      </button>
-                    )}
-                    {canDeleteCommunique(user, communique) && (
-                      <button
-                        onClick={() => handleDelete(communique)}
-                        disabled={deletingId === communique.id}
-                        className="rounded-md p-2 text-red-600 transition-colors hover:bg-red-50 hover:text-red-800 disabled:opacity-50"
-                        title="Supprimer"
-                      >
-                        {deletingId === communique.id ? (
-                          <div className="size-4 animate-spin rounded-full border-b-2 border-red-600"></div>
-                        ) : (
-                          <FaTrash />
-                        )}
-                      </button>
-                    )}
+                        <FaEye />
+                      </Link>
+                      {canEditCommunique(user, communique) && (
+                        <button
+                          onClick={() => handleEdit(communique)}
+                          className="rounded-md p-2 text-blue-600 transition-colors hover:bg-blue-50 hover:text-blue-800"
+                          title="Modifier"
+                        >
+                          <FaEdit />
+                        </button>
+                      )}
+                      {canDeleteCommunique(user, communique) && (
+                        <button
+                          onClick={() => handleDelete(communique)}
+                          disabled={deletingId === communique.id}
+                          className="rounded-md p-2 text-red-600 transition-colors hover:bg-red-50 hover:text-red-800 disabled:opacity-50"
+                          title="Supprimer"
+                        >
+                          {deletingId === communique.id ? (
+                            <div className="size-4 animate-spin rounded-full border-b-2 border-red-600"></div>
+                          ) : (
+                            <FaTrash />
+                          )}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

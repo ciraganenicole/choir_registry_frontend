@@ -780,10 +780,6 @@ const PerformanceDetail: React.FC<PerformanceDetailProps> = ({
               <p className="text-sm md:text-base">
                 Aucune chanson disponible pour cette performance
               </p>
-              <p className="text-xs md:text-sm">
-                Les chansons seront ajoutées lors de la promotion des
-                répétitions
-              </p>
             </div>
           )}
 

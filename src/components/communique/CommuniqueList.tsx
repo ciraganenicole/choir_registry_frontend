@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import React, { useEffect, useState } from 'react';
-import { FaCalendarAlt, FaEye, FaPaperclip, FaUser } from 'react-icons/fa';
+import { FaCalendarAlt, FaEye, FaPaperclip } from 'react-icons/fa';
 
 import { CommuniqueService } from '@/lib/communique/service';
 import type { Communique } from '@/types/communique.types';
@@ -158,13 +158,6 @@ const CommuniqueList: React.FC<CommuniqueListProps> = ({
             </div>
 
             <div className="flex items-center justify-between">
-              <div className="flex items-center text-sm text-gray-500">
-                <FaUser className="mr-1" />
-                {communique.createdBy
-                  ? `${communique.createdBy.firstName} ${communique.createdBy.lastName}`
-                  : 'Administrateur'}
-              </div>
-
               <div className="flex items-center space-x-3">
                 {communique.attachmentUrl && (
                   <a

@@ -14,7 +14,10 @@ import {
   JustificationReason,
   useAttendance,
 } from '@/lib/attendance/logic';
+import { exportUnjustifiedWeeklyAbsencesToPDF } from '@/lib/attendance/pdf-export';
+import { AttendanceService } from '@/lib/attendance/service';
 import { JustificationReasonLabels } from '@/lib/attendance/types';
+import { TransactionService } from '@/lib/transaction/service';
 import { UserCategory } from '@/lib/user/type';
 
 const formatDate = (dateString: string) => {
@@ -152,6 +155,7 @@ const AttendancePage: React.FC = () => {
 
   const [currentPage, setCurrentPage] = useState(1);
   const usersPerPage = 10;
+  const [isExportingAbsences, setIsExportingAbsences] = useState(false);
 
   const getTodayDate = (): string => {
     const now = new Date();
@@ -447,20 +451,122 @@ const AttendancePage: React.FC = () => {
     debouncedSearch(searchTerm);
   };
 
+  // Check if today is Sunday
+  const isSunday = () => {
+    const today = new Date();
+    return today.getDay() === 6; // 0 = Sunday
+  };
+
+  // Handle export of unjustified weekly absences
+  const handleExportUnjustifiedAbsences = async () => {
+    try {
+      setIsExportingAbsences(true);
+      const absences = await AttendanceService.fetchUnjustifiedWeeklyAbsences();
+
+      // Extract week dates from absences
+      const uniqueDates = Array.from(
+        new Set(absences.map((a) => a.date)),
+      ).sort();
+
+      const wednesdayDate = uniqueDates[0] || '';
+      const saturdayDate = uniqueDates[1] || '';
+
+      // Fetch contributions for the week
+      let contributions: Array<{
+        userId: number;
+        totalAmountFC: number;
+        totalAmountUSD: number;
+      }> = [];
+
+      if (wednesdayDate || saturdayDate) {
+        try {
+          const startDate = wednesdayDate || saturdayDate;
+          const endDate = saturdayDate || wednesdayDate;
+
+          const contributionsResponse =
+            await TransactionService.fetchDailyContributions(
+              {
+                startDate,
+                endDate,
+              },
+              { page: 1, limit: 1000 },
+            );
+
+          // Extract contributors from response
+          const contributors =
+            (contributionsResponse as any)?.contributors ||
+            (contributionsResponse as any)?.data?.contributors ||
+            [];
+
+          // Map to contribution data format
+          contributions = contributors.map((contributor: any) => {
+            const fcContributions =
+              contributor.contributions?.filter(
+                (c: any) => c.currency === 'FC',
+              ) || [];
+            const usdContributions =
+              contributor.contributions?.filter(
+                (c: any) => c.currency === 'USD',
+              ) || [];
+
+            return {
+              userId: contributor.userId,
+              totalAmountFC: fcContributions.reduce(
+                (sum: number, c: any) => sum + (c.amount || 0),
+                0,
+              ),
+              totalAmountUSD: usdContributions.reduce(
+                (sum: number, c: any) => sum + (c.amount || 0),
+                0,
+              ),
+            };
+          });
+        } catch (contribError) {
+          console.warn('Failed to fetch contributions:', contribError);
+          // Continue without contributions - will show 0 for all users
+        }
+      }
+
+      await exportUnjustifiedWeeklyAbsencesToPDF(absences, contributions);
+    } catch (error: any) {
+      console.error('Error exporting unjustified absences:', error);
+      // Error will be shown through the existing errorMessage mechanism if needed
+      alert(
+        error.message || "Erreur lors de l'export des absences non justifiées",
+      );
+    } finally {
+      setIsExportingAbsences(false);
+    }
+  };
+
   return (
     <Layout>
       <div className="container mx-auto p-4 pt-8">
         <div className="mb-4 flex items-center justify-between">
           <h1 className="text-[16px] font-bold md:text-2xl">Présences</h1>
-          <button
-            onClick={(e) => {
-              e.preventDefault();
-              exportAttendanceToPDF(filters);
-            }}
-            className="rounded-md bg-blue-500 px-2 py-1 text-[12px] text-white hover:bg-blue-600 md:px-4 md:py-2 md:text-[16px]"
-          >
-            Export PDF
-          </button>
+          <div className="flex gap-2">
+            {isSunday() && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleExportUnjustifiedAbsences();
+                }}
+                disabled={isExportingAbsences}
+                className="rounded-md bg-red-500 px-2 py-1 text-[12px] text-white hover:bg-red-600 disabled:opacity-50 md:px-4 md:py-2 md:text-[16px]"
+              >
+                {isExportingAbsences ? 'Export...' : 'Absences Non Justifiées'}
+              </button>
+            )}
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                exportAttendanceToPDF(filters);
+              }}
+              className="rounded-md bg-blue-500 px-2 py-1 text-[12px] text-white hover:bg-blue-600 md:px-4 md:py-2 md:text-[16px]"
+            >
+              Export PDF
+            </button>
+          </div>
         </div>
 
         {errorMessage && (

@@ -20,6 +20,7 @@ import {
   useRehearsalSongs,
 } from '@/lib/rehearsal/logic';
 import type { Rehearsal, RehearsalStatus } from '@/lib/rehearsal/types';
+import { RehearsalStatus as RehearsalStatusEnum } from '@/lib/rehearsal/types';
 
 import { usePromoteRehearsal } from '../../lib/performance/logic';
 import { useUsers } from '../../lib/user/useUsers';
@@ -35,8 +36,11 @@ interface RehearsalDetailProps {
 export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
   ({ rehearsal, onClose, onStatusChange }) => {
     const { getUserName, users } = useUsers();
-    const { rehearsalSongs: rehearsalSongsData, isLoading: songsLoading } =
-      useRehearsalSongs(rehearsal.id);
+    const {
+      rehearsalSongs: rehearsalSongsData,
+      isLoading: songsLoading,
+      error: songsError,
+    } = useRehearsalSongs(rehearsal.id);
     const { promoteRehearsal, isLoading: isPromoting } = usePromoteRehearsal();
 
     // Local state to track if rehearsal has been promoted
@@ -48,6 +52,11 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
       );
     });
 
+    // Local state to track rehearsal status for immediate UI updates
+    const [currentStatus, setCurrentStatus] = useState<RehearsalStatus>(
+      rehearsal.status,
+    );
+
     // Update local state when rehearsal prop changes
     React.useEffect(() => {
       const hasBeenPromoted =
@@ -56,7 +65,17 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
           ['ready', 'completed'].includes(rehearsal.performance.status));
 
       setIsPromoted(hasBeenPromoted);
-    }, [rehearsal.isPromoted, rehearsal.id, rehearsal.performance?.status]);
+      // Only update currentStatus if it's different to avoid overwriting local updates
+      if (rehearsal.status !== currentStatus) {
+        setCurrentStatus(rehearsal.status);
+      }
+    }, [
+      rehearsal.isPromoted,
+      rehearsal.id,
+      rehearsal.performance?.status,
+      rehearsal.status,
+      currentStatus,
+    ]);
 
     // Add loading state for better UX
     const isLoading = songsLoading || isPromoting;
@@ -164,20 +183,25 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
     const songs = useMemo(() => {
       const rawSongs =
         rehearsalSongsData?.rehearsalSongs || rehearsal.rehearsalSongs || [];
+
       return rawSongs.map(normalizeSong);
     }, [
       rehearsalSongsData?.rehearsalSongs,
       rehearsal.rehearsalSongs,
       normalizeSong,
+      songsLoading,
     ]);
 
     // Memoize canPromote check to avoid recalculation
     const canPromote = useMemo(() => {
+      // Don't enable if songs are still loading
+      if (songsLoading) return false;
+
       if (!rehearsal.id || rehearsal.id <= 0) return false;
       if (!rehearsal.performanceId || rehearsal.performanceId <= 0)
         return false;
       if (!songs || songs.length === 0) return false;
-      if (rehearsal.status !== 'Completed') return false; // ✅ Only completed rehearsals can be promoted
+      if (currentStatus !== RehearsalStatusEnum.COMPLETED) return false; // ✅ Only completed rehearsals can be promoted
       if (isPromoted) return false; // ✅ Already promoted rehearsals cannot be promoted again
 
       return true;
@@ -185,7 +209,35 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
       rehearsal.id,
       rehearsal.performanceId,
       songs,
-      rehearsal.status,
+      currentStatus,
+      isPromoted,
+      songsLoading,
+      songsError,
+    ]);
+
+    // Helper to get promotion disabled reason
+    const getPromotionDisabledReason = useCallback(() => {
+      if (!rehearsal.id || rehearsal.id <= 0) {
+        return 'ID de répétition invalide';
+      }
+      if (!rehearsal.performanceId || rehearsal.performanceId <= 0) {
+        return 'La répétition doit être liée à une performance';
+      }
+      if (!songs || songs.length === 0) {
+        return 'La répétition doit contenir au moins une chanson';
+      }
+      if (currentStatus !== RehearsalStatusEnum.COMPLETED) {
+        return `Répétition doit être terminée (statut actuel: ${currentStatus})`;
+      }
+      if (isPromoted) {
+        return 'Cette répétition a déjà été promue';
+      }
+      return '';
+    }, [
+      rehearsal.id,
+      rehearsal.performanceId,
+      songs,
+      currentStatus,
       isPromoted,
     ]);
 
@@ -195,9 +247,9 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
           toast.error(
             'Cette répétition a déjà été promue vers la performance.',
           );
-        } else if (rehearsal.status !== 'Completed') {
+        } else if (currentStatus !== RehearsalStatusEnum.COMPLETED) {
           toast.error(
-            `Impossible de promouvoir cette répétition. La répétition doit être terminée (statut actuel: ${rehearsal.status}).`,
+            `Impossible de promouvoir cette répétition. La répétition doit être terminée (statut actuel: ${currentStatus}).`,
           );
         } else {
           toast.error(
@@ -220,7 +272,7 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
       promoteRehearsal,
       rehearsal.performanceId,
       rehearsal.id,
-      rehearsal.status,
+      currentStatus,
       isPromoted,
     ]);
 
@@ -293,8 +345,11 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
                 </span>
                 <RehearsalStatusUpdater
                   rehearsalId={rehearsal.id}
-                  currentStatus={rehearsal.status}
-                  onStatusChange={onStatusChange}
+                  currentStatus={currentStatus}
+                  onStatusChange={(newStatus) => {
+                    setCurrentStatus(newStatus);
+                    onStatusChange?.(newStatus);
+                  }}
                   size="md"
                 />
                 {rehearsal.isTemplate && (
@@ -305,7 +360,7 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
                 )}
 
                 {/* Promotion Status */}
-                {rehearsal.isPromoted ? (
+                {rehearsal.isPromoted || isPromoted ? (
                   <div className="inline-flex items-center gap-2 rounded-lg bg-blue-100 px-3 py-2 text-sm font-medium text-blue-700">
                     <FaMicrophone />✅ Déjà promue
                   </div>
@@ -323,12 +378,7 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
                   <button
                     disabled
                     className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg bg-gray-300 px-2 py-1 text-[12px] font-medium text-gray-400 transition-colors md:px-3 md:text-sm"
-                    title={(() => {
-                      if (rehearsal.status !== 'Completed') {
-                        return `Répétition doit être terminée (statut actuel: ${rehearsal.status})`;
-                      }
-                      return 'Vérifiez que la répétition est liée à une performance et contient des chansons';
-                    })()}
+                    title={getPromotionDisabledReason()}
                   >
                     <FaMicrophone />
                     Promouvoir
@@ -363,7 +413,7 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
                       borderLeftColor: '#3b82f6',
                     };
                   }
-                  if (rehearsal.status === 'Completed') {
+                  if (currentStatus === RehearsalStatusEnum.COMPLETED) {
                     return {
                       backgroundColor: '#f0fdf4',
                       borderLeftColor: '#22c55e',
@@ -379,7 +429,7 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
                   <div
                     className={`size-2 rounded-full ${(() => {
                       if (rehearsal.isPromoted) return 'bg-blue-500';
-                      if (rehearsal.status === 'Completed')
+                      if (currentStatus === RehearsalStatusEnum.COMPLETED)
                         return 'bg-green-500';
                       return 'bg-yellow-500';
                     })()}`}
@@ -387,7 +437,7 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
                   <span className="font-medium text-gray-900">
                     {(() => {
                       if (rehearsal.isPromoted) return '✅ Déjà promue';
-                      return `Statut: ${rehearsal.status}`;
+                      return `Statut: ${currentStatus}`;
                     })()}
                   </span>
                   {rehearsal.isPromoted ? (
@@ -395,7 +445,7 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
                       (Cette répétition a déjà été promue vers la performance)
                     </span>
                   ) : (
-                    rehearsal.status !== 'Completed' && (
+                    currentStatus !== RehearsalStatusEnum.COMPLETED && (
                       <span className="text-sm text-gray-600">
                         (La répétition doit être terminée pour être promue)
                       </span>

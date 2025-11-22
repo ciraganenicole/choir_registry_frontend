@@ -460,10 +460,9 @@ const Transactions = () => {
                 </div>
                 <button
                   onClick={() => handleAddTransaction(TransactionType.INCOME)}
-                  className="flex items-center gap-2 rounded-md bg-green-600 px-1.5 py-1 text-sm font-medium text-white shadow-sm transition-colors hover:bg-green-700 md:rounded-lg md:px-4 md:py-2"
+                  className="flex items-center gap-2 rounded-md bg-green-600 px-1.5 py-1 text-sm font-medium text-white shadow-sm transition-colors hover:bg-green-700"
                 >
                   <FaPlus className="size-3 md:size-4" />
-                  <span className="hidden sm:inline">Revenu</span>
                 </button>
               </div>
             </CardContent>
@@ -505,10 +504,9 @@ const Transactions = () => {
                 </div>
                 <button
                   onClick={() => handleAddTransaction(TransactionType.EXPENSE)}
-                  className="flex items-center gap-2 rounded-md bg-red-600 px-1.5 py-1 text-sm font-medium text-white shadow-sm transition-colors hover:bg-red-700 md:rounded-lg md:px-4 md:py-2"
+                  className="flex items-center gap-2 rounded-md bg-red-600 px-1.5 py-1 text-sm font-medium text-white shadow-sm transition-colors hover:bg-red-700"
                 >
                   <FaPlus className="size-3 md:size-4" />
-                  <span className="hidden sm:inline">Dépense</span>
                 </button>
               </div>
             </CardContent>
@@ -592,7 +590,7 @@ const Transactions = () => {
                 </div>
                 <div className="mt-3">
                   <Link
-                    className="inline-flex items-center gap-2 rounded-lg bg-orange-600 px-1.5 py-1 text-xs font-medium text-white transition-colors hover:bg-orange-700 md:px-3 md:py-1.5"
+                    className="inline-flex items-center gap-1 rounded bg-orange-600 px-1 py-0.5 text-xs font-medium text-white transition-colors hover:bg-orange-700"
                     href={'/transaction/daily'}
                   >
                     <svg
@@ -608,7 +606,7 @@ const Transactions = () => {
                         d="M9 5l7 7-7 7"
                       />
                     </svg>
-                    Voir <span className="hidden sm:inline">Détails</span>
+                    Voir
                   </Link>
                 </div>
               </div>
