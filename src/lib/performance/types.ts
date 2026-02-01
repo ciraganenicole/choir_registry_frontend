@@ -46,6 +46,12 @@ export interface Performance {
     firstName: string;
     lastName: string;
   };
+  assistantLeadId?: number | null;
+  assistantLead?: {
+    id: number;
+    firstName: string;
+    lastName: string;
+  };
   // Detailed data only available when status is "ready" or "completed"
   performanceSongs?: PerformanceSong[];
   choirMembers?: User[];
@@ -127,6 +133,7 @@ export interface CreatePerformanceDto {
   date: string;
   type: PerformanceType;
   shiftLeadId?: number;
+  assistantLeadId?: number | null;
   location?: string;
   expectedAudience?: number;
   notes?: string;
@@ -137,6 +144,7 @@ export interface UpdatePerformanceDto {
   date?: string;
   type?: PerformanceType;
   shiftLeadId?: number;
+  assistantLeadId?: number | null;
   location?: string;
   expectedAudience?: number;
   notes?: string;

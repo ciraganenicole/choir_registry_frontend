@@ -22,9 +22,9 @@ import DeleteUser from './crud/delete';
 import UpdateUser from './crud/update';
 import ViewUser from './crud/view';
 
-const generatePassword = (lastName: string): string => {
-  const currentYear = new Date().getFullYear();
-  return `${lastName.toLowerCase()}${currentYear}`;
+const generatePassword = (lastName: string, createdAt: string): string => {
+  const creationYear = new Date(createdAt).getFullYear();
+  return `${lastName.toLowerCase()}${creationYear}`;
 };
 
 const handleError = (error: unknown, setError: (msg: string) => void) => {
@@ -308,7 +308,7 @@ const LeadsManagement: React.FC = () => {
                     <td className="px-4 py-3">{lead.phoneNumber || '-'}</td>
                     <td className="px-4 py-3">{lead.email || '-'}</td>
                     <td className="px-4 py-3 font-mono text-sm">
-                      {generatePassword(lead.lastName)}
+                      {generatePassword(lead.lastName, lead.createdAt)}
                     </td>
                     <td className="px-4 py-3">
                       {renderActionButtons(lead, false)}
@@ -376,7 +376,7 @@ const LeadsManagement: React.FC = () => {
                     <div className="flex justify-between">
                       <span className="text-gray-500">Mot de passe:</span>
                       <span className="font-mono">
-                        {generatePassword(lead.lastName)}
+                        {generatePassword(lead.lastName, lead.createdAt)}
                       </span>
                     </div>
                   </div>

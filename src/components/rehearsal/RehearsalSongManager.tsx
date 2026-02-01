@@ -9,10 +9,12 @@ import {
   FaTrash,
   FaUsers,
 } from 'react-icons/fa';
+import Select from 'react-select';
 
 import { useSongs } from '@/lib/library/logic';
 import { usePromoteRehearsal } from '@/lib/performance/logic';
 import {
+  getInstrumentLabel,
   getInstrumentOptions,
   getMusicalKeyColor,
   getMusicalKeyOptions,
@@ -24,9 +26,9 @@ import type {
   CreateRehearsalMusicianDto,
   CreateRehearsalSongDto,
   CreateRehearsalVoicePartDto,
+  InstrumentType,
 } from '@/lib/rehearsal/types';
 import {
-  InstrumentType,
   MusicalKey,
   SongDifficulty,
   VoicePartType,
@@ -72,7 +74,7 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
     index: number;
     song: any;
   } | null>(null);
-  const { users } = useUsers();
+  const { users } = useUsers({ limit: 150 }); // Increased limit to ensure all musicians are loaded
 
   // Check if user can manage songs (only lead category users)
   const canManageSongs = user?.categories?.includes(UserCategory.LEAD);
@@ -160,7 +162,7 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
           notes: vp.notes || '',
         })),
         musicians: song.rehearsalDetails.musicians.map((m) => ({
-          userId: m.user.id,
+          userId: m.user?.id,
           instrument: m.instrument as InstrumentType,
           customInstrument: '',
           isAccompanist: m.isAccompanist || false,
@@ -182,11 +184,13 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
     },
   );
 
-  const [showInstrumentDropdown, setShowInstrumentDropdown] = useState(false);
-  const [showMusicianUserDropdown, setShowMusicianUserDropdown] =
-    useState(false);
+  const [showInstrumentDropdowns, setShowInstrumentDropdowns] = useState<
+    Record<number, boolean>
+  >({});
+  const [showMusicianUserDropdowns, setShowMusicianUserDropdowns] = useState<
+    Record<number, boolean>
+  >({});
   const [showLeadSingerDropdown, setShowLeadSingerDropdown] = useState(false);
-  const [showSongDropdown, setShowSongDropdown] = useState(false);
 
   const [voicePartDropdownStates, setVoicePartDropdownStates] = useState<
     Record<
@@ -200,53 +204,101 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
 
   const activeDropdownRef = useRef<string | null>(null);
 
-  const openDropdown = (dropdownName: string) => {
-    setShowInstrumentDropdown(false);
-    setShowMusicianUserDropdown(false);
+  const openDropdown = (dropdownName: string, musicianIndex?: number) => {
     setShowLeadSingerDropdown(false);
-    setShowSongDropdown(false);
 
     activeDropdownRef.current = dropdownName;
 
     switch (dropdownName) {
       case 'instrument':
-        setShowInstrumentDropdown(true);
+        if (musicianIndex !== undefined) {
+          // Close all other instrument dropdowns and open only this one
+          setShowInstrumentDropdowns((prev) => {
+            const newState: Record<number, boolean> = {};
+            // Close all
+            Object.keys(prev).forEach((key) => {
+              const idx = parseInt(key, 10);
+              newState[idx] = false;
+            });
+            // Open only the selected one
+            newState[musicianIndex] = true;
+            return newState;
+          });
+        }
         break;
       case 'musicianUser':
-        setShowMusicianUserDropdown(true);
+        if (musicianIndex !== undefined) {
+          // Close all other musician dropdowns and open only this one
+          setShowMusicianUserDropdowns((prev) => {
+            const newState: Record<number, boolean> = {};
+            // Close all
+            Object.keys(prev).forEach((key) => {
+              const idx = parseInt(key, 10);
+              newState[idx] = false;
+            });
+            // Open only the selected one
+            newState[musicianIndex] = true;
+            return newState;
+          });
+        }
         break;
       case 'leadSinger':
         setShowLeadSingerDropdown(true);
-        break;
-      case 'song':
-        setShowSongDropdown(true);
         break;
       default:
         break;
     }
   };
 
-  const closeDropdown = (dropdownName: string) => {
+  const closeDropdown = (dropdownName: string, musicianIndex?: number) => {
     if (activeDropdownRef.current === dropdownName) {
       activeDropdownRef.current = null;
       switch (dropdownName) {
         case 'instrument':
-          setShowInstrumentDropdown(false);
+          if (musicianIndex !== undefined) {
+            setShowInstrumentDropdowns((prev) => ({
+              ...prev,
+              [musicianIndex]: false,
+            }));
+          }
           break;
         case 'musicianUser':
-          setShowMusicianUserDropdown(false);
+          if (musicianIndex !== undefined) {
+            setShowMusicianUserDropdowns((prev) => ({
+              ...prev,
+              [musicianIndex]: false,
+            }));
+          }
           break;
         case 'leadSinger':
           setShowLeadSingerDropdown(false);
-          break;
-        case 'song':
-          setShowSongDropdown(false);
           break;
         default:
           break;
       }
     }
   };
+
+  const [musicianUserSearchTerms, setMusicianUserSearchTerms] = useState<
+    string[]
+  >([]);
+
+  const updateMusicianUserSearchTerm = (index: number, value: string) => {
+    setMusicianUserSearchTerms((prev) => {
+      const newTerms = [...prev];
+      newTerms[index] = value;
+      return newTerms;
+    });
+  };
+
+  const getMusicianUserDropdownState = (index: number) => ({
+    showDropdown: showMusicianUserDropdowns[index] || false,
+    searchTerm: musicianUserSearchTerms[index] || '',
+  });
+
+  const getInstrumentDropdownState = (index: number) => ({
+    showDropdown: showInstrumentDropdowns[index] || false,
+  });
 
   const openVoicePartDropdown = (voicePartIndex: number) => {
     setVoicePartDropdownStates((prev) => {
@@ -309,12 +361,20 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
 
   // Promotion dialog state removed as it's not used
 
+  // Calculate the next order value based on existing songs
+  const getNextOrder = () => {
+    const allSongs = convertedSongs.length > 0 ? convertedSongs : songs;
+    if (allSongs.length === 0) return 1;
+    const maxOrder = Math.max(...allSongs.map((s) => s.order ?? 0));
+    return maxOrder + 1;
+  };
+
   const [newSong, setNewSong] = useState<CreateRehearsalSongDto>({
     songId: 0,
     leadSingerIds: [], // Changed from leadSingerId to support multiple lead singers
     difficulty: SongDifficulty.INTERMEDIATE,
     needsWork: false,
-    order: songs.length + 1,
+    order: 1, // Will be updated when form is shown
     timeAllocated: 30,
     focusPoints: '',
     notes: '',
@@ -328,7 +388,6 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
     [],
   );
   const [leadSingerSearchTerm, setLeadSingerSearchTerm] = useState('');
-  const [musicianUserSearchTerm, setMusicianUserSearchTerm] = useState('');
 
   const [showUpdateForm, setShowUpdateForm] = useState(false);
   const [songToUpdate, setSongToUpdate] =
@@ -344,7 +403,7 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
       leadSingerIds: [], // Changed from leadSingerId to support multiple lead singers
       difficulty: SongDifficulty.INTERMEDIATE,
       needsWork: false,
-      order: songs.length + 1,
+      order: getNextOrder(),
       timeAllocated: 30,
       focusPoints: '',
       notes: '',
@@ -355,12 +414,34 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
     };
     setNewSong(initialSong);
     setSelectedLeadSingerIds([]); // Reset selected lead singers
+    setMusicianUserSearchTerms([]);
+    setShowMusicianUserDropdowns({});
+    setShowInstrumentDropdowns({});
   };
 
   // Synchronize selectedLeadSingerIds with newSong.leadSingerIds
   useEffect(() => {
     setSelectedLeadSingerIds(newSong.leadSingerIds || []);
   }, [newSong.leadSingerIds]);
+
+  // Update order when showAddSong is opened
+  useEffect(() => {
+    if (showAddSong) {
+      const nextOrder = getNextOrder();
+      setNewSong((prev) => ({
+        ...prev,
+        order: nextOrder,
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showAddSong]);
+
+  // Initialize musicianUserSearchTerms array to match musicians array length
+  useEffect(() => {
+    if (newSong.musicians.length !== musicianUserSearchTerms.length) {
+      setMusicianUserSearchTerms(new Array(newSong.musicians.length).fill(''));
+    }
+  }, [newSong.musicians.length]);
 
   const getSelectedSongTitle = (songId: number) => {
     const song = availableSongs.find((s) => parseInt(s.id, 10) === songId);
@@ -436,10 +517,10 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
             notes: vp.notes,
           })),
           musicians: separatedSong.rehearsalDetails.musicians.map((m) => ({
-            userId: m.userId,
-            instrument: m.instrument,
-            customInstrument: undefined,
-            isAccompanist: m.isAccompanist,
+            userId: m.userId ?? undefined, // 🔥 null → undefined
+            instrument: m.instrument as InstrumentType, // 🔥 assert enum
+            customInstrument: m.customInstrument ?? undefined,
+            isAccompanist: m.isAccompanist ?? false,
             isSoloist: false,
             soloStartTime: 0,
             soloEndTime: 0,
@@ -447,9 +528,9 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
             accompanimentNotes: '',
             needsPractice: false,
             practiceNotes: '',
-            order: m.order,
-            timeAllocated: 0,
-            notes: m.notes,
+            order: m.order ?? 1,
+            timeAllocated: m.timeAllocated ?? undefined, // 🔥 important
+            notes: m.notes ?? undefined, // 🔥 important
           })),
           chorusMemberIds: separatedSong.rehearsalDetails.chorusMembers.map(
             (cm) => cm.id,
@@ -686,9 +767,10 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
   };
 
   const addMusician = () => {
-    const newMusician: CreateRehearsalMusicianDto = {
+    const newMusician: Omit<CreateRehearsalMusicianDto, 'instrument'> & {
+      instrument?: InstrumentType;
+    } = {
       userId: 0,
-      instrument: InstrumentType.PIANO,
       customInstrument: '',
       isAccompanist: false,
       isSoloist: false,
@@ -705,10 +787,14 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
     setNewSong((prev) => {
       const updatedSong = {
         ...prev,
-        musicians: [...prev.musicians, newMusician],
+        musicians: [
+          ...prev.musicians,
+          newMusician as CreateRehearsalMusicianDto,
+        ],
       };
       return updatedSong;
     });
+    setMusicianUserSearchTerms((prev) => [...prev, '']);
   };
 
   const updateVoicePart = (index: number, field: string, value: any) => {
@@ -766,6 +852,27 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
     const updatedMusicians = newSong.musicians.filter((_, i) => i !== index);
 
     setNewSong((prev) => ({ ...prev, musicians: updatedMusicians }));
+
+    setMusicianUserSearchTerms((prev) => prev.filter((_, i) => i !== index));
+
+    const shiftIndices = (prev: Record<number, boolean>) => {
+      const newState = { ...prev };
+      delete newState[index];
+      // Shift indices for remaining dropdowns
+      const shiftedState: Record<number, boolean> = {};
+      Object.keys(newState).forEach((key) => {
+        const idx = parseInt(key, 10);
+        if (idx > index) {
+          shiftedState[idx - 1] = newState[idx] ?? false;
+        } else {
+          shiftedState[idx] = newState[idx] ?? false;
+        }
+      });
+      return shiftedState;
+    };
+
+    setShowMusicianUserDropdowns(shiftIndices);
+    setShowInstrumentDropdowns(shiftIndices);
   };
 
   const getSelectedUserName = (userId: number) => {
@@ -879,40 +986,42 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
-          {canManageSongs && (
-            <button
-              type="button"
-              onClick={async (event) => {
-                try {
-                  const button = event.target as HTMLButtonElement;
-                  button.disabled = true;
-                  button.textContent = 'Sauvegarde...';
+          {canManageSongs &&
+            convertedSongs.length === 0 &&
+            songs.length === 0 && (
+              <button
+                type="button"
+                onClick={async (event) => {
+                  try {
+                    const button = event.target as HTMLButtonElement;
+                    button.disabled = true;
+                    button.textContent = 'Sauvegarde...';
 
-                  const rehearsalSaved = await ensureRehearsalSaved();
+                    const rehearsalSaved = await ensureRehearsalSaved();
 
-                  if (rehearsalSaved) {
-                    setShowAddSong(true);
-                  } else {
+                    if (rehearsalSaved) {
+                      setShowAddSong(true);
+                    } else {
+                      toast.error(
+                        'Erreur lors de la sauvegarde de la répétition. Veuillez réessayer.',
+                      );
+                    }
+                  } catch (error) {
                     toast.error(
                       'Erreur lors de la sauvegarde de la répétition. Veuillez réessayer.',
                     );
+                  } finally {
+                    const button = event.target as HTMLButtonElement;
+                    button.disabled = false;
+                    button.textContent = 'Ajouter une chanson';
                   }
-                } catch (error) {
-                  toast.error(
-                    'Erreur lors de la sauvegarde de la répétition. Veuillez réessayer.',
-                  );
-                } finally {
-                  const button = event.target as HTMLButtonElement;
-                  button.disabled = false;
-                  button.textContent = 'Ajouter une chanson';
-                }
-              }}
-              className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <FaPlus />
-              Ajouter une chanson
-            </button>
-          )}
+                }}
+                className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <FaPlus />
+                Ajouter une chanson
+              </button>
+            )}
 
           {canPromote() && (
             <button
@@ -967,9 +1076,16 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
           const songsToRender =
             convertedSongs.length > 0 ? convertedSongs : songs;
 
+          // Sort songs by order field
+          const sortedSongs = [...songsToRender].sort((a, b) => {
+            const orderA = a.order ?? 999;
+            const orderB = b.order ?? 999;
+            return orderA - orderB;
+          });
+
           return (
             <div className="space-y-3">
-              {songsToRender.map((song, index) => (
+              {sortedSongs.map((song, index) => (
                 <div
                   key={`song-${song.songId || song.rehearsalSongId || index}`}
                   className="rounded-lg border border-gray-200 bg-white p-4 transition-all duration-200 hover:shadow-md"
@@ -1102,7 +1218,10 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                             {musician.userId
                               ? getSelectedUserName(musician.userId)
                               : 'Non assigné'}{' '}
-                            - {musician.instrument}
+                            -{' '}
+                            {musician.instrument
+                              ? getInstrumentLabel(musician.instrument)
+                              : 'Non sélectionné'}
                           </span>
                         ))}
                       </div>
@@ -1110,6 +1229,43 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                   )}
                 </div>
               ))}
+
+              {canManageSongs && (
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={async (event) => {
+                      try {
+                        const button = event.target as HTMLButtonElement;
+                        button.disabled = true;
+                        button.textContent = 'Sauvegarde...';
+
+                        const rehearsalSaved = await ensureRehearsalSaved();
+
+                        if (rehearsalSaved) {
+                          setShowAddSong(true);
+                        } else {
+                          toast.error(
+                            'Erreur lors de la sauvegarde de la répétition. Veuillez réessayer.',
+                          );
+                        }
+                      } catch (error) {
+                        toast.error(
+                          'Erreur lors de la sauvegarde de la répétition. Veuillez réessayer.',
+                        );
+                      } finally {
+                        const button = event.target as HTMLButtonElement;
+                        button.disabled = false;
+                        button.textContent = 'Ajouter une chanson';
+                      }
+                    }}
+                    className="flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <FaPlus />
+                    Ajouter une chanson
+                  </button>
+                </div>
+              )}
             </div>
           );
         }
@@ -1152,60 +1308,49 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                   <label className="mb-2 block text-sm font-medium text-gray-700">
                     Chanson de la bibliothèque *
                   </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      value={
-                        newSong.songId === 0
-                          ? ''
-                          : getSelectedSongTitle(newSong.songId)
-                      }
-                      onChange={() => {
-                        openDropdown('song');
-                      }}
-                      placeholder="Sélectionnez une chanson de la bibliothèque..."
-                      className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                      onFocus={() => openDropdown('song')}
-                      onBlur={() =>
-                        setTimeout(() => closeDropdown('song'), 200)
-                      }
-                    />
-                    {showSongDropdown && (
-                      <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
-                        {availableSongs.map((song) => (
-                          <div
-                            key={song.id}
-                            className="cursor-pointer border-b border-gray-100 px-3 py-2 hover:bg-blue-50"
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                              const songId = parseInt(song.id, 10);
-                              setNewSong((prev) => {
-                                return {
-                                  ...prev,
-                                  songId,
-                                  voiceParts: [],
-                                  musicians: [],
-                                  focusPoints: '',
-                                  notes: '',
-                                };
-                              });
-                              closeDropdown('song');
-                            }}
-                          >
-                            <div className="font-medium">{song.title}</div>
-                            <div className="text-sm text-gray-600">
-                              Composé par {song.composer}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <Select
+                    value={
+                      newSong.songId && newSong.songId > 0
+                        ? {
+                            value: newSong.songId,
+                            label: `${getSelectedSongTitle(newSong.songId)}${(() => {
+                              const song = availableSongs.find(
+                                (s) => parseInt(s.id, 10) === newSong.songId,
+                              );
+                              return song ? ` - ${song.composer}` : '';
+                            })()}`,
+                          }
+                        : null
+                    }
+                    onChange={(selectedOption) => {
+                      const songId = selectedOption ? selectedOption.value : 0;
+                      setNewSong((prev) => {
+                        return {
+                          ...prev,
+                          songId,
+                          voiceParts: [],
+                          musicians: [],
+                          focusPoints: '',
+                          notes: '',
+                        };
+                      });
+                    }}
+                    options={availableSongs.map((song) => ({
+                      value: parseInt(song.id, 10),
+                      label: `${song.title} - ${song.composer}`,
+                    }))}
+                    placeholder="Sélectionnez une chanson de la bibliothèque..."
+                    isSearchable
+                    isClearable
+                    className="w-full"
+                    classNamePrefix="react-select"
+                    noOptionsMessage={() => 'Aucune chanson trouvée'}
+                  />
                 </div>
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700">
-                    Chanteur(s) principal(aux) pour cette répétition
+                    Chanteur(s) principal(aux) pour cette répétition (optionnel)
                   </label>
 
                   <div className="mb-2">
@@ -1412,509 +1557,590 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
 
               {/* Voice Parts Management */}
               <div className="border-t border-gray-200 pt-6">
-                <div className="mb-4 flex items-center justify-between">
+                <div className="mb-4">
                   <h4 className="text-lg font-medium text-gray-900">
                     Attaque-chant
                   </h4>
-                  <button
-                    type="button"
-                    onClick={addVoicePart}
-                    className="flex items-center gap-2 rounded-md bg-purple-100 px-3 py-2 text-sm font-medium text-purple-600 hover:bg-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
-                  >
-                    <FaPlus />
-                    Attaque-chant
-                  </button>
                 </div>
 
-                {newSong.voiceParts.map((voicePart, index) => (
-                  <div
-                    key={`new-vp-${index}`}
-                    className="mb-4 rounded-lg border border-gray-200 p-4"
-                  >
-                    <div className="mb-3 flex items-center justify-between">
-                      <h5 className="font-medium text-gray-900">
-                        Attaque-chant #{index + 1}
-                      </h5>
-                      <button
-                        type="button"
-                        onClick={() => removeVoicePart(index)}
-                        className="text-red-600 hover:text-red-800"
+                {newSong.voiceParts.length > 0 ? (
+                  <>
+                    {newSong.voiceParts.map((voicePart, index) => (
+                      <div
+                        key={`new-vp-${index}`}
+                        className="mb-4 rounded-lg border border-gray-200 p-4"
                       >
-                        <FaTrash />
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                      <div>
-                        <label className="mb-2 block text-sm font-medium text-gray-700">
-                          Type de partie
-                        </label>
-                        <select
-                          value={voicePart.voicePartType}
-                          onChange={(e) =>
-                            updateVoicePart(
-                              index,
-                              'voicePartType',
-                              e.target.value as VoicePartType,
-                            )
-                          }
-                          className="w-full rounded-md border border-gray-300 px-3 py-2"
-                        >
-                          {rehearsalVoicePartOptions.map((option) => (
-                            <option key={option} value={option}>
-                              {option}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="">
-                        <label className="mb-2 block text-sm font-medium text-gray-700">
-                          Membres
-                        </label>
-
-                        {/* Selected Members Display */}
-                        <div className="">
-                          <div className="flex flex-wrap gap-2">
-                            {voicePart.memberIds.map((memberId) => {
-                              const member = users.find(
-                                (u) => u.id === memberId,
-                              );
-                              return member ? (
-                                <span
-                                  key={memberId}
-                                  className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-1 text-sm text-blue-800"
-                                >
-                                  {member.lastName} {member.firstName}
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      const updatedMemberIds =
-                                        voicePart.memberIds?.filter(
-                                          (id) => id !== memberId,
-                                        ) || [];
-                                      updateVoicePart(
-                                        index,
-                                        'memberIds',
-                                        updatedMemberIds,
-                                      );
-                                    }}
-                                    className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
-                                  >
-                                    ×
-                                  </button>
-                                </span>
-                              ) : null;
-                            })}
-                          </div>
+                        <div className="mb-3 flex items-center justify-between">
+                          <h5 className="font-medium text-gray-900">
+                            Attaque-chant #{index + 1}
+                          </h5>
+                          <button
+                            type="button"
+                            onClick={() => removeVoicePart(index)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <FaTrash />
+                          </button>
                         </div>
 
-                        {/* Member Selection Dropdown */}
-                        <div className="relative">
-                          <input
-                            type="text"
-                            value={getVoicePartDropdownState(index).searchTerm}
-                            onChange={(e) => {
-                              updateVoicePartSearchTerm(index, e.target.value);
-                            }}
-                            placeholder="Tapez pour rechercher des membres..."
-                            className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            onFocus={() => openVoicePartDropdown(index)}
-                            onBlur={() =>
-                              setTimeout(
-                                () => closeVoicePartDropdown(index),
-                                200,
-                              )
-                            }
-                          />
-                          {getVoicePartDropdownState(index).showDropdown && (
-                            <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
-                              {users
-                                .filter((u) =>
-                                  ` ${u.lastName} ${u.firstName}`
-                                    .toLowerCase()
-                                    .includes(
-                                      getVoicePartDropdownState(
-                                        index,
-                                      ).searchTerm.toLowerCase(),
-                                    ),
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                          <div>
+                            <label className="mb-2 block text-sm font-medium text-gray-700">
+                              Type de partie
+                            </label>
+                            <select
+                              value={voicePart.voicePartType}
+                              onChange={(e) =>
+                                updateVoicePart(
+                                  index,
+                                  'voicePartType',
+                                  e.target.value as VoicePartType,
                                 )
-                                .sort((a, b) =>
-                                  `${a.lastName} ${a.firstName}`.localeCompare(
-                                    `${b.lastName} ${b.firstName}`,
-                                  ),
-                                )
-                                .map((u) => (
-                                  <div
-                                    key={u.id}
-                                    className={`flex cursor-pointer items-center px-3 py-2 ${
-                                      voicePart.memberIds?.includes(u.id)
-                                        ? 'bg-blue-100 hover:bg-blue-200'
-                                        : 'hover:bg-blue-50'
-                                    }`}
-                                    onMouseDown={(e) => {
-                                      e.preventDefault();
-                                      const currentMemberIds =
-                                        voicePart.memberIds || [];
-                                      const isAlreadySelected =
-                                        currentMemberIds.includes(u.id);
+                              }
+                              className="w-full rounded-md border border-gray-300 px-3 py-2"
+                            >
+                              {rehearsalVoicePartOptions.map((option) => (
+                                <option key={option} value={option}>
+                                  {option}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
 
-                                      let updatedMemberIds;
-                                      if (isAlreadySelected) {
-                                        // Remove member if already selected
-                                        updatedMemberIds =
-                                          currentMemberIds.filter(
-                                            (id) => id !== u.id,
+                          <div className="">
+                            <label className="mb-2 block text-sm font-medium text-gray-700">
+                              Membres
+                            </label>
+
+                            {/* Selected Members Display */}
+                            <div className="">
+                              <div className="flex flex-wrap gap-2">
+                                {voicePart.memberIds.map((memberId) => {
+                                  const member = users.find(
+                                    (u) => u.id === memberId,
+                                  );
+                                  return member ? (
+                                    <span
+                                      key={memberId}
+                                      className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-1 text-sm text-blue-800"
+                                    >
+                                      {member.lastName} {member.firstName}
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          const updatedMemberIds =
+                                            voicePart.memberIds?.filter(
+                                              (id) => id !== memberId,
+                                            ) || [];
+                                          updateVoicePart(
+                                            index,
+                                            'memberIds',
+                                            updatedMemberIds,
                                           );
-                                      } else {
-                                        // Add member if not selected
-                                        updatedMemberIds = [
-                                          ...currentMemberIds,
-                                          u.id,
-                                        ];
-                                      }
-
-                                      updateVoicePart(
-                                        index,
-                                        'memberIds',
-                                        updatedMemberIds,
-                                      );
-                                      updateVoicePartSearchTerm(index, '');
-                                      // Don't close dropdown to allow multiple selections
-                                    }}
-                                  >
-                                    <input
-                                      type="checkbox"
-                                      checked={
-                                        voicePart.memberIds?.includes(u.id) ||
-                                        false
-                                      }
-                                      readOnly
-                                      className="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                                    />
-                                    <span className="text-sm text-gray-700">
-                                      {u.lastName} {u.firstName}
+                                        }}
+                                        className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
+                                      >
+                                        ×
+                                      </button>
                                     </span>
-                                  </div>
-                                ))}
-                              {users.filter(
-                                (u) =>
-                                  !voicePart.memberIds?.includes(u.id) &&
-                                  `${u.lastName} ${u.firstName}`
-                                    .toLowerCase()
-                                    .includes(
-                                      getVoicePartDropdownState(
-                                        index,
-                                      ).searchTerm.toLowerCase(),
-                                    ),
-                              ).length === 0 && (
-                                <div className="px-3 py-2 text-sm text-gray-500">
-                                  Aucun membre trouvé
+                                  ) : null;
+                                })}
+                              </div>
+                            </div>
+
+                            {/* Member Selection Dropdown */}
+                            <div className="relative">
+                              <input
+                                type="text"
+                                value={
+                                  getVoicePartDropdownState(index).searchTerm
+                                }
+                                onChange={(e) => {
+                                  updateVoicePartSearchTerm(
+                                    index,
+                                    e.target.value,
+                                  );
+                                }}
+                                placeholder="Tapez pour rechercher des membres..."
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                onFocus={() => openVoicePartDropdown(index)}
+                                onBlur={() =>
+                                  setTimeout(
+                                    () => closeVoicePartDropdown(index),
+                                    200,
+                                  )
+                                }
+                              />
+                              {getVoicePartDropdownState(index)
+                                .showDropdown && (
+                                <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
+                                  {users
+                                    .filter((u) =>
+                                      ` ${u.lastName} ${u.firstName}`
+                                        .toLowerCase()
+                                        .includes(
+                                          getVoicePartDropdownState(
+                                            index,
+                                          ).searchTerm.toLowerCase(),
+                                        ),
+                                    )
+                                    .sort((a, b) =>
+                                      `${a.lastName} ${a.firstName}`.localeCompare(
+                                        `${b.lastName} ${b.firstName}`,
+                                      ),
+                                    )
+                                    .map((u) => (
+                                      <div
+                                        key={u.id}
+                                        className={`flex cursor-pointer items-center px-3 py-2 ${
+                                          voicePart.memberIds?.includes(u.id)
+                                            ? 'bg-blue-100 hover:bg-blue-200'
+                                            : 'hover:bg-blue-50'
+                                        }`}
+                                        onMouseDown={(e) => {
+                                          e.preventDefault();
+                                          const currentMemberIds =
+                                            voicePart.memberIds || [];
+                                          const isAlreadySelected =
+                                            currentMemberIds.includes(u.id);
+
+                                          let updatedMemberIds;
+                                          if (isAlreadySelected) {
+                                            // Remove member if already selected
+                                            updatedMemberIds =
+                                              currentMemberIds.filter(
+                                                (id) => id !== u.id,
+                                              );
+                                          } else {
+                                            // Add member if not selected
+                                            updatedMemberIds = [
+                                              ...currentMemberIds,
+                                              u.id,
+                                            ];
+                                          }
+
+                                          updateVoicePart(
+                                            index,
+                                            'memberIds',
+                                            updatedMemberIds,
+                                          );
+                                          updateVoicePartSearchTerm(index, '');
+                                          // Don't close dropdown to allow multiple selections
+                                        }}
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={
+                                            voicePart.memberIds?.includes(
+                                              u.id,
+                                            ) || false
+                                          }
+                                          readOnly
+                                          className="mr-2 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <span className="text-sm text-gray-700">
+                                          {u.lastName} {u.firstName}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  {users.filter(
+                                    (u) =>
+                                      !voicePart.memberIds?.includes(u.id) &&
+                                      `${u.lastName} ${u.firstName}`
+                                        .toLowerCase()
+                                        .includes(
+                                          getVoicePartDropdownState(
+                                            index,
+                                          ).searchTerm.toLowerCase(),
+                                        ),
+                                  ).length === 0 && (
+                                    <div className="px-3 py-2 text-sm text-gray-500">
+                                      Aucun membre trouvé
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
-                          )}
+                          </div>
+
+                          <div className="">
+                            <label className="mb-2 block text-sm font-medium text-gray-700">
+                              Points de focus
+                            </label>
+                            <textarea
+                              value={voicePart.focusPoints || ''}
+                              onChange={(e) =>
+                                updateVoicePart(
+                                  index,
+                                  'focusPoints',
+                                  e.target.value,
+                                )
+                              }
+                              rows={1}
+                              placeholder="Points spécifiques à travailler pour cette partie vocale..."
+                              className="w-full rounded-md border border-gray-300 px-3 py-2"
+                            />
+                          </div>
+
+                          <div className="">
+                            <label className="flex items-center">
+                              <input
+                                type="checkbox"
+                                checked={voicePart.needsWork || false}
+                                onChange={(e) =>
+                                  updateVoicePart(
+                                    index,
+                                    'needsWork',
+                                    e.target.checked,
+                                  )
+                                }
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                              />
+                              <span className="ml-2 text-sm text-gray-700">
+                                Nécessite du travail
+                              </span>
+                            </label>
+                          </div>
                         </div>
                       </div>
-
-                      <div className="">
-                        <label className="mb-2 block text-sm font-medium text-gray-700">
-                          Points de focus
-                        </label>
-                        <textarea
-                          value={voicePart.focusPoints || ''}
-                          onChange={(e) =>
-                            updateVoicePart(
-                              index,
-                              'focusPoints',
-                              e.target.value,
-                            )
-                          }
-                          rows={1}
-                          placeholder="Points spécifiques à travailler pour cette partie vocale..."
-                          className="w-full rounded-md border border-gray-300 px-3 py-2"
-                        />
-                      </div>
-
-                      <div className="">
-                        <label className="flex items-center">
-                          <input
-                            type="checkbox"
-                            checked={voicePart.needsWork || false}
-                            onChange={(e) =>
-                              updateVoicePart(
-                                index,
-                                'needsWork',
-                                e.target.checked,
-                              )
-                            }
-                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                          />
-                          <span className="ml-2 text-sm text-gray-700">
-                            Nécessite du travail
-                          </span>
-                        </label>
-                      </div>
+                    ))}
+                    <div className="mt-4 flex justify-end">
+                      <button
+                        type="button"
+                        onClick={addVoicePart}
+                        className="flex items-center gap-2 rounded-md bg-purple-100 px-3 py-2 text-sm font-medium text-purple-600 hover:bg-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      >
+                        <FaPlus />
+                        Attaque-chant
+                      </button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-lg border border-gray-200 bg-white py-8 text-center">
+                    <div className="mt-4 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={addVoicePart}
+                        className="flex items-center gap-2 rounded-md bg-purple-100 px-3 py-2 text-sm font-medium text-purple-600 hover:bg-purple-200 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      >
+                        <FaPlus />
+                        Attaque-chant
+                      </button>
                     </div>
                   </div>
-                ))}
+                )}
               </div>
 
               {/* Musicians Management */}
               <div className="border-t border-gray-200 pt-6">
-                {/* 
-                  REHEARSAL MUSICIANS - These are rehearsal-specific assignments
-                  Each rehearsal can assign different musicians to different instruments
-                  Practice notes and time allocations are specific to this rehearsal
-                */}
-                <div className="mb-4 flex items-center justify-between">
+                <div className="mb-4">
                   <h4 className="text-lg font-medium text-gray-900">Defense</h4>
-                  <button
-                    type="button"
-                    onClick={addMusician}
-                    className="flex items-center gap-2 rounded-md bg-green-100 px-3 py-2 text-sm font-medium text-green-600 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-green-500"
-                  >
-                    <FaPlus />
-                    Defense
-                  </button>
                 </div>
 
-                {newSong.musicians.map((musician, index) => (
-                  <div
-                    key={`new-musician-${index}`}
-                    className="mb-4 rounded-lg border border-gray-200 p-4"
-                  >
-                    <div className="mb-3 flex items-center justify-between">
-                      <h5 className="font-medium text-gray-900">
-                        Musicien #{index + 1}
-                      </h5>
+                {newSong.musicians.length > 0 ? (
+                  <>
+                    {newSong.musicians.map((musician, index) => (
+                      <div
+                        key={`new-musician-${index}`}
+                        className="mb-4 rounded-lg border border-gray-200 p-4"
+                      >
+                        <div className="mb-3 flex items-center justify-between">
+                          <h5 className="font-medium text-gray-900">
+                            Musicien #{index + 1}
+                          </h5>
+                          <button
+                            type="button"
+                            onClick={() => removeMusician(index)}
+                            className="text-red-600 hover:text-red-800"
+                          >
+                            <FaTrash />
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                          <div>
+                            {/* Selected User Display */}
+                            <div className="mb-3">
+                              {musician.userId && musician.userId > 0 ? (
+                                <div className="flex flex-wrap gap-2">
+                                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-1 text-sm text-blue-800">
+                                    {getSelectedUserName(musician.userId)}
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        updateMusician(index, 'userId', 0);
+                                        updateMusicianUserSearchTerm(index, '');
+                                      }}
+                                      className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
+                                    >
+                                      ×
+                                    </button>
+                                  </span>
+                                </div>
+                              ) : (
+                                <p className="text-sm text-gray-500">
+                                  Aucun utilisateur sélectionné
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="relative">
+                              <input
+                                type="text"
+                                value={
+                                  getMusicianUserDropdownState(index).searchTerm
+                                }
+                                onChange={(e) => {
+                                  updateMusicianUserSearchTerm(
+                                    index,
+                                    e.target.value,
+                                  );
+                                  openDropdown('musicianUser', index);
+                                }}
+                                placeholder="Tapez pour rechercher un utilisateur..."
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                onFocus={() =>
+                                  openDropdown('musicianUser', index)
+                                }
+                                onBlur={() =>
+                                  setTimeout(
+                                    () => closeDropdown('musicianUser', index),
+                                    200,
+                                  )
+                                }
+                              />
+                              {getMusicianUserDropdownState(index)
+                                .showDropdown && (
+                                <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
+                                  <div className="border-b border-gray-200 p-2 text-xs text-gray-500">
+                                    Sélectionnez un musicien
+                                  </div>
+                                  {users
+                                    .filter(
+                                      (u) =>
+                                        u.categories?.includes(
+                                          UserCategory.MUSICIAN,
+                                        ) &&
+                                        `${u.lastName} ${u.firstName}`
+                                          .toLowerCase()
+                                          .includes(
+                                            getMusicianUserDropdownState(
+                                              index,
+                                            ).searchTerm.toLowerCase(),
+                                          ),
+                                    )
+                                    .sort((a, b) =>
+                                      `${a.lastName} ${a.firstName}`.localeCompare(
+                                        `${b.firstName} ${b.lastName}`,
+                                      ),
+                                    )
+                                    .map((u) => (
+                                      <div
+                                        key={u.id}
+                                        className="cursor-pointer px-3 py-2 hover:bg-blue-50"
+                                        onMouseDown={(e) => {
+                                          e.preventDefault();
+                                          updateMusician(index, 'userId', u.id);
+                                          updateMusicianUserSearchTerm(
+                                            index,
+                                            '',
+                                          );
+                                          closeDropdown('musicianUser', index);
+                                        }}
+                                      >
+                                        <span className="text-sm text-gray-700">
+                                          {u.lastName} {u.firstName}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  {users.filter(
+                                    (u) =>
+                                      u.categories?.includes(
+                                        UserCategory.MUSICIAN,
+                                      ) &&
+                                      `${u.lastName} ${u.firstName}`
+                                        .toLowerCase()
+                                        .includes(
+                                          getMusicianUserDropdownState(
+                                            index,
+                                          ).searchTerm.toLowerCase(),
+                                        ),
+                                  ).length === 0 && (
+                                    <div className="px-3 py-2 text-sm text-gray-500">
+                                      Aucun utilisateur trouvé
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div>
+                            <label className="mb-2 block text-sm font-medium text-gray-700">
+                              Instrument
+                            </label>
+                            <div className="relative">
+                              <input
+                                type="text"
+                                value={
+                                  musician.instrument
+                                    ? getInstrumentLabel(musician.instrument)
+                                    : ''
+                                }
+                                onChange={(e) => {
+                                  const searchTerm = e.target.value;
+                                  // Find matching instrument by label
+                                  const foundInstrument =
+                                    getInstrumentOptions().find((option) =>
+                                      option.label
+                                        .toLowerCase()
+                                        .includes(searchTerm.toLowerCase()),
+                                    );
+                                  if (
+                                    foundInstrument &&
+                                    searchTerm === foundInstrument.label
+                                  ) {
+                                    updateMusician(
+                                      index,
+                                      'instrument',
+                                      foundInstrument.value,
+                                    );
+                                  }
+                                  openDropdown('instrument', index);
+                                }}
+                                placeholder="Tapez pour rechercher un instrument..."
+                                className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                onFocus={() =>
+                                  openDropdown('instrument', index)
+                                }
+                                onBlur={() =>
+                                  setTimeout(
+                                    () => closeDropdown('instrument', index),
+                                    200,
+                                  )
+                                }
+                              />
+                              {getInstrumentDropdownState(index)
+                                .showDropdown && (
+                                <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
+                                  <div className="border-b border-gray-200 p-2 text-xs text-gray-500">
+                                    Sélectionnez un instrument
+                                  </div>
+                                  {getInstrumentOptions()
+                                    .filter((option) => {
+                                      const currentValue = musician.instrument
+                                        ? getInstrumentLabel(
+                                            musician.instrument,
+                                          )
+                                        : '';
+                                      return option.label
+                                        .toLowerCase()
+                                        .includes(currentValue.toLowerCase());
+                                    })
+                                    .map((option) => (
+                                      <div
+                                        key={option.value}
+                                        className="cursor-pointer px-3 py-2 hover:bg-blue-50"
+                                        onMouseDown={(e) => {
+                                          e.preventDefault();
+                                          updateMusician(
+                                            index,
+                                            'instrument',
+                                            option.value,
+                                          );
+                                          closeDropdown('instrument', index);
+                                        }}
+                                      >
+                                        <span className="text-sm text-gray-700">
+                                          {option.label}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  {getInstrumentOptions().filter((option) => {
+                                    const currentValue = musician.instrument
+                                      ? getInstrumentLabel(musician.instrument)
+                                      : '';
+                                    return option.label
+                                      .toLowerCase()
+                                      .includes(currentValue.toLowerCase());
+                                  }).length === 0 && (
+                                    <div className="px-3 py-2 text-sm text-gray-500">
+                                      Aucun instrument trouvé
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="">
+                            <label className="mb-2 block text-sm font-medium text-gray-700">
+                              Notes
+                            </label>
+                            <textarea
+                              value={musician.notes || ''}
+                              onChange={(e) =>
+                                updateMusician(index, 'notes', e.target.value)
+                              }
+                              rows={1}
+                              placeholder="Notes sur ce musicien..."
+                              className="w-full rounded-md border border-gray-300 px-3 py-2"
+                            />
+                          </div>
+
+                          <div className="">
+                            <div className="flex items-center gap-4">
+                              <label className="flex items-center">
+                                <input
+                                  type="checkbox"
+                                  checked={musician.needsPractice || false}
+                                  onChange={(e) =>
+                                    updateMusician(
+                                      index,
+                                      'needsPractice',
+                                      e.target.checked,
+                                    )
+                                  }
+                                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                                <span className="ml-2 text-sm text-gray-700">
+                                  Nécessite de la pratique
+                                </span>
+                              </label>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <div className="mt-4 flex justify-end">
                       <button
                         type="button"
-                        onClick={() => removeMusician(index)}
-                        className="text-red-600 hover:text-red-800"
+                        onClick={addMusician}
+                        className="flex items-center gap-2 rounded-md bg-green-100 px-3 py-2 text-sm font-medium text-green-600 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-green-500"
                       >
-                        <FaTrash />
+                        <FaPlus />
+                        Defense
                       </button>
                     </div>
-
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                      <div>
-                        {/* Selected User Display */}
-                        <div className="mb-3">
-                          {musician.userId && musician.userId > 0 ? (
-                            <div className="flex flex-wrap gap-2">
-                              <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-1 text-sm text-blue-800">
-                                {getSelectedUserName(musician.userId)}
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    updateMusician(index, 'userId', 0);
-                                    setMusicianUserSearchTerm('');
-                                  }}
-                                  className="ml-1 text-blue-600 hover:text-blue-800 focus:outline-none"
-                                >
-                                  ×
-                                </button>
-                              </span>
-                            </div>
-                          ) : (
-                            <p className="text-sm text-gray-500">
-                              Aucun utilisateur sélectionné
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="relative">
-                          <input
-                            type="text"
-                            value={musicianUserSearchTerm}
-                            onChange={(e) => {
-                              setMusicianUserSearchTerm(e.target.value);
-                              openDropdown('musicianUser');
-                            }}
-                            placeholder="Tapez pour rechercher un utilisateur..."
-                            className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            onFocus={() => openDropdown('musicianUser')}
-                            onBlur={() =>
-                              setTimeout(
-                                () => closeDropdown('musicianUser'),
-                                200,
-                              )
-                            }
-                          />
-                          {showMusicianUserDropdown && (
-                            <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
-                              <div className="border-b border-gray-200 p-2 text-xs text-gray-500">
-                                Sélectionnez un musicien
-                              </div>
-                              {users
-                                .filter((u) =>
-                                  `${u.lastName} ${u.firstName}`
-                                    .toLowerCase()
-                                    .includes(
-                                      musicianUserSearchTerm.toLowerCase(),
-                                    ),
-                                )
-                                .sort((a, b) =>
-                                  `${a.lastName} ${a.firstName}`.localeCompare(
-                                    `${b.firstName} ${b.lastName}`,
-                                  ),
-                                )
-                                .map((u) => (
-                                  <div
-                                    key={u.id}
-                                    className="cursor-pointer px-3 py-2 hover:bg-blue-50"
-                                    onMouseDown={(e) => {
-                                      e.preventDefault();
-                                      updateMusician(index, 'userId', u.id);
-                                      setMusicianUserSearchTerm('');
-                                      closeDropdown('musicianUser');
-                                    }}
-                                  >
-                                    <span className="text-sm text-gray-700">
-                                      {u.lastName} {u.firstName}
-                                    </span>
-                                  </div>
-                                ))}
-                              {users.filter((u) =>
-                                `${u.lastName} ${u.firstName}`
-                                  .toLowerCase()
-                                  .includes(
-                                    musicianUserSearchTerm.toLowerCase(),
-                                  ),
-                              ).length === 0 && (
-                                <div className="px-3 py-2 text-sm text-gray-500">
-                                  Aucun utilisateur trouvé
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="mb-2 block text-sm font-medium text-gray-700">
-                          Instrument
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="text"
-                            value={musician.instrument}
-                            onChange={(e) => {
-                              updateMusician(
-                                index,
-                                'instrument',
-                                e.target.value,
-                              );
-                              openDropdown('instrument');
-                            }}
-                            placeholder="Tapez pour rechercher un instrument..."
-                            className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                            onFocus={() => openDropdown('instrument')}
-                            onBlur={() =>
-                              setTimeout(() => closeDropdown('instrument'), 200)
-                            }
-                          />
-                          {showInstrumentDropdown && (
-                            <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
-                              <div className="border-b border-gray-200 p-2 text-xs text-gray-500">
-                                Sélectionnez un instrument
-                              </div>
-                              {getInstrumentOptions()
-                                .filter((option) =>
-                                  option.label
-                                    .toLowerCase()
-                                    .includes(
-                                      musician.instrument.toLowerCase(),
-                                    ),
-                                )
-                                .map((option) => (
-                                  <div
-                                    key={option.value}
-                                    className="cursor-pointer px-3 py-2 hover:bg-blue-50"
-                                    onMouseDown={(e) => {
-                                      e.preventDefault();
-                                      updateMusician(
-                                        index,
-                                        'instrument',
-                                        option.value,
-                                      );
-                                      closeDropdown('instrument');
-                                    }}
-                                  >
-                                    <span className="text-sm text-gray-700">
-                                      {option.label}
-                                    </span>
-                                  </div>
-                                ))}
-                              {getInstrumentOptions().filter((option) =>
-                                option.label
-                                  .toLowerCase()
-                                  .includes(musician.instrument.toLowerCase()),
-                              ).length === 0 && (
-                                <div className="px-3 py-2 text-sm text-gray-500">
-                                  Aucun instrument trouvé
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="">
-                        <label className="mb-2 block text-sm font-medium text-gray-700">
-                          Notes
-                        </label>
-                        <textarea
-                          value={musician.notes || ''}
-                          onChange={(e) =>
-                            updateMusician(index, 'notes', e.target.value)
-                          }
-                          rows={1}
-                          placeholder="Notes sur ce musicien..."
-                          className="w-full rounded-md border border-gray-300 px-3 py-2"
-                        />
-                      </div>
-
-                      <div className="">
-                        <div className="flex items-center gap-4">
-                          <label className="flex items-center">
-                            <input
-                              type="checkbox"
-                              checked={musician.needsPractice || false}
-                              onChange={(e) =>
-                                updateMusician(
-                                  index,
-                                  'needsPractice',
-                                  e.target.checked,
-                                )
-                              }
-                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                            />
-                            <span className="ml-2 text-sm text-gray-700">
-                              Nécessite de la pratique
-                            </span>
-                          </label>
-                        </div>
-                      </div>
+                  </>
+                ) : (
+                  <div className="rounded-lg border border-gray-200 bg-white py-8 text-center">
+                    <div className="mt-4 flex justify-center">
+                      <button
+                        type="button"
+                        onClick={addMusician}
+                        className="flex items-center gap-2 rounded-md bg-green-100 px-3 py-2 text-sm font-medium text-green-600 hover:bg-green-200 focus:outline-none focus:ring-2 focus:ring-green-500"
+                      >
+                        <FaPlus />
+                        Defense
+                      </button>
                     </div>
                   </div>
-                ))}
+                )}
               </div>
 
               {/* Modal Actions */}
               <div className="border-t border-gray-200 pt-6">
-                {/* Warning about unassigned musicians */}
-                {newSong.musicians.some((m) => !m.userId || m.userId === 0) && (
-                  <div className="mb-4 rounded-md border border-yellow-300 bg-yellow-50 p-3">
-                    <p className="text-sm text-yellow-800">
-                      ⚠️ Attention: Les musiciens sans utilisateur assigné ne
-                      seront pas sauvegardés. Veuillez assigner un utilisateur à
-                      chaque musicien ou les supprimer.
-                    </p>
-                  </div>
-                )}
-
                 <div className="flex items-center justify-end gap-3">
                   <button
                     type="button"
@@ -1937,9 +2163,7 @@ export const RehearsalSongManager: React.FC<RehearsalSongManagerProps> = ({
                       }
                     }}
                     disabled={
-                      editingSongIndex !== null
-                        ? false
-                        : !newSong.songId || newSong.leadSingerIds.length === 0
+                      editingSongIndex !== null ? false : !newSong.songId
                     }
                     className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                   >

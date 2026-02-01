@@ -334,10 +334,12 @@ export const usePromoteRehearsal = () => {
 
         return promotedPerformance;
       } catch (err: any) {
-        setError(
+        const errorMessage =
+          err?.message ||
           err.response?.data?.message ||
-            'Failed to promote rehearsal to performance',
-        );
+          err.response?.data?.error ||
+          'Failed to promote rehearsal to performance';
+        setError(errorMessage);
         return null;
       } finally {
         setIsLoading(false);

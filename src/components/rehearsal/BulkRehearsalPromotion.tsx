@@ -265,7 +265,7 @@ export const BulkRehearsalPromotion: React.FC<BulkRehearsalPromotionProps> = ({
                             <strong>Date:</strong>{' '}
                             {new Date(
                               rehearsal.rehearsalDate,
-                            ).toLocaleDateString()}
+                            ).toLocaleDateString('fr-FR')}
                           </p>
                           {rehearsal.location && (
                             <p>

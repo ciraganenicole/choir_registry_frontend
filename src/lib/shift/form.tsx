@@ -170,13 +170,27 @@ export const ShiftForm: React.FC<ShiftFormProps> = ({
       return;
     }
 
+    // Convert date-only strings to ISO datetime format for DateTime fields (use UTC to avoid timezone shift)
+    const startDateISO = formData.startDate
+      ? `${formData.startDate}T00:00:00.000Z`
+      : formData.startDate;
+    const endDateISO = formData.endDate
+      ? `${formData.endDate}T23:59:59.999Z`
+      : formData.endDate;
+
+    const formattedData = {
+      ...formData,
+      startDate: startDateISO,
+      endDate: endDateISO,
+    };
+
     if (isEditing) {
-      const success = await updateShift(shift!.id, formData);
+      const success = await updateShift(shift!.id, formattedData);
       if (success) {
         onSuccess?.();
       }
     } else {
-      const success = await createShift(formData);
+      const success = await createShift(formattedData);
       if (success) {
         onSuccess?.();
       }

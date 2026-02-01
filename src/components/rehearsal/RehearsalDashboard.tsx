@@ -13,6 +13,7 @@ import {
   FaUsers,
 } from 'react-icons/fa';
 
+import Pagination from '@/components/pagination';
 import { useRehearsals } from '@/lib/rehearsal/logic';
 import { RehearsalService } from '@/lib/rehearsal/service';
 import type {
@@ -671,68 +672,16 @@ export const RehearsalDashboard: React.FC<RehearsalDashboardProps> = ({
         })()}
       </div>
 
-      {/* Enhanced Pagination */}
-      {total && total > filters.limit && (
-        <div className="space-y-2">
-          {/* Pagination Info */}
-          <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
-            <div className="text-xs text-blue-700">
-              <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                <div>
-                  <span className="font-medium">Page:</span> {pagination.page} /{' '}
-                  {pagination.totalPages}
-                </div>
-                <div>
-                  <span className="font-medium">Limite:</span>{' '}
-                  {pagination.limit} par page
-                </div>
-                <div>
-                  <span className="font-medium">Total:</span> {total}{' '}
-                  répétitions
-                </div>
-                <div>
-                  <span className="font-medium">Navigation:</span>
-                  {pagination.hasPrev ? ' ←' : ''}
-                  {pagination.hasNext ? ' →' : ''}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Pagination Controls */}
-          <div className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4">
-            <div className="text-sm text-gray-700">
-              Affichage de {(pagination.page - 1) * pagination.limit + 1} à{' '}
-              {Math.min(pagination.page * pagination.limit, total)} sur {total}{' '}
-              répétitions
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() =>
-                  setFilters((prev) => ({
-                    ...prev,
-                    page: Math.max(1, prev.page - 1),
-                  }))
-                }
-                disabled={!pagination.hasPrev}
-                className="rounded-lg bg-gray-100 px-3 py-2 text-gray-600 hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Précédent
-              </button>
-              <span className="px-3 py-2 text-gray-700">
-                Page {pagination.page} sur {pagination.totalPages}
-              </span>
-              <button
-                onClick={() =>
-                  setFilters((prev) => ({ ...prev, page: prev.page + 1 }))
-                }
-                disabled={!pagination.hasNext}
-                className="rounded-lg bg-gray-100 px-3 py-2 text-gray-600 hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                Suivant
-              </button>
-            </div>
-          </div>
+      {/* Pagination */}
+      {total && total > filters.limit && pagination.totalPages > 0 && (
+        <div className="flex justify-center">
+          <Pagination
+            currentPage={pagination.page}
+            totalPages={pagination.totalPages}
+            onPageChange={(page) => {
+              setFilters((prev) => ({ ...prev, page }));
+            }}
+          />
         </div>
       )}
 

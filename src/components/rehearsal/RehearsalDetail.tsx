@@ -16,13 +16,18 @@ import {
 import {
   getDifficultyColor,
   getMusicalKeyColor,
+  getMusicianDisplayName,
   getRehearsalTypeColor,
+  isExternalMusician,
   useRehearsalSongs,
 } from '@/lib/rehearsal/logic';
 import type { Rehearsal, RehearsalStatus } from '@/lib/rehearsal/types';
 import { RehearsalStatus as RehearsalStatusEnum } from '@/lib/rehearsal/types';
 
-import { usePromoteRehearsal } from '../../lib/performance/logic';
+import {
+  usePerformance,
+  usePromoteRehearsal,
+} from '../../lib/performance/logic';
 import { useUsers } from '../../lib/user/useUsers';
 import { RehearsalStatusUpdater } from './RehearsalStatusUpdater';
 
@@ -41,7 +46,15 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
       isLoading: songsLoading,
       error: songsError,
     } = useRehearsalSongs(rehearsal.id);
-    const { promoteRehearsal, isLoading: isPromoting } = usePromoteRehearsal();
+    const {
+      promoteRehearsal,
+      isLoading: isPromoting,
+      error: promoteError,
+    } = usePromoteRehearsal();
+    // Fetch performance details to get assistantLead
+    const { performance: performanceData } = usePerformance(
+      rehearsal.performanceId || 0,
+    );
 
     // Local state to track if rehearsal has been promoted
     const [isPromoted, setIsPromoted] = useState(() => {
@@ -62,7 +75,9 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
       const hasBeenPromoted =
         rehearsal.isPromoted ||
         (rehearsal.performance?.status &&
-          ['ready', 'completed'].includes(rehearsal.performance.status));
+          ['ready', 'completed'].includes(rehearsal.performance.status)) ||
+        (performanceData?.status &&
+          ['ready', 'completed'].includes(performanceData.status));
 
       setIsPromoted(hasBeenPromoted);
       // Only update currentStatus if it's different to avoid overwriting local updates
@@ -75,7 +90,15 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
       rehearsal.performance?.status,
       rehearsal.status,
       currentStatus,
+      performanceData?.status,
     ]);
+
+    // Show error toast when promotion fails
+    React.useEffect(() => {
+      if (promoteError && !isPromoting) {
+        toast.error(promoteError);
+      }
+    }, [promoteError, isPromoting]);
 
     // Add loading state for better UX
     const isLoading = songsLoading || isPromoting;
@@ -202,7 +225,7 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
         return false;
       if (!songs || songs.length === 0) return false;
       if (currentStatus !== RehearsalStatusEnum.COMPLETED) return false; // ✅ Only completed rehearsals can be promoted
-      if (isPromoted) return false; // ✅ Already promoted rehearsals cannot be promoted again
+      // Removed isPromoted check - allow promotion even if marked as promoted
 
       return true;
     }, [
@@ -210,7 +233,6 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
       rehearsal.performanceId,
       songs,
       currentStatus,
-      isPromoted,
       songsLoading,
       songsError,
     ]);
@@ -229,17 +251,8 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
       if (currentStatus !== RehearsalStatusEnum.COMPLETED) {
         return `Répétition doit être terminée (statut actuel: ${currentStatus})`;
       }
-      if (isPromoted) {
-        return 'Cette répétition a déjà été promue';
-      }
       return '';
-    }, [
-      rehearsal.id,
-      rehearsal.performanceId,
-      songs,
-      currentStatus,
-      isPromoted,
-    ]);
+    }, [rehearsal.id, rehearsal.performanceId, songs, currentStatus]);
 
     const handlePromoteToPerformance = useCallback(async () => {
       if (!canPromote) {
@@ -267,6 +280,7 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
         // This will automatically disable the promote button
         setIsPromoted(true);
       }
+      // Error handling is done via useEffect watching promoteError
     }, [
       canPromote,
       promoteRehearsal,
@@ -360,10 +374,15 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
                 )}
 
                 {/* Promotion Status */}
-                {rehearsal.isPromoted || isPromoted ? (
-                  <div className="inline-flex items-center gap-2 rounded-lg bg-blue-100 px-3 py-2 text-sm font-medium text-blue-700">
-                    <FaMicrophone />✅ Déjà promue
-                  </div>
+                {isPromoted ? (
+                  <button
+                    disabled
+                    className="inline-flex cursor-not-allowed items-center gap-2 rounded-lg bg-blue-100 px-2 py-1 text-[12px] font-medium text-blue-700 transition-colors md:px-3 md:text-sm"
+                    title="Cette répétition a déjà été promue vers la performance"
+                  >
+                    <FaMicrophone />
+                    Déjà promu
+                  </button>
                 ) : canPromote ? (
                   <button
                     onClick={handlePromoteToPerformance}
@@ -491,15 +510,16 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
                   </div>
                 </div>
 
+                {/* Conducteur Responsable - Always show shiftLead */}
                 <div className="flex items-start gap-3 rounded-lg bg-gray-200 p-3">
                   <FaUser className="mt-1 text-gray-400" />
                   <div>
                     <label className="text-sm font-medium text-gray-600">
-                      Conducteur
+                      Conducteur Responsable
                     </label>
                     <p className="text-sm font-medium text-gray-900">
-                      {rehearsal.rehearsalLead ? (
-                        `${rehearsal.rehearsalLead.lastName} ${rehearsal.rehearsalLead.firstName}`
+                      {rehearsal.shiftLead ? (
+                        `${rehearsal.shiftLead.lastName} ${rehearsal.shiftLead.firstName}`
                       ) : (
                         <span className="italic text-gray-400">
                           Non assigné
@@ -509,44 +529,21 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
                   </div>
                 </div>
 
+                {/* Conducteur Assistant - Show assistant lead from associated performance */}
                 <div className="flex items-start gap-3 rounded-lg bg-gray-200 p-3">
                   <FaUser className="mt-1 text-gray-400" />
                   <div>
                     <label className="text-sm font-medium text-gray-600">
-                      Conducteur
+                      Conducteur Assistant
                     </label>
                     <p className="text-sm font-medium text-gray-900">
-                      {(() => {
-                        if (rehearsal.shiftLead) {
-                          return `${rehearsal.shiftLead.lastName} ${rehearsal.shiftLead.firstName}`;
-                        }
-                        return (
-                          <span className="italic text-gray-400">
-                            Non assigné
-                          </span>
-                        );
-                      })()}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3 rounded-lg bg-gray-200 p-3">
-                  <FaStar className="text-gray-400" />
-                  <div>
-                    <label className="text-sm font-medium text-gray-600">
-                      Modèle réutilisable
-                    </label>
-                    <p className="text-sm font-medium text-gray-900">
-                      {(() => {
-                        if (rehearsal.isTemplate) {
-                          return (
-                            <span className="font-semibold text-green-600">
-                              ✓ Oui
-                            </span>
-                          );
-                        }
-                        return <span className="text-gray-400">Non</span>;
-                      })()}
+                      {performanceData?.assistantLead ? (
+                        `${performanceData.assistantLead.lastName} ${performanceData.assistantLead.firstName}`
+                      ) : (
+                        <span className="italic text-gray-400">
+                          Non assigné
+                        </span>
+                      )}
                     </p>
                   </div>
                 </div>
@@ -615,355 +612,364 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
               </div>
 
               <div className="">
-                {songs.map((song) => (
-                  <div
-                    key={song.id}
-                    className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
-                  >
-                    <div className="mb-4 flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="mb-3 flex items-center gap-3">
-                          <div className="flex size-8 items-center justify-center rounded-full bg-purple-100 text-sm font-bold text-purple-600">
-                            {song.order}
+                {[...songs]
+                  .sort((a, b) => {
+                    const orderA = a.order ?? 999;
+                    const orderB = b.order ?? 999;
+                    return orderA - orderB;
+                  })
+                  .map((song) => (
+                    <div
+                      key={song.id}
+                      className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md"
+                    >
+                      <div className="mb-4 flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="mb-3 flex items-center gap-3">
+                            <div className="flex size-8 items-center justify-center rounded-full bg-purple-100 text-sm font-bold text-purple-600">
+                              {song.order}
+                            </div>
+                            <h4 className="text-xl font-semibold text-gray-900">
+                              {song.song.title}
+                            </h4>
                           </div>
-                          <h4 className="text-xl font-semibold text-gray-900">
-                            {song.song.title}
-                          </h4>
-                        </div>
 
-                        <div className="mb-4 flex items-center gap-2">
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium ${getDifficultyColor(song.difficulty)}`}
-                          >
-                            <FaStar className="text-xs" />
-                            {song.difficulty}
-                          </span>
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium ${getMusicalKeyColor()}`}
-                          >
-                            <FaMusic className="text-xs" />
-                            {song.musicalKey}
-                          </span>
-                          <span
-                            className={`inline-flex items-center gap-1 rounded-full bg-orange-100 px-3 py-1 text-sm font-medium text-orange-800`}
-                          >
-                            Temps alloué: {song.timeAllocated} min
-                          </span>
-                          {song.needsWork && (
-                            <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-sm font-medium text-red-800">
-                              <FaExclamationTriangle className="text-xs" />
-                              Travail nécessaire
+                          <div className="mb-4 flex items-center gap-2">
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium ${getDifficultyColor(song.difficulty)}`}
+                            >
+                              <FaStar className="text-xs" />
+                              {song.difficulty}
                             </span>
-                          )}
-                        </div>
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium ${getMusicalKeyColor()}`}
+                            >
+                              <FaMusic className="text-xs" />
+                              {song.musicalKey}
+                            </span>
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full bg-orange-100 px-3 py-1 text-sm font-medium text-orange-800`}
+                            >
+                              Temps alloué: {song.timeAllocated} min
+                            </span>
+                            {song.needsWork && (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-3 py-1 text-sm font-medium text-red-800">
+                                <FaExclamationTriangle className="text-xs" />
+                                Travail nécessaire
+                              </span>
+                            )}
+                          </div>
 
-                        <div className="space-y-2">
-                          <div className="flex items-center gap-3 rounded-lg bg-gray-200 p-3">
-                            <FaUser className="text-gray-400" />
-                            <div>
-                              <label className="text-sm font-medium text-gray-600">
-                                Chanteur(s) principal(aux)
-                              </label>
-                              <p className="text-sm font-medium text-gray-900">
-                                {(() => {
-                                  const leadSingers: string[] = [];
-                                  let leadSingerIds: number[] = [];
+                          <div className="space-y-2">
+                            <div className="flex items-center gap-3 rounded-lg bg-gray-200 p-3">
+                              <FaUser className="text-gray-400" />
+                              <div>
+                                <label className="text-sm font-medium text-gray-600">
+                                  Chanteur(s) principal(aux)
+                                </label>
+                                <p className="text-sm font-medium text-gray-900">
+                                  {(() => {
+                                    const leadSingers: string[] = [];
+                                    let leadSingerIds: number[] = [];
 
-                                  // First try to get leadSingerIds from the converted data
-                                  if (
-                                    song.leadSingerIds &&
-                                    Array.isArray(song.leadSingerIds)
-                                  ) {
-                                    leadSingerIds = song.leadSingerIds;
-                                  }
-                                  // Try to get from rehearsalDetails.leadSingers
-                                  else if (
-                                    song.rehearsalDetails?.leadSingers &&
-                                    Array.isArray(
-                                      song.rehearsalDetails.leadSingers,
-                                    )
-                                  ) {
-                                    leadSingerIds =
-                                      song.rehearsalDetails.leadSingers.map(
-                                        (ls: any) => ls.id,
-                                      );
-                                  }
-                                  // Try to get from rehearsalDetails.leadSinger
-                                  else if (
-                                    song.rehearsalDetails?.leadSinger &&
-                                    Array.isArray(
-                                      song.rehearsalDetails.leadSinger,
-                                    )
-                                  ) {
-                                    leadSingerIds =
-                                      song.rehearsalDetails.leadSinger.map(
-                                        (ls: any) => ls.id,
-                                      );
-                                  }
-                                  // Try single leadSinger object
-                                  else if (
-                                    song.rehearsalDetails?.leadSinger &&
-                                    !Array.isArray(
-                                      song.rehearsalDetails.leadSinger,
-                                    )
-                                  ) {
-                                    leadSingerIds = [
-                                      song.rehearsalDetails.leadSinger.id,
-                                    ];
-                                  }
-                                  // Try leadSingerId field
-                                  else if (
-                                    song.rehearsalDetails?.leadSingerId
-                                  ) {
-                                    leadSingerIds = [
-                                      song.rehearsalDetails.leadSingerId,
-                                    ];
-                                  }
-                                  // Fallback: Check if leadSingers or leadSinger is directly available
-                                  else if (
-                                    song.leadSingers &&
-                                    Array.isArray(song.leadSingers)
-                                  ) {
-                                    leadSingerIds = song.leadSingers.map(
-                                      (singer: any) => singer.id,
-                                    );
-                                  } else if (
-                                    song.leadSinger &&
-                                    Array.isArray(song.leadSinger)
-                                  ) {
-                                    leadSingerIds = song.leadSinger.map(
-                                      (singer: any) => singer.id,
-                                    );
-                                  } else if (
-                                    song.leadSinger &&
-                                    !Array.isArray(song.leadSinger)
-                                  ) {
-                                    leadSingerIds = [song.leadSinger.id];
-                                  }
-
-                                  // Now process the leadSingerIds to get names
-                                  leadSingerIds.forEach((id: number) => {
-                                    if (id > 0) {
-                                      const name = getUserName(id);
-                                      if (name && !leadSingers.includes(name)) {
-                                        leadSingers.push(name);
-                                      }
+                                    // First try to get leadSingerIds from the converted data
+                                    if (
+                                      song.leadSingerIds &&
+                                      Array.isArray(song.leadSingerIds)
+                                    ) {
+                                      leadSingerIds = song.leadSingerIds;
                                     }
-                                  });
+                                    // Try to get from rehearsalDetails.leadSingers
+                                    else if (
+                                      song.rehearsalDetails?.leadSingers &&
+                                      Array.isArray(
+                                        song.rehearsalDetails.leadSingers,
+                                      )
+                                    ) {
+                                      leadSingerIds =
+                                        song.rehearsalDetails.leadSingers.map(
+                                          (ls: any) => ls.id,
+                                        );
+                                    }
+                                    // Try to get from rehearsalDetails.leadSinger
+                                    else if (
+                                      song.rehearsalDetails?.leadSinger &&
+                                      Array.isArray(
+                                        song.rehearsalDetails.leadSinger,
+                                      )
+                                    ) {
+                                      leadSingerIds =
+                                        song.rehearsalDetails.leadSinger.map(
+                                          (ls: any) => ls.id,
+                                        );
+                                    }
+                                    // Try single leadSinger object
+                                    else if (
+                                      song.rehearsalDetails?.leadSinger &&
+                                      !Array.isArray(
+                                        song.rehearsalDetails.leadSinger,
+                                      )
+                                    ) {
+                                      leadSingerIds = [
+                                        song.rehearsalDetails.leadSinger.id,
+                                      ];
+                                    }
+                                    // Try leadSingerId field
+                                    else if (
+                                      song.rehearsalDetails?.leadSingerId
+                                    ) {
+                                      leadSingerIds = [
+                                        song.rehearsalDetails.leadSingerId,
+                                      ];
+                                    }
+                                    // Fallback: Check if leadSingers or leadSinger is directly available
+                                    else if (
+                                      song.leadSingers &&
+                                      Array.isArray(song.leadSingers)
+                                    ) {
+                                      leadSingerIds = song.leadSingers.map(
+                                        (singer: any) => singer.id,
+                                      );
+                                    } else if (
+                                      song.leadSinger &&
+                                      Array.isArray(song.leadSinger)
+                                    ) {
+                                      leadSingerIds = song.leadSinger.map(
+                                        (singer: any) => singer.id,
+                                      );
+                                    } else if (
+                                      song.leadSinger &&
+                                      !Array.isArray(song.leadSinger)
+                                    ) {
+                                      leadSingerIds = [song.leadSinger.id];
+                                    }
 
-                                  // Return result
-                                  if (leadSingers.length > 0) {
-                                    return leadSingers.join(', ');
-                                  }
+                                    // Now process the leadSingerIds to get names
+                                    leadSingerIds.forEach((id: number) => {
+                                      if (id > 0) {
+                                        const name = getUserName(id);
+                                        if (
+                                          name &&
+                                          !leadSingers.includes(name)
+                                        ) {
+                                          leadSingers.push(name);
+                                        }
+                                      }
+                                    });
 
-                                  // No lead singer assigned
-                                  return (
-                                    <span className="italic text-gray-400">
-                                      Non assigné
-                                    </span>
-                                  );
-                                })()}
+                                    // Return result
+                                    if (leadSingers.length > 0) {
+                                      return leadSingers.join(', ');
+                                    }
+
+                                    // No lead singer assigned
+                                    return (
+                                      <span className="italic text-gray-400">
+                                        Non assigné
+                                      </span>
+                                    );
+                                  })()}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+
+                          {song.focusPoints && (
+                            <div className="mt-4 rounded-lg border-l-4 border-blue-400 bg-blue-50 p-3">
+                              <label className="mb-1 block text-sm font-medium text-blue-700">
+                                Points de focus
+                              </label>
+                              <p className="text-sm text-gray-900">
+                                {song.focusPoints}
                               </p>
                             </div>
-                          </div>
+                          )}
+
+                          {song.notes && (
+                            <div className="mt-3 rounded-lg border-l-4 border-yellow-400 bg-yellow-50 p-3">
+                              <label className="mb-1 block text-sm font-medium text-yellow-700">
+                                Notes
+                              </label>
+                              <p className="text-sm text-gray-900">
+                                {song.notes}
+                              </p>
+                            </div>
+                          )}
                         </div>
-
-                        {song.focusPoints && (
-                          <div className="mt-4 rounded-lg border-l-4 border-blue-400 bg-blue-50 p-3">
-                            <label className="mb-1 block text-sm font-medium text-blue-700">
-                              Points de focus
-                            </label>
-                            <p className="text-sm text-gray-900">
-                              {song.focusPoints}
-                            </p>
-                          </div>
-                        )}
-
-                        {song.notes && (
-                          <div className="mt-3 rounded-lg border-l-4 border-yellow-400 bg-yellow-50 p-3">
-                            <label className="mb-1 block text-sm font-medium text-yellow-700">
-                              Notes
-                            </label>
-                            <p className="text-sm text-gray-900">
-                              {song.notes}
-                            </p>
-                          </div>
-                        )}
                       </div>
-                    </div>
 
-                    {/* Voice Parts */}
-                    {song.voiceParts && song.voiceParts.length > 0 && (
-                      <div className="mt-6 border-t border-gray-200 pt-4">
-                        <div className="mb-3 flex items-center gap-2">
-                          <FaUsers className="text-purple-500" />
-                          <h5 className="text-sm font-semibold text-gray-600">
-                            Parties vocales
-                          </h5>
-                          <span className="rounded-full bg-purple-100 px-2 py-1 text-xs font-medium text-purple-700">
-                            {song.voiceParts.length}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                          {song.voiceParts.map((voicePart: any) => (
-                            <div
-                              key={voicePart.id}
-                              className="rounded-lg border border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50 p-4"
-                            >
-                              <div className="mb-3 flex items-center justify-between">
-                                <span className="text-sm font-semibold text-purple-800">
-                                  {voicePart.voicePartType}
-                                </span>
-                                {voicePart.needsWork && (
-                                  <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800">
-                                    <FaExclamationTriangle className="text-xs" />
-                                    Travail nécessaire
+                      {/* Voice Parts */}
+                      {song.voiceParts && song.voiceParts.length > 0 && (
+                        <div className="mt-6 border-t border-gray-200 pt-4">
+                          <div className="mb-3 flex items-center gap-2">
+                            <FaUsers className="text-purple-500" />
+                            <h5 className="text-sm font-semibold text-gray-600">
+                              Parties vocales
+                            </h5>
+                            <span className="rounded-full bg-purple-100 px-2 py-1 text-xs font-medium text-purple-700">
+                              {song.voiceParts.length}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                            {song.voiceParts.map((voicePart: any) => (
+                              <div
+                                key={voicePart.id}
+                                className="rounded-lg border border-purple-200 bg-gradient-to-r from-purple-50 to-pink-50 p-4"
+                              >
+                                <div className="mb-3 flex items-center justify-between">
+                                  <span className="text-sm font-semibold text-purple-800">
+                                    {voicePart.voicePartType}
                                   </span>
-                                )}
-                              </div>
+                                  {voicePart.needsWork && (
+                                    <span className="inline-flex items-center gap-1 rounded-full bg-yellow-100 px-2 py-1 text-xs font-medium text-yellow-800">
+                                      <FaExclamationTriangle className="text-xs" />
+                                      Travail nécessaire
+                                    </span>
+                                  )}
+                                </div>
 
-                              <div className="mb-2 text-sm text-gray-600">
-                                {(() => {
-                                  // Check if we have members array
-                                  if (
-                                    voicePart.members &&
-                                    voicePart.members.length > 0
-                                  ) {
-                                    return (
-                                      <div className="flex flex-wrap gap-1">
-                                        {voicePart.members.map(
-                                          (member: any) => (
-                                            <span
-                                              key={member.id}
-                                              className="rounded bg-white px-2 py-1 text-xs font-medium"
-                                            >
-                                              {member.lastName}{' '}
-                                              {member.firstName}
-                                            </span>
-                                          ),
-                                        )}
-                                      </div>
-                                    );
-                                  }
-
-                                  // Check if we have memberIds array
-                                  if (
-                                    voicePart.memberIds &&
-                                    voicePart.memberIds.length > 0
-                                  ) {
-                                    return (
-                                      <div className="flex flex-wrap gap-1">
-                                        {voicePart.memberIds.map(
-                                          (memberId: number) => {
-                                            const member = users.find(
-                                              (u) => u.id === memberId,
-                                            );
-                                            return (
+                                <div className="mb-2 text-sm text-gray-600">
+                                  {(() => {
+                                    // Check if we have members array
+                                    if (
+                                      voicePart.members &&
+                                      voicePart.members.length > 0
+                                    ) {
+                                      return (
+                                        <div className="flex flex-wrap gap-1">
+                                          {voicePart.members.map(
+                                            (member: any) => (
                                               <span
-                                                key={memberId}
+                                                key={member.id}
                                                 className="rounded bg-white px-2 py-1 text-xs font-medium"
                                               >
-                                                {member
-                                                  ? `${member.lastName} ${member.firstName}`
-                                                  : `User ${memberId}`}
+                                                {member.lastName}{' '}
+                                                {member.firstName}
                                               </span>
-                                            );
-                                          },
-                                        )}
+                                            ),
+                                          )}
+                                        </div>
+                                      );
+                                    }
+
+                                    // Check if we have memberIds array
+                                    if (
+                                      voicePart.memberIds &&
+                                      voicePart.memberIds.length > 0
+                                    ) {
+                                      return (
+                                        <div className="flex flex-wrap gap-1">
+                                          {voicePart.memberIds.map(
+                                            (memberId: number) => {
+                                              const member = users.find(
+                                                (u) => u.id === memberId,
+                                              );
+                                              return (
+                                                <span
+                                                  key={memberId}
+                                                  className="rounded bg-white px-2 py-1 text-xs font-medium"
+                                                >
+                                                  {member
+                                                    ? `${member.lastName} ${member.firstName}`
+                                                    : `User ${memberId}`}
+                                                </span>
+                                              );
+                                            },
+                                          )}
+                                        </div>
+                                      );
+                                    }
+
+                                    // No members found
+                                    return (
+                                      <div className="flex items-center gap-2">
+                                        <span className="italic text-gray-400">
+                                          Aucun membre assigné
+                                        </span>
+                                        <span className="rounded-full bg-yellow-100 px-2 py-1 text-xs text-yellow-800">
+                                          ⚠️ En cours de déploiement
+                                        </span>
                                       </div>
                                     );
-                                  }
+                                  })()}
+                                </div>
 
-                                  // No members found
-                                  return (
-                                    <div className="flex items-center gap-2">
-                                      <span className="italic text-gray-400">
-                                        Aucun membre assigné
-                                      </span>
-                                      <span className="rounded-full bg-yellow-100 px-2 py-1 text-xs text-yellow-800">
-                                        ⚠️ En cours de déploiement
+                                {voicePart.focusPoints && (
+                                  <div className="mt-2 rounded border-l-2 border-purple-300 bg-white p-2">
+                                    <p className="text-xs text-gray-600">
+                                      <span className="font-medium text-purple-700">
+                                        Focus:
+                                      </span>{' '}
+                                      {voicePart.focusPoints}
+                                    </p>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Musicians */}
+                      {song.musicians && song.musicians.length > 0 && (
+                        <div className="mt-6 border-t border-gray-200 pt-4">
+                          <div className="mb-3 flex items-center gap-2">
+                            <FaMicrophone className="text-green-500" />
+                            <h5 className="text-sm font-semibold text-gray-600">
+                              Musiciens
+                            </h5>
+                            <span className="rounded-full bg-gray-200 px-2 py-1 text-xs font-medium text-green-700">
+                              {song.musicians.length}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                            {song.musicians.map((musician: any) => (
+                              <div
+                                key={musician.id}
+                                className="rounded-lg border border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 p-4"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <div className="flex size-8 items-center justify-center rounded-full bg-gray-200">
+                                      <span className="text-xs font-bold text-green-600">
+                                        #{musician.order}
                                       </span>
                                     </div>
-                                  );
-                                })()}
-                              </div>
-
-                              {voicePart.focusPoints && (
-                                <div className="mt-2 rounded border-l-2 border-purple-300 bg-white p-2">
-                                  <p className="text-xs text-gray-600">
-                                    <span className="font-medium text-purple-700">
-                                      Focus:
-                                    </span>{' '}
-                                    {voicePart.focusPoints}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Musicians */}
-                    {song.musicians && song.musicians.length > 0 && (
-                      <div className="mt-6 border-t border-gray-200 pt-4">
-                        <div className="mb-3 flex items-center gap-2">
-                          <FaMicrophone className="text-green-500" />
-                          <h5 className="text-sm font-semibold text-gray-600">
-                            Musiciens
-                          </h5>
-                          <span className="rounded-full bg-gray-200 px-2 py-1 text-xs font-medium text-green-700">
-                            {song.musicians.length}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-                          {song.musicians.map((musician: any) => (
-                            <div
-                              key={musician.id}
-                              className="rounded-lg border border-green-200 bg-gradient-to-r from-green-50 to-emerald-50 p-4"
-                            >
-                              <div className="flex items-center justify-between">
-                                <div className="flex items-center gap-3">
-                                  <div className="flex size-8 items-center justify-center rounded-full bg-gray-200">
-                                    <span className="text-xs font-bold text-green-600">
-                                      #{musician.order}
-                                    </span>
-                                  </div>
-                                  <div>
-                                    <span className="text-sm font-semibold text-gray-800">
-                                      {musician.user.lastName}{' '}
-                                      {musician.user.firstName}
-                                    </span>
-                                    <div className="mt-1 flex items-center gap-2">
-                                      <span className="text-sm font-medium text-green-600">
-                                        {musician.instrument}
+                                    <div>
+                                      <span className="text-sm font-semibold text-gray-800">
+                                        {musician.user.lastName}{' '}
+                                        {musician.user.firstName}
                                       </span>
+                                      <div className="mt-1 flex items-center gap-2">
+                                        <span className="text-sm font-medium text-green-600">
+                                          {musician.instrument}
+                                        </span>
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
 
-                                <div className="flex items-center gap-2">
-                                  {musician.isAccompanist && (
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
-                                      <FaMusic className="text-xs" />
-                                      Accompagnateur
-                                    </span>
-                                  )}
-                                  {false && (
-                                    <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-1 text-xs font-medium text-purple-800">
-                                      <FaStar className="text-xs" />
-                                      Soliste
-                                    </span>
-                                  )}
+                                  <div className="flex items-center gap-2">
+                                    {musician.isAccompanist && (
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-800">
+                                        <FaMusic className="text-xs" />
+                                        Accompagnateur
+                                      </span>
+                                    )}
+                                    {false && (
+                                      <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 px-2 py-1 text-xs font-medium text-purple-800">
+                                        <FaStar className="text-xs" />
+                                        Soliste
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          ))}
+                            ))}
+                          </div>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                      )}
+                    </div>
+                  ))}
               </div>
             </div>
           )}
@@ -996,16 +1002,31 @@ export const RehearsalDetail: React.FC<RehearsalDetailProps> = React.memo(
                             <span className="text-sm font-bold text-green-600">
                               {musician.user
                                 ? `${musician.user.firstName.charAt(0)}${musician.user.lastName.charAt(0)}`
-                                : '?'}
+                                : musician.musicianName
+                                  ? musician.musicianName
+                                      .split(' ')
+                                      .map((n) => n.charAt(0))
+                                      .join('')
+                                      .toUpperCase()
+                                      .slice(0, 2)
+                                  : '?'}
                             </span>
                           </div>
-                          <div>
-                            <h4 className="font-semibold text-gray-900">
-                              {musician.user
-                                ? `${musician.user.lastName} ${musician.user.firstName}`
-                                : 'Utilisateur inconnu'}
-                            </h4>
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-semibold text-gray-900">
+                                {getMusicianDisplayName(musician)}
+                              </h4>
+                              {isExternalMusician(musician) && (
+                                <span className="inline-flex items-center rounded-full bg-blue-100 px-2 py-0.5 text-xs font-medium text-blue-800">
+                                  Externe
+                                </span>
+                              )}
+                            </div>
                             <p className="text-sm font-medium text-green-600">
+                              {musician.role && (
+                                <span className="mr-2">{musician.role} • </span>
+                              )}
                               {musician.customInstrument || musician.instrument}
                             </p>
                           </div>

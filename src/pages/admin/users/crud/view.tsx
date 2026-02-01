@@ -14,6 +14,7 @@ export const translateCategory = (category: string): string => {
     COMMITTEE: 'COMITE',
     NORMAL: 'NORMAL',
     LEAD: 'LEAD',
+    MUSICIAN: 'MUSICIEN',
   };
   return translations[category] || category;
 };
@@ -184,7 +185,7 @@ const ViewUser: React.FC<ViewUserProps> = ({ user, transactions, onClose }) => {
                 <p className="text-gray-500">Date d&apos;adhésion</p>
                 <p className="font-medium">
                   {userData.joinDate
-                    ? new Date(userData.joinDate).toLocaleDateString()
+                    ? new Date(userData.joinDate).toLocaleDateString('fr-FR')
                     : 'Non spécifié'}
                 </p>
               </div>

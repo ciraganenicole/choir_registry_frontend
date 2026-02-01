@@ -28,11 +28,23 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
       const isLeadsRoute = router.pathname === '/admin/users/leads';
       const hasLeadCategory = user.categories?.includes(UserCategory.LEAD);
 
-      // Special access logic for LEAD category users
+      // Special cases for routes that should be accessible by COMMITTEE category
+      const isCommitteeReportsRoute =
+        router.pathname.startsWith('/committee/reports');
+      const hasCommitteeCategory = user.categories?.includes(
+        UserCategory.COMMITTEE,
+      );
+
+      // Special access logic for LEAD and COMMITTEE category users
       let hasAccess = hasRequiredRole;
 
       // LEAD users should have access to leads route regardless of their role
       if (hasLeadCategory && isLeadsRoute) {
+        hasAccess = true;
+      }
+
+      // COMMITTEE users should have access to committee reports routes regardless of their role
+      if (hasCommitteeCategory && isCommitteeReportsRoute) {
         hasAccess = true;
       }
 
@@ -53,11 +65,23 @@ export const RoleBasedRoute: React.FC<RoleBasedRouteProps> = ({
   const isLeadsRoute = router.pathname === '/admin/users/leads';
   const hasLeadCategory = user?.categories?.includes(UserCategory.LEAD);
 
-  // Special access logic for LEAD category users
+  // Special cases for routes that should be accessible by COMMITTEE category
+  const isCommitteeReportsRoute =
+    router.pathname.startsWith('/committee/reports');
+  const hasCommitteeCategory = user?.categories?.includes(
+    UserCategory.COMMITTEE,
+  );
+
+  // Special access logic for LEAD and COMMITTEE category users
   let hasAccess = hasRequiredRole;
 
   // LEAD users should have access to leads route regardless of their role
   if (hasLeadCategory && isLeadsRoute) {
+    hasAccess = true;
+  }
+
+  // COMMITTEE users should have access to committee reports routes regardless of their role
+  if (hasCommitteeCategory && isCommitteeReportsRoute) {
     hasAccess = true;
   }
 

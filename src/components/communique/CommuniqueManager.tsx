@@ -28,7 +28,6 @@ const CommuniqueManager: React.FC = () => {
   const [communiqueToDelete, setCommuniqueToDelete] =
     useState<Communique | null>(null);
 
-  // Check if user has access to communiques management
   const userHasCommuniquesAccess = hasCommuniquesAccess(user);
 
   const fetchCommuniques = async () => {

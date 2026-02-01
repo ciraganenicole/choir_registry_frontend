@@ -47,68 +47,15 @@ export enum VoicePartType {
 }
 
 export enum InstrumentType {
-  // String Family
+  ACOUSTIC_GUITAR = 'Acoustic Guitar',
+  BASS = 'Bass',
+  DRUMS = 'Drums',
+  GUITAR = 'Guitar',
   PIANO = 'Piano',
   ELECTRIC_PIANO = 'Electric Piano',
-  DIGITAL_PIANO = 'Digital Piano',
-  KEYBOARD = 'Keyboard',
-  SYNTHESIZER = 'Synthesizer',
-  GUITAR = 'Guitar',
-  ACOUSTIC_GUITAR = 'Acoustic Guitar',
-  ELECTRIC_GUITAR = 'Electric Guitar',
-  CLASSICAL_GUITAR = 'Classical Guitar',
-  BASS = 'Bass',
-  ELECTRIC_BASS = 'Electric Bass',
-  VIOLIN = 'Violin',
-  VIOLA = 'Viola',
-  CELLO = 'Cello',
-  DOUBLE_BASS = 'Double Bass',
-
-  // Wind Family
-  FLUTE = 'Flute',
-  PICCOLO = 'Piccolo',
-  CLARINET = 'Clarinet',
-  BASS_CLARINET = 'Bass Clarinet',
   SAXOPHONE = 'Saxophone',
-  ALTO_SAXOPHONE = 'Alto Saxophone',
-  TENOR_SAXOPHONE = 'Tenor Saxophone',
-  BARITONE_SAXOPHONE = 'Baritone Saxophone',
-  TRUMPET = 'Trumpet',
-  CORNET = 'Cornet',
-  TROMBONE = 'Trombone',
-  BASS_TROMBONE = 'Bass Trombone',
-  FRENCH_HORN = 'French Horn',
-  EUPHONIUM = 'Euphonium',
-  TUBA = 'Tuba',
-
-  // Percussion Family
-  DRUMS = 'Drums',
-  SNARE_DRUM = 'Snare Drum',
-  BASS_DRUM = 'Bass Drum',
-  TOM_TOM = 'Tom-Tom',
-  HI_HAT = 'Hi-Hat',
-  CRASH_CYMBAL = 'Crash Cymbal',
-  RIDE_CYMBAL = 'Ride Cymbal',
-  TIMPANI = 'Timpani',
-  XYLOPHONE = 'Xylophone',
-  MARIMBA = 'Marimba',
-  VIBRAPHONE = 'Vibraphone',
-  GLOCKENSPIEL = 'Glockenspiel',
-  CONGA_DRUMS = 'Conga Drums',
-  BONGO_DRUMS = 'Bongo Drums',
-  DJEMBE = 'Djembe',
-  CAJON = 'Cajon',
-  TAMBOURINE = 'Tambourine',
-  TRIANGLE = 'Triangle',
-
-  // Other
-  HARP = 'Harp',
-  ORGAN = 'Organ',
-  PIPE_ORGAN = 'Pipe Organ',
-  ELECTRONIC_ORGAN = 'Electronic Organ',
-  ACCORDION = 'Accordion',
-  HARMONICA = 'Harmonica',
-  PIANO_ACCOMPANIMENT = 'Piano Accompaniment',
+  KEYBOARD = 'Keyboard',
+  VIOLIN = 'Violin',
   OTHER = 'Other',
 }
 
@@ -145,6 +92,11 @@ export interface Rehearsal {
     date: string | Date;
     type: string;
     status: string;
+    assistantLead?: {
+      id: number;
+      firstName: string;
+      lastName: string;
+    };
   };
   rehearsalLead?: {
     id: number;
@@ -170,27 +122,29 @@ export interface Rehearsal {
 // NEW: Musician at rehearsal level (not tied to specific songs)
 export interface RehearsalMusician {
   id: number;
-  userId: number;
+  userId?: number | null;
+  musicianName?: string | null;
   user: {
     id: number;
     firstName: string;
     lastName: string;
     email?: string;
     phone?: string;
-  };
+  } | null;
+  role?: string | null;
   instrument: InstrumentType;
   customInstrument?: string; // Pour les instruments "Autre"
   isAccompanist: boolean;
   isSoloist: boolean;
-  soloStartTime?: number; // seconds from start of rehearsal
-  soloEndTime?: number; // seconds from start of rehearsal
-  soloNotes?: string;
-  accompanimentNotes?: string;
+  soloStartTime?: number | null; // seconds from start of rehearsal
+  soloEndTime?: number | null; // seconds from start of rehearsal
+  soloNotes?: string | null;
+  accompanimentNotes?: string | null;
   needsPractice: boolean;
-  practiceNotes?: string;
+  practiceNotes?: string | null;
   order: number;
-  timeAllocated?: number; // minutes allocated for this musician
-  notes?: string;
+  timeAllocated?: number | null; // minutes allocated for this musician
+  notes?: string | null;
 }
 
 // Rehearsal Song with Musical Key Support
@@ -246,16 +200,20 @@ export interface RehearsalVoicePart {
 
 export interface RehearsalSongMusician {
   id: number;
-  userId: number;
+  userId?: number | null;
+  musicianName?: string | null;
   user: {
     id: number;
     firstName: string;
     lastName: string;
-  };
+  } | null;
+  role?: string | null;
   instrument: InstrumentType;
   isAccompanist: boolean;
+  customInstrument?: string;
+  timeAllocated: number;
   order: number;
-  notes?: string;
+  notes?: string | null;
 }
 
 // ============================================================================

@@ -61,9 +61,6 @@ const YearlyPlanningForm: React.FC<YearlyPlanningFormProps> = ({
 
   const [year, setYear] = useState(new Date().getFullYear());
   const [performances, setPerformances] = useState<CreatePerformanceDto[]>([]);
-  const [selectedType] = useState<PerformanceType>(
-    PerformanceType.SUNDAY_SERVICE,
-  );
   const [selectedShiftLeadId] = useState<number | undefined>(undefined);
 
   // Get available shift leads (users with LEAD category or admin roles)
@@ -87,9 +84,10 @@ const YearlyPlanningForm: React.FC<YearlyPlanningFormProps> = ({
       for (let day = firstDay.getDate(); day <= lastDay.getDate(); day += 1) {
         const date = new Date(year, month, day);
         if (date.getDay() === 0) {
-          // Sunday
+          // Sunday - convert to ISO datetime format for DateTime fields (use UTC to avoid timezone shift)
+          const dateString = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           yearlyPerformances.push({
-            date: date.toISOString().split('T')[0] || '',
+            date: `${dateString}T00:00:00.000Z`,
             type: PerformanceType.SUNDAY_SERVICE,
             shiftLeadId: selectedShiftLeadId,
             location: 'Église Salem',
@@ -193,8 +191,12 @@ const YearlyPlanningForm: React.FC<YearlyPlanningFormProps> = ({
     ];
 
     specialEvents.forEach((event) => {
+      const eventYear = event.date.getFullYear();
+      const month = String(event.date.getMonth() + 1).padStart(2, '0');
+      const day = String(event.date.getDate()).padStart(2, '0');
+      const dateISO = `${eventYear}-${month}-${day}T00:00:00.000Z`;
       yearlyPerformances.push({
-        date: event.date.toISOString().split('T')[0] || '',
+        date: dateISO,
         type: event.type,
         shiftLeadId: selectedShiftLeadId,
         location: 'Église Salem',
@@ -232,18 +234,6 @@ const YearlyPlanningForm: React.FC<YearlyPlanningFormProps> = ({
     }
   };
 
-  const addCustomPerformance = () => {
-    const newPerformance: CreatePerformanceDto = {
-      date: '',
-      type: selectedType,
-      shiftLeadId: selectedShiftLeadId,
-      location: '',
-      expectedAudience: 0,
-      notes: '',
-    };
-    setPerformances((prev) => [...prev, newPerformance]);
-  };
-
   const updatePerformance = (
     index: number,
     field: keyof CreatePerformanceDto,
@@ -258,11 +248,32 @@ const YearlyPlanningForm: React.FC<YearlyPlanningFormProps> = ({
     setPerformances((prev) => prev.filter((_, i) => i !== index));
   };
 
+  // Convert ISO datetime string to date-only format for HTML date input
+  const formatDateForInput = (dateString: string): string => {
+    if (!dateString) return '';
+    // If it's already in YYYY-MM-DD format, return as-is
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateString)) return dateString;
+    // If it's an ISO datetime string, extract the date part
+    if (dateString.includes('T')) {
+      return dateString.split('T')[0] || '';
+    }
+    return dateString;
+  };
+
+  // Convert date-only string from input to ISO datetime format
+  const formatDateForStorage = (dateString: string): string => {
+    if (!dateString) return '';
+    // If it's already in ISO format, return as-is
+    if (dateString.includes('T')) return dateString;
+    // Convert YYYY-MM-DD to ISO datetime format
+    return `${dateString}T00:00:00.000Z`;
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="max-h-[90vh] w-full max-w-6xl overflow-hidden rounded-lg bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-gray-200 p-6">
-          <h2 className="text-2xl font-bold text-gray-900">
+      <div className="h-[98vh] w-full rounded-md bg-white shadow-md">
+        <div className="flex items-center justify-between border-b border-gray-200 px-4 py-2">
+          <h2 className="text-xl font-bold text-gray-900">
             Planification Annuelle des Performances
           </h2>
           <button
@@ -285,49 +296,32 @@ const YearlyPlanningForm: React.FC<YearlyPlanningFormProps> = ({
           </button>
         </div>
 
-        <div className="max-h-[calc(90vh-140px)] overflow-y-auto p-6">
-          <div className="mb-6 rounded-lg bg-gray-50 p-4">
-            <div className="mb-4 flex items-center gap-10">
-              <h3 className="mb-4 text-lg font-semibold text-gray-900">
-                Configuration de la Planification
-              </h3>
+        <div className="max-h-[calc(100vh-120px)] overflow-y-auto p-4">
+          <div className="mb-4 flex flex-row items-center justify-end gap-4">
+            <div>
+              <input
+                type="number"
+                value={year}
+                onChange={(e) => setYear(parseInt(e.target.value, 10))}
+                className="rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                min="2024"
+                max="2030"
+              />
+            </div>
+            <div className="flex items-end">
               <button
                 type="button"
-                onClick={addCustomPerformance}
-                className="rounded-md bg-green-600 px-4 py-2 text-white transition-colors hover:bg-green-700"
+                onClick={generateYearlyPerformances}
+                className="rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
               >
-                Ajouter Performance Personnalisée
+                Générer Performances Annuelles
               </button>
-            </div>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-700">
-                  Année
-                </label>
-                <input
-                  type="number"
-                  value={year}
-                  onChange={(e) => setYear(parseInt(e.target.value, 10))}
-                  className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  min="2024"
-                  max="2030"
-                />
-              </div>
-              <div className="flex items-end">
-                <button
-                  type="button"
-                  onClick={generateYearlyPerformances}
-                  className="w-full rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"
-                >
-                  Générer Performances Annuelles
-                </button>
-              </div>
             </div>
           </div>
 
-          <div className="mb-6">
+          <div className="mb-3">
             {performances.length > 0 && (
-              <div className="max-h-96 space-y-3 overflow-y-auto">
+              <div className="space-y-3 overflow-y-auto">
                 {performances.map((performance, index) => (
                   <div
                     key={index}
@@ -364,9 +358,13 @@ const YearlyPlanningForm: React.FC<YearlyPlanningFormProps> = ({
                         </label>
                         <input
                           type="date"
-                          value={performance.date}
+                          value={formatDateForInput(performance.date)}
                           onChange={(e) =>
-                            updatePerformance(index, 'date', e.target.value)
+                            updatePerformance(
+                              index,
+                              'date',
+                              formatDateForStorage(e.target.value),
+                            )
                           }
                           className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
                         />
@@ -406,6 +404,31 @@ const YearlyPlanningForm: React.FC<YearlyPlanningFormProps> = ({
                               e.target.value
                                 ? parseInt(e.target.value, 10)
                                 : undefined,
+                            )
+                          }
+                          className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        >
+                          <option value="">Non assigné</option>
+                          {availableShiftLeads.map((lead) => (
+                            <option key={lead.id} value={lead.id}>
+                              {lead.firstName} {lead.lastName}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="mb-1 block text-xs font-medium text-gray-700">
+                          Conducteur Assistant
+                        </label>
+                        <select
+                          value={performance.assistantLeadId || ''}
+                          onChange={(e) =>
+                            updatePerformance(
+                              index,
+                              'assistantLeadId',
+                              e.target.value
+                                ? parseInt(e.target.value, 10)
+                                : null,
                             )
                           }
                           className="w-full rounded border border-gray-300 px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -489,7 +512,7 @@ const YearlyPlanningForm: React.FC<YearlyPlanningFormProps> = ({
           )}
         </div>
 
-        <div className="flex items-center justify-end gap-3 border-t border-gray-200 bg-gray-50 p-6">
+        <div className="flex items-center justify-end gap-3 border-t border-gray-200 bg-gray-50 px-4 py-2">
           <button
             type="button"
             onClick={onClose}

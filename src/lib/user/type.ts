@@ -49,6 +49,7 @@ export enum UserCategory {
   COMMITTEE = 'COMMITTEE',
   NEWCOMER = 'NEWCOMER',
   LEAD = 'LEAD',
+  MUSICIAN = 'MUSICIAN',
 }
 
 export enum UserRole {

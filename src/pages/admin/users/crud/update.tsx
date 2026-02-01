@@ -24,10 +24,12 @@ import {
 // Add translation function for categories
 const translateCategory = (category: string): string => {
   const translations: Record<string, string> = {
+    NORMAL: 'Normal',
     NEWCOMER: 'Adhérant',
     WORSHIPPER: 'Louado',
     COMMITTEE: 'Comité',
-    LEAD: 'Lead',
+    LEAD: 'Conducteur',
+    MUSICIAN: 'Musicien',
   };
   return translations[category] || category;
 };
@@ -523,7 +525,22 @@ const UpdateUser: React.FC<UpdateProps> = ({ onClose, onUpdate, user }) => {
           </div>
 
           <button
-            type="submit"
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              // Create a synthetic form event
+              const form = e.currentTarget.closest('form');
+              if (form) {
+                const syntheticEvent = {
+                  preventDefault: () => {},
+                  stopPropagation: () => {},
+                  currentTarget: form,
+                  target: form,
+                } as unknown as React.FormEvent<HTMLFormElement>;
+                handleSubmit(syntheticEvent);
+              }
+            }}
             className="col-span-2 w-full rounded-md bg-blue-500 px-4 py-2 font-semibold text-white hover:bg-blue-600 md:col-span-1"
           >
             Mettre à jour

@@ -6,6 +6,7 @@ import {
   FaPlus,
   FaStickyNote,
   FaTimes,
+  FaUser,
   FaUsers as FaAudience,
 } from 'react-icons/fa';
 
@@ -22,6 +23,7 @@ import {
   useCurrentShift,
 } from '@/lib/shift/logic';
 import { UserCategory, UserRole } from '@/lib/user/type';
+import { useUsers } from '@/lib/user/useUsers';
 import { useAuth } from '@/providers/AuthProvider';
 
 interface PerformanceFormProps {
@@ -50,11 +52,16 @@ const PerformanceForm: React.FC<PerformanceFormProps> = ({
     isLoading: shiftLoading,
     validationStatus,
   } = useCurrentShift();
+  const { users: allUsers } = useUsers();
+  const leaders = allUsers.filter((leader) =>
+    leader.categories?.includes(UserCategory.LEAD),
+  );
 
   const [formData, setFormData] = useState<CreatePerformanceDto>({
     date: '',
     type: PerformanceType.SUNDAY_SERVICE,
     shiftLeadId: currentShift?.leaderId || undefined, // Optional - can be assigned later
+    assistantLeadId: undefined,
     location: '',
     expectedAudience: 0,
     notes: '',
@@ -86,6 +93,7 @@ const PerformanceForm: React.FC<PerformanceFormProps> = ({
         type: performance.type || PerformanceType.SUNDAY_SERVICE,
         shiftLeadId:
           performance.shiftLeadId || currentShift?.leaderId || undefined,
+        assistantLeadId: performance.assistantLeadId || undefined,
         location: performance.location || '',
         expectedAudience: performance.expectedAudience || 0,
         notes: performance.notes || '',
@@ -164,9 +172,15 @@ const PerformanceForm: React.FC<PerformanceFormProps> = ({
       return;
     }
 
+    // Convert date-only string to ISO datetime format for DateTime fields (use UTC to avoid timezone shift)
+    const dateISO = formData.date
+      ? `${formData.date}T00:00:00.000Z`
+      : formData.date;
+
     // Clean up optional fields - remove empty strings and 0 values
     const cleanedData: CreatePerformanceDto = {
       ...formData,
+      date: dateISO,
       location: formData.location?.trim() || undefined,
       expectedAudience:
         formData.expectedAudience && formData.expectedAudience > 0
@@ -174,6 +188,10 @@ const PerformanceForm: React.FC<PerformanceFormProps> = ({
           : undefined,
       notes: formData.notes?.trim() || undefined,
       shiftLeadId: currentShift?.leaderId || undefined, // Use current shift leader ID or undefined
+      assistantLeadId:
+        formData.assistantLeadId && formData.assistantLeadId > 0
+          ? formData.assistantLeadId
+          : null, // Convert 0 or undefined to null for unassignment
     };
 
     await onSubmit(cleanedData);
@@ -450,6 +468,39 @@ const PerformanceForm: React.FC<PerformanceFormProps> = ({
                 placeholder="Nombre de personnes attendues"
                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-orange-500 focus:outline-none"
               />
+            </div>
+
+            {/* Assistant Lead */}
+            <div>
+              <label className="mb-2 block text-sm font-medium text-gray-700">
+                <FaUser className="mr-2 inline text-gray-400" />
+                Conducteur Assistant (optionnel)
+              </label>
+              <select
+                value={formData.assistantLeadId || ''}
+                onChange={(e) => {
+                  const value = e.target.value;
+                  handleInputChange(
+                    'assistantLeadId',
+                    value && value !== '' ? parseInt(value, 10) : undefined,
+                  );
+                }}
+                className={`w-full rounded-md border px-3 py-2 focus:border-orange-500 focus:outline-none ${
+                  errors.assistantLeadId ? 'border-red-500' : 'border-gray-300'
+                }`}
+              >
+                <option value="">Non assigné</option>
+                {leaders.map((leader) => (
+                  <option key={leader.id} value={leader.id}>
+                    {leader.lastName} {leader.firstName}
+                  </option>
+                ))}
+              </select>
+              {errors.assistantLeadId && (
+                <p className="mt-1 text-sm text-red-600">
+                  {errors.assistantLeadId}
+                </p>
+              )}
             </div>
 
             {/* Notes */}

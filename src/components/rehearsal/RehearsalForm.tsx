@@ -3,7 +3,10 @@ import toast from 'react-hot-toast';
 import { FaTimes } from 'react-icons/fa';
 import Select from 'react-select';
 
-import { usePerformances } from '@/lib/performance/logic';
+import {
+  getPerformanceTypeLabel,
+  usePerformances,
+} from '@/lib/performance/logic';
 import {
   getRehearsalTypeOptions,
   useCreateRehearsal,
@@ -86,6 +89,7 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
     fetchPerformances,
     loading: performancesLoading,
     error: performancesError,
+    updatePerformance,
   } = usePerformances();
 
   // Fetch performances when component mounts (only if no performanceId is provided)
@@ -179,12 +183,30 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
               })) || [],
             chorusMemberIds: song.chorusMembers?.map((cm) => cm.id) || [],
           })) || [],
-        musicians: rehearsal.musicians || [],
+        musicians:
+          rehearsal.musicians?.map((m) => ({
+            userId: m.userId,
+            instrument: m.instrument,
+            customInstrument: m.customInstrument ?? undefined,
+            role: m.role ?? undefined, // 🔥 fix here
+            isAccompanist: m.isAccompanist,
+            isSoloist: m.isSoloist,
+            soloStartTime: m.soloStartTime,
+            soloEndTime: m.soloEndTime,
+            soloNotes: m.soloNotes ?? undefined,
+            accompanimentNotes: m.accompanimentNotes ?? undefined,
+            needsPractice: m.needsPractice,
+            practiceNotes: m.practiceNotes ?? undefined,
+            order: m.order,
+            timeAllocated: m.timeAllocated ?? undefined,
+            notes: m.notes ?? undefined,
+          })) || [],
       });
     }
   }, [rehearsal]);
 
-  // Update shiftLeadId and rehearsalLeadId when current shift changes
+  // Update shiftLeadId and rehearsalLeadId when current shift changes (only for new rehearsals)
+  // When editing, don't auto-update rehearsalLeadId as it should be manually set
   useEffect(() => {
     if (currentShift?.leaderId && !rehearsal) {
       setFormData((prev) => ({
@@ -192,14 +214,14 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
         shiftLeadId: currentShift.leaderId,
         rehearsalLeadId: currentShift.leaderId,
       }));
-    } else if (currentShift?.leaderId && rehearsal) {
+    } else if (currentShift?.leaderId && rehearsal && !isEditing) {
+      // Only update if not editing (shouldn't happen, but safety check)
       setFormData((prev) => ({
         ...prev,
         shiftLeadId: prev.shiftLeadId || currentShift.leaderId,
-        rehearsalLeadId: prev.rehearsalLeadId || currentShift.leaderId,
       }));
     }
-  }, [currentShift?.leaderId, rehearsal]);
+  }, [currentShift?.leaderId, rehearsal, isEditing]);
 
   const validateForm = async (): Promise<boolean> => {
     const errors: Record<string, string> = {};
@@ -274,14 +296,11 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
 
     if (!isRehearsalSaved && !isEditing) {
       const songsWithErrors = (formData.rehearsalSongs || []).filter(
-        (song) =>
-          !song.songId ||
-          !song.leadSingerIds ||
-          song.leadSingerIds.length === 0,
+        (song) => !song.songId,
       );
       if (songsWithErrors.length > 0) {
         errors.songs =
-          'Toutes les chansons doivent avoir une chanson sélectionnée et un chanteur principal';
+          'Toutes les chansons doivent avoir une chanson sélectionnée';
       }
     }
 
@@ -354,9 +373,14 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
           return;
         }
 
+        // Convert date-only string to ISO datetime format for DateTime fields (use UTC to avoid timezone shift)
+        const dateISO = formData.date
+          ? `${formData.date}T00:00:00.000Z`
+          : formData.date;
+
         const updateData: UpdateRehearsalDto = {
           title: formData.title,
-          date: formData.date,
+          date: dateISO,
           type: formData.type,
           location: formData.location,
           duration: formData.duration,
@@ -369,8 +393,32 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
 
         const success = await updateRehearsal(rehearsal.id, updateData);
         if (success) {
+          // Update performance's assistant lead based on rehearsal lead
+          if (rehearsal.performanceId) {
+            try {
+              // If rehearsal lead is different from shift lead and is set, set as assistant lead
+              // Otherwise, clear the assistant lead (null)
+              const shouldSetAssistantLead =
+                formData.rehearsalLeadId &&
+                formData.rehearsalLeadId > 0 &&
+                formData.rehearsalLeadId !== formData.shiftLeadId;
+
+              await updatePerformance(rehearsal.performanceId, {
+                assistantLeadId: shouldSetAssistantLead
+                  ? formData.rehearsalLeadId
+                  : null,
+              });
+            } catch (error) {
+              // Log error but don't fail the rehearsal update
+              console.error(
+                'Failed to update performance assistant lead:',
+                error,
+              );
+            }
+          }
           toast.success('Répétition modifiée avec succès');
           onSuccess?.();
+          onCancel?.();
         }
       } else if (isRehearsalSaved && savedRehearsalId) {
         if (formData.rehearsalSongs && formData.rehearsalSongs.length > 0) {
@@ -380,8 +428,14 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
         toast.success('Chansons ajoutées avec succès à la répétition');
         onSuccess?.();
       } else {
+        // Convert date-only string to ISO datetime format for DateTime fields (use UTC to avoid timezone shift)
+        const dateISO = formData.date
+          ? `${formData.date}T00:00:00.000Z`
+          : formData.date;
+
         const rehearsalDataWithoutSongs = {
           ...formData,
+          date: dateISO,
           rehearsalSongs: undefined,
         };
 
@@ -695,16 +749,17 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
                     <Select
                       id="performanceId"
                       name="performanceId"
-                      value={
-                        performances.find(
+                      value={(() => {
+                        const selectedPerformance = performances.find(
                           (p) => p.id === formData.performanceId,
-                        )
+                        );
+                        return selectedPerformance
                           ? {
                               value: formData.performanceId,
-                              label: `${performances.find((p) => p.id === formData.performanceId)?.type} - ${new Date(performances.find((p) => p.id === formData.performanceId)?.date || '').toLocaleDateString('fr-FR')} (${performances.find((p) => p.id === formData.performanceId)?.location || 'Lieu non spécifié'})`,
+                              label: `${getPerformanceTypeLabel(selectedPerformance.type)} - ${new Date(selectedPerformance.date).toLocaleDateString('fr-FR')} (${selectedPerformance.location || 'Lieu non spécifié'})`,
                             }
-                          : null
-                      }
+                          : null;
+                      })()}
                       onChange={(selectedOption) => {
                         const perfId = selectedOption
                           ? selectedOption.value
@@ -722,29 +777,19 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
                         }
                       }}
                       options={(() => {
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-
-                        const futurePerformances = performances.filter(
-                          (performance) => {
-                            const performanceDate = new Date(performance.date);
-                            performanceDate.setHours(0, 0, 0, 0);
-                            return performanceDate >= today;
-                          },
-                        );
-
-                        const sortedPerformances = futurePerformances.sort(
+                        // Show all performances, sorted by date (most recent first, then future)
+                        const sortedPerformances = [...performances].sort(
                           (a, b) => {
                             const dateA = new Date(a.date);
                             const dateB = new Date(b.date);
-                            return dateA.getTime() - dateB.getTime();
+                            return dateB.getTime() - dateA.getTime(); // Sort descending (newest first)
                           },
                         );
 
                         const options = sortedPerformances.map(
                           (performance) => ({
                             value: performance.id,
-                            label: `${performance.type} - ${new Date(performance.date).toLocaleDateString('fr-FR')} (${performance.location || 'Lieu non spécifié'})`,
+                            label: `${getPerformanceTypeLabel(performance.type)} - ${new Date(performance.date).toLocaleDateString('fr-FR')} (${performance.location || 'Lieu non spécifié'})`,
                           }),
                         );
                         return options;
@@ -822,24 +867,6 @@ export const RehearsalForm: React.FC<RehearsalFormProps> = ({
                     {validationErrors.rehearsalLeadId}
                   </p>
                 )}
-              </div>
-
-              {/* Template Checkbox */}
-              <div className="flex items-center">
-                <input
-                  type="checkbox"
-                  id="isTemplate"
-                  name="isTemplate"
-                  checked={formData.isTemplate}
-                  onChange={handleInputChange}
-                  className="size-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                />
-                <label
-                  htmlFor="isTemplate"
-                  className="ml-2 block text-sm text-gray-900"
-                >
-                  Sauvegarder comme modèle réutilisable
-                </label>
               </div>
             </div>
 

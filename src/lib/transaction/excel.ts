@@ -50,7 +50,7 @@ export const exportToPDF = async (
   pdfDoc.setFontSize(12);
   pdfDoc.setFont('helvetica', 'normal');
   pdfDoc.text(
-    `Date: ${new Date().toLocaleDateString()}`,
+    `Date: ${new Date().toLocaleDateString('fr-FR')}`,
     margin + 36,
     margin + 18,
   );
@@ -66,7 +66,6 @@ export const exportToPDF = async (
     // If the fetch fails, leave totals at 0
   }
 
-  // 2. Fetch solde for the current month
   const now = new Date();
   const firstDayCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   const today = now;

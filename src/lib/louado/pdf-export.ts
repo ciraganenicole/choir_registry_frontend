@@ -42,10 +42,10 @@ const computeTitle = (shifts: LouadoShift[]) => {
   });
 
   if (firstLabel === lastLabel) {
-    return `Calendrier Louado ${firstLabel}`;
+    return `Calendrier Louado `;
   }
 
-  return `Calendrier Louado ${firstLabel} - ${lastLabel}`;
+  return `Calendrier Louado `;
 };
 
 export const exportLouadoScheduleToPDF = async (

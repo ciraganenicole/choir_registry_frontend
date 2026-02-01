@@ -83,6 +83,30 @@ export const exportReportToPDF = async (report: Report) => {
     currentY += lineHeight;
   });
 
+  // Add attachment information if present
+  if (report.attachmentUrl) {
+    // Add some space before attachment info
+    currentY += 10;
+
+    // Check if we need a new page
+    if (currentY + 15 > pageHeight - bottomMargin) {
+      pdfDoc.addPage();
+      currentY = margin;
+    }
+
+    // Extract filename from URL
+    const attachmentFileName =
+      report.attachmentUrl.split('/').pop() || 'Fichier joint';
+
+    pdfDoc.setFontSize(11);
+    pdfDoc.setFont('helvetica', 'bold');
+    pdfDoc.text('Pièce jointe:', margin, currentY);
+
+    currentY += 6;
+    pdfDoc.setFont('helvetica', 'normal');
+    pdfDoc.text(attachmentFileName, margin, currentY);
+  }
+
   // Save PDF with report title as filename
   const safeTitle = report.title
     .replace(/[^a-zA-Z0-9\s]/g, '')

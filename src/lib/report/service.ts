@@ -36,10 +36,23 @@ export const ReportService = {
 
   /**
    * Create a new report (committee members only)
+   * Supports multipart/form-data with file upload
+   * Note: When using FormData, we need to remove Content-Type header
+   * so the browser can set it with the correct boundary
    */
-  async createReport(data: CreateReportDto): Promise<Report> {
+  async createReport(
+    data: CreateReportDto | FormData,
+    isFormData = false,
+  ): Promise<Report> {
     try {
-      const response = await api.post('/reports', data);
+      const config = isFormData
+        ? {
+            headers: {
+              'Content-Type': undefined, // Let browser set it for FormData
+            },
+          }
+        : {};
+      const response = await api.post('/reports', data, config);
       return response.data;
     } catch (error: any) {
       throw new Error(
@@ -50,10 +63,24 @@ export const ReportService = {
 
   /**
    * Update an existing report (creator or SUPER_ADMIN only)
+   * Supports multipart/form-data with file upload
+   * Note: When using FormData, we need to remove Content-Type header
+   * so the browser can set it with the correct boundary
    */
-  async updateReport(id: number, data: UpdateReportDto): Promise<Report> {
+  async updateReport(
+    id: number,
+    data: UpdateReportDto | FormData,
+    isFormData = false,
+  ): Promise<Report> {
     try {
-      const response = await api.patch(`/reports/${id}`, data);
+      const config = isFormData
+        ? {
+            headers: {
+              'Content-Type': undefined, // Let browser set it for FormData
+            },
+          }
+        : {};
+      const response = await api.patch(`/reports/${id}`, data, config);
       return response.data;
     } catch (error: any) {
       throw new Error(

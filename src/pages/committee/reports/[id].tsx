@@ -5,12 +5,12 @@ import {
   FaCalendarAlt,
   FaEdit,
   FaFilePdf,
-  FaPaperclip,
   FaTrash,
   FaUser,
 } from 'react-icons/fa';
 
 import Layout from '@/components/layout';
+import { API_URL } from '@/config/api';
 import { exportReportToPDF } from '@/lib/report/pdf-export';
 import {
   canDeleteReport,
@@ -126,6 +126,22 @@ const ReportDetailPage: React.FC = () => {
       default:
         return '📎';
     }
+  };
+
+  const formatAttachmentUrl = (url: string): string => {
+    if (!url) return '';
+
+    // If it's already an absolute URL (starts with http:// or https://), return as is
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+
+    // If it's a relative URL, prefix with API base URL
+    // Remove leading slash if present to avoid double slashes
+    const cleanUrl = url.startsWith('/') ? url.slice(1) : url;
+    const baseUrl = API_URL?.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
+
+    return `${baseUrl}/${cleanUrl}`;
   };
 
   if (!userHasReportsAccess) {
@@ -273,16 +289,17 @@ const ReportDetailPage: React.FC = () => {
             <div className="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center">
-                  <FaPaperclip className="mr-3 text-blue-600" />
-                  <span className="font-medium text-blue-700">
-                    Pièce jointe
-                  </span>
                   <span className="ml-2 text-lg">
                     {getFileIcon(report.attachmentUrl)}
                   </span>
+                  {report.attachmentUrl && (
+                    <span className="ml-3 max-w-md truncate text-xs text-blue-600">
+                      {report.attachmentUrl.split('/').pop()}
+                    </span>
+                  )}
                 </div>
                 <a
-                  href={report.attachmentUrl}
+                  href={formatAttachmentUrl(report.attachmentUrl)}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="rounded-md bg-blue-600 px-4 py-2 text-white transition-colors hover:bg-blue-700"

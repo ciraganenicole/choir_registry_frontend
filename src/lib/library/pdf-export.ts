@@ -1,6 +1,7 @@
 import { jsPDF as JsPDF } from 'jspdf';
 
 import type { Song } from '@/lib/library/logic';
+import { fetchSongPerformanceCount } from '@/lib/library/logic';
 
 export const exportSongToPDF = async (song: Song) => {
   const pdfDoc = new JsPDF({
@@ -46,30 +47,60 @@ export const exportSongToPDF = async (song: Song) => {
   pdfDoc.text(song.title, margin, songTitleY);
 
   // Add lyrics section
-  let currentY = songTitleY + 15;
+  const currentY = songTitleY + 15;
   if (song.lyrics) {
     pdfDoc.setFontSize(10);
     pdfDoc.setFont('helvetica', 'normal');
 
-    // Split lyrics into lines that fit the page width
+    // Calculate page dimensions and column layout
     const pageWidth = pdfDoc.internal.pageSize.getWidth();
-    const maxWidth = pageWidth - margin * 2;
-
-    const lyricsLines = pdfDoc.splitTextToSize(song.lyrics, maxWidth);
-
-    const lineHeight = 5;
     const pageHeight = pdfDoc.internal.pageSize.getHeight();
     const bottomMargin = 20;
+    const columnGap = 5; // Space between columns
+    const columnWidth = (pageWidth - margin * 2 - columnGap) / 2;
+
+    // Split lyrics into lines that fit the column width
+    const lyricsLines = pdfDoc.splitTextToSize(song.lyrics, columnWidth);
+
+    const lineHeight = 5;
+
+    // Track column state
+    let leftColumnY = currentY;
+    let rightColumnY = currentY;
+    let useLeftColumn = true;
+    const leftColumnX = margin;
+    const rightColumnX = margin + columnWidth + columnGap;
 
     lyricsLines.forEach((line: string) => {
-      // Check if we need a new page
-      if (currentY + lineHeight > pageHeight - bottomMargin) {
-        pdfDoc.addPage();
-        currentY = margin;
+      const currentColumnY = useLeftColumn ? leftColumnY : rightColumnY;
+
+      // Check if current column needs a new page or column switch
+      if (currentColumnY + lineHeight > pageHeight - bottomMargin) {
+        if (useLeftColumn) {
+          // Switch to right column
+          useLeftColumn = false;
+          rightColumnY = currentY; // Reset to start of content area
+        } else {
+          // Both columns full, need new page
+          pdfDoc.addPage();
+          leftColumnY = margin;
+          rightColumnY = margin;
+          useLeftColumn = true;
+        }
       }
 
-      pdfDoc.text(line, margin, currentY);
-      currentY += lineHeight;
+      // Determine which column to use after page/column check
+      const finalColumnY = useLeftColumn ? leftColumnY : rightColumnY;
+      const finalColumnX = useLeftColumn ? leftColumnX : rightColumnX;
+
+      pdfDoc.text(line, finalColumnX, finalColumnY);
+
+      // Update the appropriate column's Y position
+      if (useLeftColumn) {
+        leftColumnY += lineHeight;
+      } else {
+        rightColumnY += lineHeight;
+      }
     });
   }
 
@@ -82,6 +113,29 @@ export const exportSongToPDF = async (song: Song) => {
 };
 
 export const exportSongListToPDF = async (songs: Song[]) => {
+  // Fetch actual performance counts for all songs in parallel
+  const performanceCountsMap = new Map<string, number>();
+  try {
+    const countPromises = songs.map(async (song) => {
+      try {
+        const countData = await fetchSongPerformanceCount(song.id);
+        if (countData?.actualCount !== undefined) {
+          performanceCountsMap.set(song.id, countData.actualCount);
+        }
+      } catch (error) {
+        // Silently ignore errors for individual songs - fallback to song.performed
+        console.warn(
+          `Failed to fetch performance count for song ${song.id}:`,
+          error,
+        );
+      }
+    });
+    await Promise.all(countPromises);
+  } catch (error) {
+    // Silently ignore errors - will use song.performed as fallback
+    console.warn('Failed to fetch some performance counts:', error);
+  }
+
   const pdfDoc = new JsPDF({
     orientation: 'portrait',
     unit: 'mm',
@@ -198,7 +252,7 @@ export const exportSongListToPDF = async (songs: Song[]) => {
         song.added_by.firstName &&
         song.added_by.lastName
       ) {
-        return `${song.added_by.firstName} ${song.added_by.lastName}`;
+        return `${song.added_by.lastName} ${song.added_by.firstName}`;
       }
       if (typeof song.added_by === 'string') {
         return song.added_by;
@@ -206,13 +260,15 @@ export const exportSongListToPDF = async (songs: Song[]) => {
       return 'N/A';
     })();
     const addedBy =
-      addedByText.length > 12
-        ? `${addedByText.substring(0, 9)}...`
+      addedByText.length > 16
+        ? `${addedByText.substring(0, 16)}...`
         : addedByText;
     pdfDoc.text(addedBy, colPositions[2]!, currentY);
 
-    // Fois interprété
-    pdfDoc.text(song.performed.toString(), colPositions[3]!, currentY);
+    // Fois interprété - use actual count if available, otherwise fallback to song.performed
+    const performedCount =
+      performanceCountsMap.get(song.id) ?? song.performed ?? 0;
+    pdfDoc.text(performedCount.toString(), colPositions[3]!, currentY);
 
     currentY += rowHeight;
   });

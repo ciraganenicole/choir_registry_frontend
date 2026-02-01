@@ -70,7 +70,6 @@ const PerformancePage = () => {
     performances,
     loading,
     error,
-    total,
     pagination,
     fetchPerformances,
     createPerformance,
@@ -181,10 +180,16 @@ const PerformancePage = () => {
   };
 
   const handleFilterChange = (newFilters: Partial<PerformanceFilterDto>) => {
-    setFilters((prev) => ({
-      ...prev,
-      ...newFilters,
-    }));
+    setFilters((prev) => {
+      const updated = { ...prev, ...newFilters };
+      // Remove undefined properties to properly reset filters
+      Object.keys(updated).forEach((key) => {
+        if (updated[key as keyof PerformanceFilterDto] === undefined) {
+          delete updated[key as keyof PerformanceFilterDto];
+        }
+      });
+      return updated;
+    });
   };
 
   // Get available shift leads (users with LEAD category or SUPER_ADMIN role only)
@@ -282,8 +287,8 @@ const PerformancePage = () => {
     if (performance.shiftLeadId && performance.shiftLead) {
       return (
         <span className="mr-2 rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-800">
-          ✅ Assigné à {performance.shiftLead.firstName}{' '}
-          {performance.shiftLead.lastName}
+          ✅ Assigné à {performance.shiftLead.lastName}{' '}
+          {performance.shiftLead.firstName}{' '}
         </span>
       );
     }
@@ -388,10 +393,6 @@ const PerformancePage = () => {
             <h1 className="mb-1 text-xl font-bold text-gray-900 md:text-2xl">
               Gestion des Performances
             </h1>
-            <p className="text-xs text-gray-500 md:text-sm">
-              Suivez le workflow des performances : Création → Répétitions →
-              Exécution → Achèvement
-            </p>
           </div>
           {canManagePerformances && (
             <div className="flex flex-wrap gap-2">
@@ -445,17 +446,18 @@ const PerformancePage = () => {
               </label>
               <select
                 value={filters.type || ''}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const value = e.target.value;
                   handleFilterChange({
-                    type: (e.target.value as PerformanceType) || undefined,
-                  })
-                }
+                    type: value === '' ? undefined : (value as PerformanceType),
+                  });
+                }}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Tous les types</option>
                 {Object.values(PerformanceType).map((type) => (
                   <option key={type} value={type}>
-                    {type}
+                    {getPerformanceTypeLabel(type)}
                   </option>
                 ))}
               </select>
@@ -468,11 +470,13 @@ const PerformancePage = () => {
               </label>
               <select
                 value={filters.status || ''}
-                onChange={(e) =>
+                onChange={(e) => {
+                  const value = e.target.value;
                   handleFilterChange({
-                    status: (e.target.value as PerformanceStatus) || undefined,
-                  })
-                }
+                    status:
+                      value === '' ? undefined : (value as PerformanceStatus),
+                  });
+                }}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Tous les statuts</option>
@@ -490,14 +494,13 @@ const PerformancePage = () => {
                 Conducteur
               </label>
               <select
-                value={filters.shiftLeadId || ''}
-                onChange={(e) =>
+                value={filters.shiftLeadId ? String(filters.shiftLeadId) : ''}
+                onChange={(e) => {
+                  const value = e.target.value;
                   handleFilterChange({
-                    shiftLeadId: e.target.value
-                      ? parseInt(e.target.value, 10)
-                      : undefined,
-                  })
-                }
+                    shiftLeadId: value === '' ? undefined : parseInt(value, 10),
+                  });
+                }}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Tous les conducteurs</option>
@@ -519,10 +522,9 @@ const PerformancePage = () => {
                 value={filters.startDate || ''}
                 onChange={(e) => {
                   const date = e.target.value;
-                  // Try startDate/endDate as fallback since date parameter might not be supported yet
                   handleFilterChange({
-                    startDate: date || undefined,
-                    endDate: date || undefined, // Set both to same date for single-day filtering
+                    startDate: date === '' ? undefined : date,
+                    endDate: date === '' ? undefined : date, // Set both to same date for single-day filtering
                     date: undefined, // Clear date parameter
                   });
                 }}
@@ -560,7 +562,7 @@ const PerformancePage = () => {
                     <div className="mb-2 flex flex-col gap-2 text-sm text-gray-600 sm:flex-row sm:flex-wrap sm:items-center sm:gap-6">
                       <div className="flex items-center gap-2">
                         <FaRegCalendarAlt className="text-gray-400" />
-                        {new Date(perf.date).toLocaleDateString()}
+                        {new Date(perf.date).toLocaleDateString('fr-FR')}
                       </div>
                       {perf.location && (
                         <div className="flex items-center gap-2">
@@ -632,19 +634,6 @@ const PerformancePage = () => {
 
         <div className="mt-6">
           {/* Performance count and pagination info */}
-          <div className="mb-4 text-center text-sm text-gray-600">
-            {loading ? (
-              <span>Chargement...</span>
-            ) : (
-              <span>
-                Affichage de {performances.length} performance
-                {performances.length > 1 ? 's' : ''} sur {total} au total
-                {totalPages > 1 &&
-                  ` - Page ${pagination.page} sur ${totalPages}`}
-              </span>
-            )}
-          </div>
-
           {totalPages > 1 && (
             <Pagination
               currentPage={pagination.page}

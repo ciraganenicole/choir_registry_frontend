@@ -15,6 +15,7 @@ import {
 import { Card, CardContent } from '@/components/card';
 import Layout from '@/components/layout';
 import SongDetail from '@/components/library/SongDetail';
+import { SongPerformanceCount } from '@/components/library/SongPerformanceCount';
 import SongForm from '@/lib/library/form';
 import type { Song } from '@/lib/library/logic';
 import {
@@ -188,7 +189,7 @@ const SongDetailPage = () => {
       icon: <FaClock className="ml-2 text-xl text-orange-400" />,
     },
     {
-      label: 'Nouvelles Ajouts',
+      label: 'Nouveaux Ajouts',
       value: stats?.newAdditions || 0,
       sub: 'Ce mois',
       icon: <FaRegCalendarAlt className="ml-2 text-xl text-orange-400" />,
@@ -491,10 +492,7 @@ const SongDetailPage = () => {
                   </div>
                   <div className="flex min-w-[120px] flex-col items-end gap-2">
                     <div className="text-right">
-                      <div className="text-xs text-gray-500">Interprété</div>
-                      <div className="text-lg font-bold text-orange-500">
-                        {songItem.performed}x
-                      </div>
+                      <SongPerformanceCount song={songItem} />
                       {songItem.lastPerformance && (
                         <div className="mt-1 text-xs text-gray-500">
                           Dernière Performance

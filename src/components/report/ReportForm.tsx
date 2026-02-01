@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
-import { FaCalendarAlt, FaSave, FaTimes } from 'react-icons/fa';
+import React, { useRef, useState } from 'react';
+import {
+  FaCalendarAlt,
+  FaPaperclip,
+  FaSave,
+  FaTimes,
+  FaTrash,
+} from 'react-icons/fa';
 
 import { ReportService } from '@/lib/report/service';
-import type {
-  CreateReportDto,
-  Report,
-  UpdateReportDto,
-} from '@/types/report.types';
+import type { Report } from '@/types/report.types';
 
 interface ReportFormProps {
   report?: Report | null;
@@ -19,46 +21,72 @@ const ReportForm: React.FC<ReportFormProps> = ({
   onClose,
   onSuccess,
 }) => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    title: string;
+    meetingDate: string;
+    content: string;
+  }>({
     title: report?.title || '',
-    meetingDate: report?.meetingDate ? report.meetingDate.split('T')[0] : '',
+    meetingDate: report?.meetingDate
+      ? report.meetingDate.split('T')[0] ?? ''
+      : '',
     content: report?.content || '',
-    attachmentUrl: report?.attachmentUrl || '',
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [removeAttachment, setRemoveAttachment] = useState(false);
+  const [existingAttachmentUrl, setExistingAttachmentUrl] = useState<string>(
+    report?.attachmentUrl || '',
+  );
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const isSubmittingRef = useRef(false);
 
   const isEditing = !!report;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Prevent multiple submissions
+    if (isSubmittingRef.current || loading) {
+      return;
+    }
+
+    isSubmittingRef.current = true;
     setLoading(true);
     setError(null);
 
     try {
+      const formDataToSend = new FormData();
+      formDataToSend.append('title', formData.title.trim());
+      formDataToSend.append('meetingDate', formData.meetingDate ?? '');
+      // Content is optional according to backend, but we always send it if provided
+      formDataToSend.append('content', formData.content.trim() || '');
+
+      // Handle file attachment
+      if (selectedFile) {
+        // New file selected - append it
+        formDataToSend.append('file', selectedFile);
+      } else if (removeAttachment && isEditing) {
+        // User wants to remove existing file
+        formDataToSend.append('attachmentUrl', '');
+      }
+      // If no file and not removing, backend keeps existing file
+
       if (isEditing) {
-        const updateData: UpdateReportDto = {
-          title: formData.title.trim(),
-          meetingDate: formData.meetingDate,
-          content: formData.content.trim(),
-          attachmentUrl: formData.attachmentUrl.trim() || undefined,
-        };
-        await ReportService.updateReport(report.id, updateData);
+        await ReportService.updateReport(report.id, formDataToSend, true);
       } else {
-        const createData: CreateReportDto = {
-          title: formData.title.trim(),
-          meetingDate: formData.meetingDate ?? '',
-          content: formData.content.trim(),
-          attachmentUrl: formData.attachmentUrl.trim() || undefined,
-        };
-        await ReportService.createReport(createData);
+        await ReportService.createReport(formDataToSend, true);
       }
 
       onSuccess();
     } catch (err: any) {
-      setError(err.message || 'Une erreur est survenue');
+      const errorMessage =
+        err.response?.data?.message || err.message || 'Une erreur est survenue';
+      setError(errorMessage);
     } finally {
       setLoading(false);
+      isSubmittingRef.current = false;
     }
   };
 
@@ -75,15 +103,19 @@ const ReportForm: React.FC<ReportFormProps> = ({
       setError('La date de réunion est requise');
       return false;
     }
-    if (!formData.content.trim()) {
-      setError('Le contenu est requis');
-      return false;
-    }
+    // Content is optional, no validation needed
     return true;
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // Prevent event bubbling
+
+    // Additional check to prevent multiple submissions
+    if (loading || isSubmittingRef.current) {
+      return;
+    }
+
     if (validateForm()) {
       handleSubmit(e);
     }
@@ -92,6 +124,35 @@ const ReportForm: React.FC<ReportFormProps> = ({
   const getMaxDate = () => {
     const today = new Date();
     return today.toISOString().split('T')[0];
+  };
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file size (10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      setError('La taille du fichier ne doit pas dépasser 10MB');
+      return;
+    }
+
+    setSelectedFile(file);
+    setRemoveAttachment(false);
+    setError(null);
+  };
+
+  const handleRemoveAttachment = () => {
+    setSelectedFile(null);
+    setRemoveAttachment(true);
+    setExistingAttachmentUrl('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleFileInputClick = () => {
+    fileInputRef.current?.click();
   };
 
   return (
@@ -127,7 +188,7 @@ const ReportForm: React.FC<ReportFormProps> = ({
             </div>
           )}
 
-          <form onSubmit={handleFormSubmit} className="space-y-6">
+          <form onSubmit={handleFormSubmit} className="space-y-6" noValidate>
             {/* Title */}
             <div>
               <label
@@ -178,7 +239,7 @@ const ReportForm: React.FC<ReportFormProps> = ({
                 htmlFor="content"
                 className="mb-2 block text-sm font-medium text-gray-700"
               >
-                Contenu du Rapport *
+                Contenu du Rapport (optionnel)
               </label>
               <textarea
                 id="content"
@@ -187,8 +248,65 @@ const ReportForm: React.FC<ReportFormProps> = ({
                 rows={12}
                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Détaillez les points discutés, les décisions prises, les actions à suivre..."
-                required
               />
+            </div>
+
+            {/* Attachment */}
+            <div>
+              <label
+                htmlFor="attachment"
+                className="mb-2 block text-sm font-medium text-gray-700"
+              >
+                <FaPaperclip className="mr-1 inline" />
+                Pièce Jointe (optionnel)
+              </label>
+              <input
+                ref={fileInputRef}
+                type="file"
+                id="attachment"
+                onChange={handleFileSelect}
+                className="hidden"
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png,.gif"
+                disabled={loading}
+              />
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  onClick={handleFileInputClick}
+                  disabled={loading}
+                  className="flex w-full items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <FaPaperclip className="mr-2" />
+                  {selectedFile || existingAttachmentUrl
+                    ? 'Changer le fichier'
+                    : 'Charger un fichier'}
+                </button>
+                {(selectedFile || existingAttachmentUrl) &&
+                  !removeAttachment && (
+                    <div className="flex items-center justify-between rounded-md border border-green-200 bg-green-50 p-3">
+                      <div className="flex items-center">
+                        <FaPaperclip className="mr-2 text-green-600" />
+                        <span className="text-sm text-green-700">
+                          {selectedFile
+                            ? selectedFile.name
+                            : existingAttachmentUrl.split('/').pop() ||
+                              'Fichier joint'}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRemoveAttachment}
+                        className="ml-2 text-red-600 transition-colors hover:text-red-800"
+                        title="Supprimer la pièce jointe"
+                      >
+                        <FaTrash />
+                      </button>
+                    </div>
+                  )}
+              </div>
+              <p className="mt-1 text-xs text-gray-500">
+                Formats acceptés : PDF, Word, Excel, Images (max 10MB)
+              </p>
             </div>
 
             {/* Form Actions */}

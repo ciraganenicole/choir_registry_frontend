@@ -1075,7 +1075,7 @@ export const getStatusColor = (status: ShiftStatus): string => {
 };
 
 export const formatShiftDate = (date: string): string => {
-  return new Date(date).toLocaleDateString('en-US', {
+  return new Date(date).toLocaleDateString('fr-FR', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -1091,8 +1091,8 @@ export const getShiftDuration = (
   const diffTime = Math.abs(end.getTime() - start.getTime());
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-  if (diffDays === 1) return '1 day';
-  return `${diffDays} days`;
+  if (diffDays === 1) return '1 jour';
+  return `${diffDays} jours`;
 };
 
 export const getActualShiftStatus = (shift: LeadershipShift): ShiftStatus => {

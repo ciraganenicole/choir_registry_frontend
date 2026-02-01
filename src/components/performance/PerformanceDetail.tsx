@@ -14,6 +14,7 @@ import {
   FaPlay,
   FaStar,
   FaTimes,
+  FaUser,
   FaUsers,
 } from 'react-icons/fa';
 
@@ -248,7 +249,7 @@ const PerformanceDetail: React.FC<PerformanceDetailProps> = ({
               Date
             </div>
             <div className="text-sm font-semibold md:text-lg">
-              {new Date(currentPerformance.date).toLocaleDateString()}
+              {new Date(currentPerformance.date).toLocaleDateString('fr-FR')}
             </div>
           </div>
           <div className="rounded-lg border border-gray-200 p-3 md:p-4">
@@ -276,6 +277,44 @@ const PerformanceDetail: React.FC<PerformanceDetailProps> = ({
             {getStatusBadge(currentPerformance.status)}
           </div>
         </div>
+
+        {/* Lead Information Section */}
+        {(currentPerformance.shiftLead || currentPerformance.assistantLead) && (
+          <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 p-3 md:mb-6 md:p-4">
+            <h3 className="mb-3 text-sm font-semibold text-gray-900 md:text-base">
+              Informations des Conducteurs
+            </h3>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {/* Primary Lead (Shift Lead) */}
+              {currentPerformance.shiftLead && (
+                <div className="rounded-lg border border-blue-200 bg-blue-50 p-3">
+                  <div className="flex items-center gap-2 text-xs font-medium text-blue-800 md:text-sm">
+                    <FaUser className="text-sm" />
+                    Conducteur Principal
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-blue-900 md:text-base">
+                    {currentPerformance.shiftLead.firstName}{' '}
+                    {currentPerformance.shiftLead.lastName}
+                  </div>
+                </div>
+              )}
+
+              {/* Assistant Lead */}
+              {currentPerformance.assistantLead && (
+                <div className="rounded-lg border border-orange-200 bg-orange-50 p-3">
+                  <div className="flex items-center gap-2 text-xs font-medium text-orange-800 md:text-sm">
+                    <FaUser className="text-sm" />
+                    Conducteur Assistant
+                  </div>
+                  <div className="mt-1 text-sm font-semibold text-orange-900 md:text-base">
+                    {currentPerformance.assistantLead.firstName}{' '}
+                    {currentPerformance.assistantLead.lastName}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Status Management Section */}
         <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 md:mb-6 md:p-4">
@@ -335,8 +374,8 @@ const PerformanceDetail: React.FC<PerformanceDetailProps> = ({
         </div>
 
         {/* Promoted Data Section - Show what data was copied from rehearsals */}
-        {(currentPerformance.status === 'in_preparation' ||
-          currentPerformance.status === 'ready' ||
+        {/* Only show for 'ready' and 'completed' status as performanceSongs are only available then */}
+        {(currentPerformance.status === 'ready' ||
           currentPerformance.status === 'completed') && (
           <>
             {currentPerformance.performanceSongs &&
@@ -581,7 +620,9 @@ const PerformanceDetail: React.FC<PerformanceDetailProps> = ({
                         <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600 md:gap-4 md:text-sm">
                           <div className="flex items-center gap-1">
                             <FaCalendarAlt className="text-sm text-gray-400" />
-                            {new Date(rehearsal.date).toLocaleDateString()}
+                            {new Date(rehearsal.date).toLocaleDateString(
+                              'fr-FR',
+                            )}
                           </div>
                           <div className="flex items-center gap-1">
                             <FaClock className="text-sm text-gray-400" />

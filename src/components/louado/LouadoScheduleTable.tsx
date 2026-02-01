@@ -48,9 +48,7 @@ const monthRangeLabel = (shifts: LouadoShift[]) => {
   const firstLabel = formatMonth(first);
   const lastLabel = formatMonth(last);
 
-  return firstLabel === lastLabel
-    ? `Calendrier Louado ${firstLabel}`
-    : `Calendrier Louado ${firstLabel} - ${lastLabel}`;
+  return firstLabel === lastLabel ? `Calendrier Louado ` : `Calendrier Louado `;
 };
 
 const formatDateForCell = (isoDate: string) => {
@@ -58,6 +56,7 @@ const formatDateForCell = (isoDate: string) => {
   return date.toLocaleDateString('fr-FR', {
     day: '2-digit',
     month: 'short',
+    year: 'numeric',
   });
 };
 
@@ -89,9 +88,6 @@ export const LouadoScheduleTable: React.FC<LouadoScheduleTableProps> = ({
           <h1 className="text-2xl font-extrabold uppercase text-emerald-800">
             {title}
           </h1>
-          <p className="text-sm text-emerald-700">
-            Rota hebdomadaire des responsables Louange & Adoration
-          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           {onExport && (

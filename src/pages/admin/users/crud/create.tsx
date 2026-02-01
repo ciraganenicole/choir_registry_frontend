@@ -21,6 +21,7 @@ const translateCategory = (category: string): string => {
     WORSHIPPER: 'Louado',
     COMMITTEE: 'Comité',
     LEAD: 'Lead',
+    MUSICIAN: 'Musicien',
   };
   return translations[category] || category;
 };

@@ -10,7 +10,7 @@ import {
 } from 'react-icons/hi';
 
 import Layout from '@/components/layout';
-import { useAttendance } from '@/lib/attendance/logic';
+import { api } from '@/config/api';
 
 import { FetchUsers } from '../../lib/user/user_actions';
 
@@ -31,15 +31,31 @@ interface AttendanceStats {
   totalAbsent: number;
 }
 
+interface OverallStats {
+  total: number;
+  present: number;
+  absent: number;
+  late: number;
+  excused?: number;
+}
+
+interface GroupedAttendanceStats {
+  overall: OverallStats;
+  byDate: {
+    [date: string]: OverallStats;
+  };
+  byEventType: {
+    [eventType: string]: OverallStats;
+  };
+}
+
 const AdminDashboard: React.FC = () => {
   const [totalUsers, setTotalUsers] = useState<number>(0);
   const [loading, setLoading] = useState(true);
-  const {
-    attendance,
-    loading: attendanceLoading,
-    fetchUsersAndAttendance,
-  } = useAttendance({ auto: false });
+  const [attendanceLoading, setAttendanceLoading] = useState(false);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [overallStats, setOverallStats] =
+    useState<GroupedAttendanceStats | null>(null);
   const [metrics, setMetrics] = useState<AttendanceMetrics>({
     totalPresent: 0,
     totalLate: 0,
@@ -81,91 +97,68 @@ const AdminDashboard: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    fetchUsersAndAttendance();
-  }, [fetchUsersAndAttendance]);
+    const fetchAttendanceStats = async () => {
+      setAttendanceLoading(true);
+      try {
+        // Calculate date range for the selected year
+        const startDate = `${selectedYear}-01-01`;
+        const endDate = `${selectedYear}-12-31`;
+
+        const queryParams = new URLSearchParams();
+        queryParams.append('startDate', startDate);
+        queryParams.append('endDate', endDate);
+
+        const response = await api.get(
+          `/attendance/stats/overall?${queryParams.toString()}`,
+        );
+
+        setOverallStats(response.data);
+      } catch (error) {
+        console.error('Failed to fetch attendance statistics:', error);
+        setOverallStats(null);
+      } finally {
+        setAttendanceLoading(false);
+      }
+    };
+
+    fetchAttendanceStats();
+  }, [selectedYear]);
 
   useEffect(() => {
-    if (!attendance) {
+    if (!overallStats) {
+      setMetrics({
+        totalPresent: 0,
+        totalLate: 0,
+        totalAbsent: 0,
+        attendanceRate: 0,
+      });
+      setAttendanceStats({
+        present: [],
+        late: [],
+        absent: [],
+        dates: [],
+        totalPresent: 0,
+        totalLate: 0,
+        totalAbsent: 0,
+      });
       return;
     }
 
-    const yearlyStats = {
-      totalPresent: 0,
-      totalLate: 0,
-      totalAbsent: 0,
-    };
+    const { overall, byDate } = overallStats;
 
-    const monthlyStats = Array.from({ length: 12 }, () => ({
-      present: 0,
-      late: 0,
-      absent: 0,
-      total: 0,
-    }));
-
-    Object.entries(attendance).forEach(([_userId, records]) => {
-      if (!Array.isArray(records)) return;
-
-      records.forEach((record) => {
-        if (!record?.date || !record?.status) return;
-
-        let recordDate: Date;
-        if (record.date.includes('-')) {
-          recordDate = new Date(record.date);
-        } else {
-          const [day, month, year] = record.date.split('/').map(Number);
-          if (!day || !month || !year) return;
-          recordDate = new Date(year, month - 1, day);
-        }
-
-        const recordYear = recordDate.getFullYear();
-        const recordMonth = recordDate.getMonth();
-
-        if (
-          recordYear === selectedYear &&
-          recordMonth >= 0 &&
-          recordMonth < 12
-        ) {
-          const monthStat = monthlyStats[recordMonth];
-          if (!monthStat) return;
-
-          monthStat.total += 1;
-
-          switch (record.status) {
-            case 'PRESENT':
-              yearlyStats.totalPresent += 1;
-              monthStat.present += 1;
-              break;
-            case 'LATE':
-              yearlyStats.totalLate += 1;
-              monthStat.late += 1;
-              break;
-            case 'ABSENT':
-              yearlyStats.totalAbsent += 1;
-              monthStat.absent += 1;
-              break;
-            default:
-              break;
-          }
-        }
-      });
-    });
-
-    const totalYearlyRecords =
-      yearlyStats.totalPresent +
-      yearlyStats.totalLate +
-      yearlyStats.totalAbsent;
-
+    // Calculate percentages
+    const totalYearlyRecords = overall.total;
     const presentPercentage =
       totalYearlyRecords > 0
-        ? Math.round((yearlyStats.totalPresent / totalYearlyRecords) * 100)
+        ? Math.round((overall.present / totalYearlyRecords) * 100)
         : 0;
     const latePercentage =
       totalYearlyRecords > 0
-        ? Math.round((yearlyStats.totalLate / totalYearlyRecords) * 100)
+        ? Math.round((overall.late / totalYearlyRecords) * 100)
         : 0;
     const absentPercentage =
       totalYearlyRecords > 0
-        ? Math.round((yearlyStats.totalAbsent / totalYearlyRecords) * 100)
+        ? Math.round((overall.absent / totalYearlyRecords) * 100)
         : 0;
 
     setMetrics({
@@ -174,6 +167,27 @@ const AdminDashboard: React.FC = () => {
       totalAbsent: absentPercentage,
       attendanceRate: presentPercentage + latePercentage, // Total attendance rate (present + late)
     });
+
+    // Group by month from byDate data
+    const monthlyStats = Array.from({ length: 12 }, () => ({
+      present: 0,
+      late: 0,
+      absent: 0,
+    }));
+
+    Object.entries(byDate as Record<string, OverallStats>).forEach(
+      ([dateStr, stats]) => {
+        const date = new Date(dateStr);
+        const month = date.getMonth();
+
+        const monthStats = monthlyStats[month];
+        if (!monthStats) return;
+
+        monthStats.present += stats.present ?? 0;
+        monthStats.late += stats.late ?? 0;
+        monthStats.absent += stats.absent ?? 0;
+      },
+    );
 
     const monthNames = [
       'Janvier',
@@ -195,11 +209,11 @@ const AdminDashboard: React.FC = () => {
       late: monthlyStats.map((m) => m.late),
       absent: monthlyStats.map((m) => m.absent),
       dates: monthNames,
-      totalPresent: yearlyStats.totalPresent,
-      totalLate: yearlyStats.totalLate,
-      totalAbsent: yearlyStats.totalAbsent,
+      totalPresent: overall.present,
+      totalLate: overall.late,
+      totalAbsent: overall.absent,
     });
-  }, [attendance, selectedYear]);
+  }, [overallStats]);
 
   const attendanceChartData = useMemo(
     () => ({

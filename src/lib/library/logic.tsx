@@ -68,6 +68,20 @@ export interface SongStats {
   newAdditions: number;
 }
 
+export interface PerformanceCount {
+  songId: number;
+  storedCount: number;
+  actualCount: number;
+  lastPerformed: string | null;
+  performances: Array<{
+    performanceId: number;
+    date: string;
+    status: string;
+    type: string;
+    location?: string;
+  }>;
+}
+
 // Permission functions
 export const canAccessLibrary = (
   userRole: UserRole,
@@ -522,6 +536,52 @@ export const getSongById = async (id: string): Promise<Song | null> => {
   } catch (err: any) {
     return null;
   }
+};
+
+// Fetch performance count for a song
+export const fetchSongPerformanceCount = async (
+  id: string,
+): Promise<PerformanceCount | null> => {
+  try {
+    const response = await api.get(`/songs/${id}/performance-count`);
+    return response.data;
+  } catch (err: any) {
+    console.error('Failed to fetch performance count:', err);
+    return null;
+  }
+};
+
+// Hook to get performance count for a song
+export const useSongPerformanceCount = (songId: string | undefined) => {
+  const [performanceCount, setPerformanceCount] =
+    useState<PerformanceCount | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!songId) {
+      setPerformanceCount(null);
+      return;
+    }
+
+    const fetchCount = async () => {
+      setIsLoading(true);
+      setError(null);
+      try {
+        const count = await fetchSongPerformanceCount(songId);
+        setPerformanceCount(count);
+      } catch (err: any) {
+        setError(err.message || 'Failed to fetch performance count');
+        setPerformanceCount(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCount();
+  }, [songId]);
+
+  return { performanceCount, isLoading, error };
 };
 
 export const searchSongs = (songs: Song[], searchTerm: string): Song[] => {

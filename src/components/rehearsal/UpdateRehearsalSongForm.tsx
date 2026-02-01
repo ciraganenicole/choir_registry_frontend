@@ -26,6 +26,7 @@ import {
   SongDifficulty,
   VoicePartType,
 } from '@/lib/rehearsal/types';
+import { UserCategory } from '@/lib/user/type';
 import { useUsers } from '@/lib/user/useUsers';
 
 interface UpdateRehearsalSongFormProps {
@@ -86,7 +87,7 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
       onCancel,
     }) => {
       // Users are fetched via the centralized useUsers hook
-      const { users } = useUsers();
+      const { users } = useUsers({ limit: 150 }); // Increased limit to ensure all musicians are loaded
       const [formData, setFormData] = useState<UpdateSongFormState>({
         difficulty: initialData.difficulty || SongDifficulty.INTERMEDIATE,
         needsWork: initialData.needsWork || false,
@@ -1121,14 +1122,18 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                                 .showDropdown && (
                                 <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
                                   {users
-                                    .filter((user) =>
-                                      `${user.firstName} ${user.lastName}`
-                                        .toLowerCase()
-                                        .includes(
-                                          getMusicianUserDropdownState(
-                                            index,
-                                          ).searchTerm.toLowerCase(),
-                                        ),
+                                    .filter(
+                                      (user) =>
+                                        user.categories?.includes(
+                                          UserCategory.MUSICIAN,
+                                        ) &&
+                                        `${user.firstName} ${user.lastName}`
+                                          .toLowerCase()
+                                          .includes(
+                                            getMusicianUserDropdownState(
+                                              index,
+                                            ).searchTerm.toLowerCase(),
+                                          ),
                                     )
                                     .sort((a, b) =>
                                       `${a.firstName} ${a.lastName}`.localeCompare(
@@ -1158,14 +1163,18 @@ export const UpdateRehearsalSongForm: React.FC<UpdateRehearsalSongFormProps> =
                                         </span>
                                       </div>
                                     ))}
-                                  {users.filter((user) =>
-                                    `${user.firstName} ${user.lastName}`
-                                      .toLowerCase()
-                                      .includes(
-                                        getMusicianUserDropdownState(
-                                          index,
-                                        ).searchTerm.toLowerCase(),
-                                      ),
+                                  {users.filter(
+                                    (user) =>
+                                      user.categories?.includes(
+                                        UserCategory.MUSICIAN,
+                                      ) &&
+                                      `${user.firstName} ${user.lastName}`
+                                        .toLowerCase()
+                                        .includes(
+                                          getMusicianUserDropdownState(
+                                            index,
+                                          ).searchTerm.toLowerCase(),
+                                        ),
                                   ).length === 0 && (
                                     <div className="px-3 py-2 text-sm text-gray-500">
                                       Aucun utilisateur trouvé

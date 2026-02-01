@@ -8,6 +8,7 @@ import {
 } from 'react-icons/fa';
 
 import type { Song } from '@/lib/library/logic';
+import { useSongPerformanceCount } from '@/lib/library/logic';
 import { exportSongToPDF } from '@/lib/library/pdf-export';
 
 interface SongDetailProps {
@@ -23,6 +24,10 @@ const SongDetail: React.FC<SongDetailProps> = ({
   onDelete,
   canDelete,
 }) => {
+  const { performanceCount, isLoading: countLoading } = useSongPerformanceCount(
+    song.id,
+  );
+
   const handleExportPDF = async () => {
     try {
       await exportSongToPDF(song);
@@ -138,15 +143,21 @@ const SongDetail: React.FC<SongDetailProps> = ({
               <label className="block text-sm font-medium text-gray-600">
                 Fois Interprété
               </label>
-              <p className="text-gray-800">{song.performed}</p>
+              <p className="text-gray-800">
+                {countLoading
+                  ? '...'
+                  : performanceCount?.actualCount ?? song.performed}
+              </p>
             </div>
-            {song.lastPerformance && (
+            {(performanceCount?.lastPerformed ?? song.lastPerformance) && (
               <div>
                 <label className="block text-sm font-medium text-gray-600">
                   Dernière Performance
                 </label>
                 <p className="text-gray-800">
-                  {new Date(song.lastPerformance).toLocaleDateString('fr-FR')}
+                  {new Date(
+                    performanceCount?.lastPerformed ?? song.lastPerformance!,
+                  ).toLocaleDateString('fr-FR')}
                 </p>
               </div>
             )}

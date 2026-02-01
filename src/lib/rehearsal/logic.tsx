@@ -382,17 +382,71 @@ export const getMusicalKeyOptions = () => {
   });
 };
 
+const instrumentTranslations: Record<InstrumentType, string> = {
+  [InstrumentType.ACOUSTIC_GUITAR]: 'Accoustique',
+  [InstrumentType.BASS]: 'Basse',
+  [InstrumentType.DRUMS]: 'Batterie',
+  [InstrumentType.GUITAR]: 'Guitar',
+  [InstrumentType.PIANO]: 'Piano principal',
+  [InstrumentType.ELECTRIC_PIANO]: 'Piano auxiliaire',
+  [InstrumentType.SAXOPHONE]: 'Sax',
+  [InstrumentType.KEYBOARD]: 'Solo',
+  [InstrumentType.VIOLIN]: 'Violon',
+  [InstrumentType.OTHER]: 'Autre',
+};
+
+export const getInstrumentLabel = (instrument: InstrumentType): string => {
+  return instrumentTranslations[instrument] || instrument;
+};
+
 export const getInstrumentOptions = () => {
   const options: { value: InstrumentType; label: string }[] = [];
 
   Object.values(InstrumentType).forEach((instrument) => {
     options.push({
       value: instrument,
-      label: instrument,
+      label: instrumentTranslations[instrument] || instrument,
     });
   });
 
   return options;
+};
+
+// ============================================================================
+// MUSICIAN HELPER FUNCTIONS
+// ============================================================================
+
+/**
+ * Get display name for a musician (registered user or external)
+ */
+export const getMusicianDisplayName = (musician: {
+  user?: { firstName: string; lastName: string } | null;
+  musicianName?: string | null;
+}): string => {
+  if (musician.user) {
+    return `${musician.user.firstName} ${musician.user.lastName}`;
+  }
+  return musician.musicianName || 'Musicien inconnu';
+};
+
+/**
+ * Check if a musician is external (not a registered user)
+ */
+export const isExternalMusician = (musician: {
+  user?: { firstName: string; lastName: string } | null;
+  musicianName?: string | null;
+}): boolean => {
+  return musician.user === null && musician.musicianName !== null;
+};
+
+/**
+ * Check if a musician is a registered user
+ */
+export const isRegisteredUser = (musician: {
+  user?: { firstName: string; lastName: string } | null;
+  musicianName?: string | null;
+}): boolean => {
+  return musician.user !== null;
 };
 
 export const getRehearsalTypeOptions = () => {

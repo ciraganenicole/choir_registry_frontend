@@ -245,7 +245,16 @@ const UsersManagement: React.FC = () => {
 
   const exportUsers = async () => {
     try {
-      const AllUsers = await FetchUsers({ ...filters, limit: totalUsers });
+      const AllUsers = await FetchUsers({
+        ...filters,
+        limit: totalUsers,
+        isActive: true,
+      });
+
+      if (!AllUsers || !AllUsers.data || AllUsers.data.length === 0) {
+        console.warn('No users to export');
+        return;
+      }
 
       const doc = new JSPDF({
         orientation: 'landscape',
@@ -299,10 +308,9 @@ const UsersManagement: React.FC = () => {
         'Téléphone',
         'WhatsApp',
         'Commissions',
-        'Catégories',
+        'Email',
         'Profession',
         "Niveau d'études",
-        'Statut',
         'Adresse',
       ];
 
@@ -322,10 +330,9 @@ const UsersManagement: React.FC = () => {
           user.phoneNumber || '-',
           user.whatsappNumber || '-',
           (user.commissions || []).map(translateCommission).join('; ') || '-',
-          (user.categories || []).map(translateCategory).join('; ') || '-',
+          user.email || '-',
           translateProfession(user.profession || Profession.UNEMPLOYED),
           translateEducationLevel(user.educationLevel || EducationLevel.NONE),
-          user.isActive ? 'Actif' : 'Inactif',
           fullAddress,
         ];
       });
@@ -357,13 +364,11 @@ const UsersManagement: React.FC = () => {
           3: { cellWidth: 20, halign: 'center' }, // Matricule
           4: { cellWidth: 25 }, // Téléphone
           5: { cellWidth: 25 }, // WhatsApp
-          6: { cellWidth: 25 }, // Email
-          7: { cellWidth: 25 }, // Commissions
-          8: { cellWidth: 20 }, // Catégories
-          9: { cellWidth: 20 }, // Profession
-          10: { cellWidth: 20 }, // Niveau d'études
-          12: { cellWidth: 15, halign: 'center' }, // Statut
-          11: { cellWidth: 40 }, // Adresse
+          6: { cellWidth: 25 }, // Commissions
+          7: { cellWidth: 30 }, // Email
+          8: { cellWidth: 20 }, // Profession
+          9: { cellWidth: 20 }, // Niveau d'études
+          10: { cellWidth: 40 }, // Adresse
         },
         didParseCell: (hookData: CellHookData) => {
           const styles = { ...hookData.cell.styles };
@@ -448,11 +453,11 @@ const UsersManagement: React.FC = () => {
           delete: 'text-red-500 hover:text-red-700',
         };
 
-    const iconClasses = isMobile ? 'size-4 md:size-5' : '';
+    const iconClasses = isMobile ? 'size-3 md:size-4' : '';
 
     return (
       <div
-        className={`flex items-center ${isMobile ? 'justify-end space-x-6' : 'space-x-4 px-4 py-3'}`}
+        className={`flex items-center ${isMobile ? 'justify-end space-x-6' : 'space-x-2 px-1 py-3'}`}
       >
         <button
           onClick={() => handleView(viewedUser)}
@@ -718,7 +723,7 @@ const UsersManagement: React.FC = () => {
                           user.categories.map((category) => (
                             <span
                               key={category}
-                              className="rounded-full bg-purple-100 px-3 py-1 text-xs text-purple-800"
+                              className="rounded-full bg-purple-100 px-2 py-0.5 text-[10px] text-purple-800"
                             >
                               {translateCategory(category)}
                             </span>
@@ -729,10 +734,10 @@ const UsersManagement: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-4 py-3">{user.gender}</td>
-                    <td className="px-4 py-3">{user.matricule}</td>
-                    <td className="px-4 py-3">{user.commissions}</td>
-                    <td className="px-4 py-3">{user.phoneNumber}</td>
-                    <td className="px-4 py-3">{user.address}</td>
+                    <td className="px-4 py-3 text-xs">{user.matricule}</td>
+                    <td className="px-4 py-3 text-xs">{user.commissions}</td>
+                    <td className="px-4 py-3 text-xs">{user.phoneNumber}</td>
+                    <td className="px-4 py-3 text-xs">{user.address}</td>
                     <td className="px-4 py-3">{getStatusIndicator(user)}</td>
                     <td className="px-4 py-3">
                       {renderActionButtons(user, false)}
